@@ -13,7 +13,8 @@ const Logo = ({ className = '', showText = true, showSubtitle = false, size = 'm
     lg: 'text-3xl',
   };
 
-  const logoIconUrl = 'http://localhost:3845/assets/9ed96c14ba2958d883780a9c0c0290dce11a682c.svg';
+  // Use relative path for logo (works in both dev and production)
+  const logoIconUrl = '/logo-icon.svg';
 
   return (
     <Link to="/" className={`flex items-center gap-4 ${className}`}>
