@@ -213,7 +213,7 @@ const SavedSessions = () => {
   return (
     <div className="space-y-6 px-4 md:px-0">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Моят график</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Моят график</h1>
       </div>
 
       <ToastComponent />
@@ -225,21 +225,21 @@ const SavedSessions = () => {
             <button
               type="button"
               onClick={selectAllBookings}
-              className="text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+              className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
             >
-              Маркирай всички тренировки
+              Маркирай всички
             </button>
             {selectedBookingIds.length > 0 && (
               <>
-                <span className="text-gray-400">|</span>
+                <span className="text-gray-400 text-xs md:text-sm">|</span>
                 <button
                   type="button"
                   onClick={clearAllSelectedBookings}
-                  className="text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+                  className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
                 >
                   Изчисти всички
                 </button>
-                <span className="text-gray-400">|</span>
+                <span className="text-gray-400 text-xs md:text-sm">|</span>
                 <Button
                   onClick={handleBulkCancel}
                   variant="danger"
@@ -290,7 +290,7 @@ const SavedSessions = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
               <Button
                 type="button"
                 variant="secondary"
@@ -298,6 +298,7 @@ const SavedSessions = () => {
                   setShowCancelModal(false);
                 }}
                 disabled={isCancelling}
+                className="w-full sm:w-auto"
               >
                 Отказ
               </Button>
@@ -306,6 +307,7 @@ const SavedSessions = () => {
                 variant="danger"
                 onClick={confirmBulkCancel}
                 disabled={isCancelling || selectedBookingIds.length === 0}
+                className="w-full sm:w-auto"
               >
                 {isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
               </Button>

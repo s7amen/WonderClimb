@@ -4,9 +4,9 @@ import logger from '../middleware/logging.js';
 
 /**
  * Register a new user
- * Automatically assigns "climber" role to all new users
+ * If roles are provided, uses them; otherwise automatically assigns "climber" role
  */
-export const registerUser = async (email, password, firstName, middleName, lastName) => {
+export const registerUser = async (email, password, firstName, middleName, lastName, roles = null) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
@@ -16,14 +16,17 @@ export const registerUser = async (email, password, firstName, middleName, lastN
   // Hash password
   const passwordHash = await User.hashPassword(password);
 
-  // Create user with automatic "climber" role
+  // Determine roles - use provided roles or default to climber
+  const userRoles = Array.isArray(roles) && roles.length > 0 ? roles : ['climber'];
+
+  // Create user
   const user = await User.create({
     email: email.toLowerCase().trim(),
     passwordHash,
     firstName: firstName.trim(),
     middleName: middleName ? middleName.trim() : null,
     lastName: lastName.trim(),
-    roles: ['climber'], // Automatically assign climber role
+    roles: userRoles,
     accountStatus: 'active',
   });
 

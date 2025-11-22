@@ -148,14 +148,14 @@ const Attendance = () => {
             {roster.map((s) => (
               <Card key={s._id}>
                 <div className="px-6 py-6">
-                  <div className="flex justify-between items-center">
-                    <div>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex-1">
                       <h3 className="text-base font-medium text-neutral-950 mb-1">{s.title}</h3>
                       <p className="text-sm" style={{ color: '#4a5565' }}>
                         {format(new Date(s.date), 'PPpp')}
                       </p>
                     </div>
-                    <Button onClick={() => navigate(`/coach/attendance/${s._id}`)} className="rounded-lg" style={{ backgroundColor: '#ea7a24', color: 'white' }}>
+                    <Button variant="primary" onClick={() => navigate(`/coach/attendance/${s._id}`)} className="w-full sm:w-auto">
                       Отбележи присъствие
                     </Button>
                   </div>
@@ -171,8 +171,8 @@ const Attendance = () => {
   // Show attendance marking interface
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="space-y-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-2 flex-1">
           <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Отбележи присъствие</h1>
           {session && (
             <p className="text-base leading-6" style={{ color: '#4a5565' }}>
@@ -180,7 +180,7 @@ const Attendance = () => {
             </p>
           )}
         </div>
-        <Button variant="secondary" onClick={() => navigate('/coach/attendance')} className="rounded-lg">
+        <Button variant="secondary" onClick={() => navigate('/coach/attendance')} className="w-full sm:w-auto">
           Назад към сесиите
         </Button>
       </div>
@@ -222,18 +222,18 @@ const Attendance = () => {
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2 w-full sm:w-auto">
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                         <Button
                           variant={currentStatus === 'present' ? 'success' : 'secondary'}
                           onClick={() => handleQuickMark(climberId, 'present')}
-                          className="flex-1 sm:flex-none min-w-[100px] text-sm py-2 rounded-lg"
+                          className="w-full sm:flex-none sm:min-w-[100px]"
                         >
                           ✓ Присъства
                         </Button>
                         <Button
                           variant={currentStatus === 'absent' ? 'danger' : 'secondary'}
                           onClick={() => handleQuickMark(climberId, 'absent')}
-                          className="flex-1 sm:flex-none min-w-[100px] text-sm py-2 rounded-lg"
+                          className="w-full sm:flex-none sm:min-w-[100px]"
                         >
                           ✗ Отсъства
                         </Button>
@@ -250,8 +250,7 @@ const Attendance = () => {
               variant="primary"
               onClick={handleSave}
               disabled={saving}
-              className="px-8 rounded-lg"
-              style={{ backgroundColor: '#ea7a24', color: 'white' }}
+              className="w-full sm:w-auto px-8"
             >
               {saving ? 'Запазване...' : 'Запази всички'}
             </Button>

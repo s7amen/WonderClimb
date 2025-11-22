@@ -229,21 +229,21 @@ const Bookings = () => {
             <button
               type="button"
               onClick={selectAllBookings}
-              className="text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+              className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
             >
-              Маркирай всички тренировки
+              Маркирай всички
             </button>
             {selectedBookingIds.length > 0 && (
               <>
-                <span className="text-gray-400">|</span>
+                <span className="text-gray-400 text-xs md:text-sm">|</span>
                 <button
                   type="button"
                   onClick={clearAllSelectedBookings}
-                  className="text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+                  className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
                 >
                   Изчисти всички
                 </button>
-                <span className="text-gray-400">|</span>
+                <span className="text-gray-400 text-xs md:text-sm">|</span>
                 <Button
                   onClick={handleBulkCancel}
                   variant="danger"

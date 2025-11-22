@@ -70,7 +70,7 @@ const TodaysSessions = () => {
                     </div>
                     <div className="ml-4">
                       <Link to={`/coach/attendance/${session._id}`}>
-                        <Button variant="primary" className="text-white rounded-lg" style={{ backgroundColor: '#ea7a24' }}>
+                        <Button variant="primary">
                           Отбележи присъствие
                         </Button>
                       </Link>

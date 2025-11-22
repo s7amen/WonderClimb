@@ -29,7 +29,7 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
     }
 
     const users = await User.find(query)
-      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photo photoHistory clubMembership createdAt updatedAt')
+      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -47,6 +47,8 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
+        photos: user.photos || [],
+        // Legacy fields for backward compatibility
         photo: user.photo,
         photoHistory: user.photoHistory || [],
         clubMembership: user.clubMembership || { isCurrentMember: false, membershipHistory: [] },
@@ -67,7 +69,7 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
 router.get('/users/:id', requireRole('admin', 'coach', 'instructor'), async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photo photoHistory clubMembership createdAt updatedAt')
+      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
       .lean();
 
     if (!user) {
@@ -92,6 +94,8 @@ router.get('/users/:id', requireRole('admin', 'coach', 'instructor'), async (req
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
+        photos: user.photos || [],
+        // Legacy fields for backward compatibility
         photo: user.photo,
         photoHistory: user.photoHistory || [],
         clubMembership: user.clubMembership || { isCurrentMember: false, membershipHistory: [] },
@@ -233,7 +237,7 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    ).select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photo photoHistory clubMembership createdAt updatedAt').lean();
+    ).select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt').lean();
 
     if (!user) {
       return res.status(404).json({
@@ -264,6 +268,8 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
+        photos: user.photos || [],
+        // Legacy fields for backward compatibility
         photo: user.photo,
         photoHistory: user.photoHistory || [],
         clubMembership: user.clubMembership || { isCurrentMember: false, membershipHistory: [] },
@@ -323,7 +329,7 @@ router.put('/users/:id/roles', requireRole('admin'), async (req, res, next) => {
       req.params.id,
       { roles },
       { new: true, runValidators: true }
-    ).select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photo photoHistory clubMembership createdAt updatedAt').lean();
+    ).select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt').lean();
 
     if (!user) {
       return res.status(404).json({
@@ -354,6 +360,8 @@ router.put('/users/:id/roles', requireRole('admin'), async (req, res, next) => {
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
+        photos: user.photos || [],
+        // Legacy fields for backward compatibility
         photo: user.photo,
         photoHistory: user.photoHistory || [],
         clubMembership: user.clubMembership || { isCurrentMember: false, membershipHistory: [] },

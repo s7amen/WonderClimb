@@ -30,6 +30,9 @@ export default {
           100: '#f3f3f5', // Figma light gray for inputs
           950: '#35383d', // Figma dark text
         },
+        green: {
+          brand: '#adb933', // Figma secondary button color
+        },
       },
       fontFamily: {
         rubik: ['Rubik', 'sans-serif'],

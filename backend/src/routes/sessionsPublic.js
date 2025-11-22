@@ -1,11 +1,10 @@
 import express from 'express';
-import { authenticate } from '../middleware/auth.js';
 import { getAvailableSessions, getSessionById } from '../services/sessionService.js';
+import logger from '../middleware/logging.js';
 
 const router = express.Router();
 
-// All routes require authentication
-router.use(authenticate);
+// Public routes - no authentication required
 
 /**
  * GET /api/v1/sessions
@@ -19,9 +18,15 @@ router.get('/', async (req, res, next) => {
       coachId: req.query.coachId,
     };
 
+    logger.info({ filters, query: req.query }, 'Public sessions endpoint called');
+
     const sessions = await getAvailableSessions(filters);
+    
+    logger.info({ sessionCount: sessions.length }, 'Returning sessions from public endpoint');
+    
     res.json({ sessions });
   } catch (error) {
+    logger.error({ error: error.message, stack: error.stack }, 'Error in public sessions endpoint');
     next(error);
   }
 });

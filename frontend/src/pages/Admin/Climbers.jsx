@@ -41,6 +41,9 @@ const Climbers = () => {
   // Sorting state
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Mobile card expansion state
+  const [expandedCards, setExpandedCards] = useState(new Set());
 
   const isAdmin = currentUser?.roles?.includes('admin');
 
@@ -265,16 +268,24 @@ const Climbers = () => {
     if (!isAdmin) return;
 
     try {
-      await adminUsersAPI.update(editingUser.id, editForm);
+      const response = await adminUsersAPI.update(editingUser.id, editForm);
+      const updatedUser = response.data.user;
       
       const rolesChanged = JSON.stringify(rolesForm.sort()) !== JSON.stringify(editingUser.roles.sort());
       if (rolesChanged) {
         await adminUsersAPI.updateRoles(editingUser.id, rolesForm);
+        // Обновяваме ролите в updatedUser
+        updatedUser.roles = rolesForm;
       }
+      
+      // Обновяваме само редактирания потребител в масива
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
       
       showToast('Потребителят е обновен успешно', 'success');
       handleCancelEdit();
-      fetchUsers();
+      
+      // Скролваме до редактирания потребител
+      scrollToElement(`user-${editingUser.id}`);
     } catch (error) {
       showToast(
         error.response?.data?.error?.message || 'Грешка при обновяване на потребителя',
@@ -323,36 +334,63 @@ const Climbers = () => {
     return age;
   };
 
+  // Helper функция за scroll до елемент
+  const scrollToElement = (elementId) => {
+    setTimeout(() => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
   const handleAddClimber = () => {
     showToast('Функционалността за добавяне на катерач ще бъде имплементирана скоро', 'info');
   };
 
+  const toggleCardExpansion = (userId) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
-    return <Loading text="Зареждане на потребители..." />;
+    return (
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Loading text="Зареждане на потребители..." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">
-            Регистрирани катерачи
-          </h1>
-          <p className="text-base leading-6" style={{ color: '#4a5565' }}>
-            Общо {filteredUsers.length} катерачи
-          </p>
-        </div>
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">
+              Регистрирани катерачи
+            </h1>
+            <p className="text-base leading-6" style={{ color: '#4a5565' }}>
+              Общо {filteredUsers.length} катерачи
+            </p>
+          </div>
         {isAdmin && (
-          <button
+          <Button
+            variant="primary"
             onClick={handleAddClimber}
-            className="h-9 px-3 rounded-lg text-white text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: '#ea7a24' }}
+            className="h-9 px-3 flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span>Добави катерач</span>
-          </button>
+          </Button>
         )}
       </div>
 
@@ -430,7 +468,147 @@ const Climbers = () => {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {filteredUsers.length === 0 ? (
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-500">
+            Няма намерени катерачи
+          </div>
+        ) : (
+          filteredUsers.map((user) => {
+            const isExpanded = expandedCards.has(user.id);
+            return (
+              <div
+                key={user.id}
+                id={`user-${user.id}`}
+                className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+              >
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <Link
+                        to={`/admin/climbers/${user.id}`}
+                        className="text-base font-medium text-neutral-950 hover:text-[#ea7a24] transition-colors"
+                      >
+                        {getUserFullName(user) || '-'}
+                      </Link>
+                      <div className="mt-1 text-sm text-[#4a5565]">
+                        {user.email || '-'}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {user.roles && user.roles.slice(0, 2).map((role) => (
+                          <span
+                            key={role}
+                            className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium border"
+                            style={{ backgroundColor: '#eddcca', borderColor: '#eddcca', color: '#35383d' }}
+                          >
+                            {getRoleLabel(role)}
+                          </span>
+                        ))}
+                        {user.roles && user.roles.length > 2 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium text-[#4a5565]">
+                            +{user.roles.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2">
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleEditClick(user)}
+                          className="inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 transition-colors"
+                          style={{ color: '#35383d' }}
+                          title="Редактирай"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => toggleCardExpansion(user.id)}
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 transition-colors"
+                        style={{ color: '#35383d' }}
+                      >
+                        <svg
+                          className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-[#4a5565]">Телефон:</span>
+                          <span className="ml-2 text-neutral-950">{user.phone || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#4a5565]">Дата на раждане:</span>
+                          <span className="ml-2 text-neutral-950">{user.dateOfBirth ? formatDate(user.dateOfBirth) : '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#4a5565]">Възраст:</span>
+                          <span className="ml-2 text-neutral-950">{user.dateOfBirth ? calculateAge(user.dateOfBirth) : '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#4a5565]">Статус:</span>
+                          <span
+                            className="ml-2 inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium text-white"
+                            style={{
+                              backgroundColor: user.accountStatus === 'active' ? '#eddcca' : '#99a1af',
+                              color: user.accountStatus === 'active' ? '#35383d' : 'white'
+                            }}
+                          >
+                            {user.accountStatus === 'active' ? 'Активен' : 'Неактивен'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[#4a5565]">Трениращ:</span>
+                          <span
+                            className="ml-2 inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium"
+                            style={{
+                              backgroundColor: user.isTrainee ? '#ea7a24' : '#d1d5dc',
+                              color: user.isTrainee ? 'white' : '#364153'
+                            }}
+                          >
+                            {user.isTrainee ? 'Да' : 'Не'}
+                          </span>
+                        </div>
+                      </div>
+                      {user.roles && user.roles.length > 0 && (
+                        <div>
+                          <span className="text-sm text-[#4a5565]">Всички роли:</span>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {user.roles.map((role) => (
+                              <span
+                                key={role}
+                                className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium border"
+                                style={{ backgroundColor: '#eddcca', borderColor: '#eddcca', color: '#35383d' }}
+                              >
+                                {getRoleLabel(role)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -518,7 +696,7 @@ const Climbers = () => {
                   >
                     <td className="px-2 py-4 text-center">
                       <Link 
-                        to={`/climbers/${user.id}`}
+                        to={`/admin/climbers/${user.id}`}
                         className="text-sm text-neutral-950 transition-colors font-medium inline-block"
                         style={{ color: 'inherit' }}
                         onMouseEnter={(e) => { e.currentTarget.style.color = '#ea7a24'; }}
@@ -605,15 +783,15 @@ const Climbers = () => {
       </div>
 
       {showEditModal && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div ref={modalRef} className="w-full max-w-5xl m-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div ref={modalRef} className="w-full max-w-5xl max-h-[90vh] overflow-y-auto">
             <Card className="w-full">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Редактиране на катерач</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Редактиране на катерач</h2>
               
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Име *
                     </label>
                     <input
@@ -626,8 +804,8 @@ const Climbers = () => {
                     />
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Презиме
                     </label>
                     <input
@@ -639,8 +817,8 @@ const Climbers = () => {
                     />
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Фамилия *
                     </label>
                     <input
@@ -653,8 +831,8 @@ const Climbers = () => {
                     />
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Имейл
                     </label>
                     <input
@@ -666,8 +844,8 @@ const Climbers = () => {
                     />
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Телефон
                     </label>
                     <input
@@ -679,8 +857,8 @@ const Climbers = () => {
                     />
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Дата на раждане
                     </label>
                     <input
@@ -693,8 +871,8 @@ const Climbers = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Акаунт статус
                     </label>
                     <select
@@ -707,8 +885,8 @@ const Climbers = () => {
                     </select>
                   </div>
 
-                  <div className="grid gap-3 items-center" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Трениращ
                     </label>
                     <select
@@ -721,8 +899,8 @@ const Climbers = () => {
                     </select>
                   </div>
 
-                  <div className="grid gap-3 items-start" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700 pt-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Роли *
                     </label>
                     <div className="space-y-2 border border-gray-200 rounded-md p-3">
@@ -740,8 +918,8 @@ const Climbers = () => {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 items-start" style={{ gridTemplateColumns: '120px 1fr' }}>
-                    <label className="text-sm font-medium text-gray-700 pt-2">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
                       Бележки
                     </label>
                     <textarea
@@ -755,16 +933,18 @@ const Climbers = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4 justify-end pt-6 mt-6 border-t">
+              <div className="flex flex-col sm:flex-row gap-4 justify-end pt-6 mt-6 border-t">
                 <Button
                   variant="secondary"
                   onClick={handleCancelEdit}
+                  className="w-full sm:w-auto"
                 >
                   Отказ
                 </Button>
                 <Button
                   variant="primary"
                   onClick={handleSave}
+                  className="w-full sm:w-auto"
                 >
                   Запази
                 </Button>
@@ -805,7 +985,8 @@ const Climbers = () => {
         </div>
       )}
 
-      <ToastComponent />
+        <ToastComponent />
+      </div>
     </div>
   );
 };

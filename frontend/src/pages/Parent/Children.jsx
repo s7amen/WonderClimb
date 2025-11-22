@@ -50,15 +50,30 @@ const Children = () => {
       };
 
       if (editingChild) {
-        await parentClimbersAPI.update(editingChild._id, childData);
+        const response = await parentClimbersAPI.update(editingChild._id, childData);
+        const updatedChild = response.data.climber;
+        
+        // Обновяваме само редактираното дете в масива
+        setChildren(prev => prev.map(c => c._id === editingChild._id ? updatedChild : c));
+        
         showToast('Детето е обновено успешно', 'success');
+        resetForm();
+        
+        // Скролваме до редактираното дете
+        scrollToElement(`child-${editingChild._id}`);
       } else {
-        await parentClimbersAPI.create(childData);
+        const response = await parentClimbersAPI.create(childData);
+        const newChild = response.data.climber;
+        
+        // Добавяме новото дете в масива
+        setChildren(prev => [...prev, newChild]);
+        
         showToast('Детето е добавено успешно', 'success');
+        resetForm();
+        
+        // Скролваме до новото дете
+        scrollToElement(`child-${newChild._id}`);
       }
-
-      resetForm();
-      fetchChildren();
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при запазване на дете', 'error');
     }
@@ -83,8 +98,11 @@ const Children = () => {
 
     try {
       await parentClimbersAPI.deactivate(childId);
+      
+      // Премахваме детето от масива
+      setChildren(prev => prev.filter(c => c._id !== childId));
+      
       showToast('Детето е изтрито успешно', 'success');
-      fetchChildren();
     } catch (error) {
       const errorMessage = error.response?.data?.error?.message || 'Грешка при изтриване на дете';
       showToast(errorMessage, 'error');
@@ -115,15 +133,25 @@ const Children = () => {
     return age;
   };
 
+  // Helper функция за scroll до елемент
+  const scrollToElement = (elementId) => {
+    setTimeout(() => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
   if (loading) {
     return <Loading text="Зареждане на деца..." />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Моите деца</h1>
-        <Button onClick={() => setShowForm(!showForm)}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Моите деца</h1>
+        <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
           {showForm ? 'Отказ' : 'Добави дете'}
         </Button>
       </div>
@@ -133,7 +161,7 @@ const Children = () => {
       {showForm && (
         <Card title={editingChild ? 'Редактирай дете' : 'Добави ново дете'}>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Input
                 label="Име"
                 value={formData.firstName}
@@ -172,11 +200,11 @@ const Children = () => {
               />
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <Button type="submit" variant="primary">
+            <div className="flex flex-col sm:flex-row gap-2 mt-4">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
                 {editingChild ? 'Обнови' : 'Добави дете'}
               </Button>
-              <Button type="button" variant="secondary" onClick={resetForm}>
+              <Button type="button" variant="secondary" onClick={resetForm} className="w-full sm:w-auto">
                 Отказ
               </Button>
             </div>
@@ -194,9 +222,9 @@ const Children = () => {
             const age = calculateAge(child.dateOfBirth);
             
             return (
-              <Card key={child._id}>
-                <div className="flex justify-between items-start">
-                  <div>
+              <Card key={child._id} id={`child-${child._id}`}>
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold">
                       {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
                     </h3>
@@ -215,11 +243,11 @@ const Children = () => {
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => handleEdit(child)}>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button variant="secondary" onClick={() => handleEdit(child)} className="w-full sm:w-auto">
                       Редактирай
                     </Button>
-                    <Button variant="danger" onClick={() => handleDelete(child._id)}>
+                    <Button variant="danger" onClick={() => handleDelete(child._id)} className="w-full sm:w-auto">
                       Изтрий
                     </Button>
                   </div>

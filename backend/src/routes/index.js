@@ -11,6 +11,9 @@ import adminSessionsRoutes from './adminSessions.js';
 import adminCalendarRoutes from './adminCalendar.js';
 import adminFinanceRoutes from './adminFinance.js';
 import adminUsersRoutes from './adminUsers.js';
+import climberPhotosRoutes from './climberPhotos.js';
+import competitionsRoutes from './competitions.js';
+import competitionPublicRoutes from './competitionPublic.js';
 import docsRoutes from './docs.js';
 
 const router = express.Router();
@@ -26,6 +29,7 @@ router.get('/', (req, res) => {
 // Public routes (no authentication required)
 router.use('/auth', authRoutes);
 router.use('/sessions', sessionsPublicRoutes);
+router.use('/competitions', competitionPublicRoutes);
 
 // Protected routes (require authentication)
 // IMPORTANT: Register bookingsRoutes on /bookings to avoid conflicts with other routes
@@ -41,6 +45,8 @@ router.use('/admin', adminSessionsRoutes);
 router.use('/admin', adminCalendarRoutes);
 router.use('/admin', adminFinanceRoutes);
 router.use('/admin', adminUsersRoutes);
+router.use('/admin', climberPhotosRoutes);
+router.use('/admin/competitions', competitionsRoutes);
 router.use('/api/v1', docsRoutes); // API docs
 
 export default router;

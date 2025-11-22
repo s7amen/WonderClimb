@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Auth/Login';
@@ -9,10 +10,16 @@ import AdminSessions from './pages/Admin/Sessions';
 import AdminCalendar from './pages/Admin/Calendar';
 import AdminClimbers from './pages/Admin/Climbers';
 import ClimberProfile from './pages/Admin/ClimberProfile';
+import Competitions from './pages/Admin/Competitions';
+import CompetitionDetail from './pages/Admin/CompetitionDetail';
+import PublicCompetition from './pages/Public/Competition';
+import PublicCompetitionDetail from './pages/Public/CompetitionDetail';
+import PublicSessions from './pages/Public/Sessions';
+import PublicSessions1 from './pages/Public/Sessions1';
 import CoachLayout from './components/Layout/CoachLayout';
 import CoachDashboard from './pages/Coach/Dashboard';
-import CoachTodaysSessions from './pages/Coach/TodaysSessions';
 import CoachAttendance from './pages/Coach/Attendance';
+import InstructorDashboard from './pages/Instructor/Dashboard';
 import ClimberLayout from './components/Layout/ClimberLayout';
 import ClimberDashboard from './pages/Climber/Dashboard';
 import ClimberSchedule from './pages/Climber/Schedule';
@@ -24,14 +31,17 @@ import ParentSchedule from './pages/Parent/Schedule';
 import ParentBookings from './pages/Parent/Bookings';
 import ParentSavedSessions from './pages/Parent/SavedSessions';
 import ParentSubscriptions from './pages/Parent/Subscriptions';
+import Profile from './pages/Profile/Profile';
+import MySessions from './pages/MySessions/MySessions';
+import HomePage from './pages/Home/HomePage';
+import PublicLandingPage from './pages/Home/Home';
 import Loading from './components/UI/Loading';
-import Logo from './components/UI/Logo';
+import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
-import { getHighestPriorityRole } from './utils/userUtils';
 
-// Home component that redirects authenticated users to their dashboard
+// Home component - always shows public landing page
 const Home = () => {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -41,92 +51,7 @@ const Home = () => {
     );
   }
 
-  if (isAuthenticated && user) {
-    // Redirect authenticated users to their highest priority role dashboard
-    const highestRole = getHighestPriorityRole(user);
-    
-    if (highestRole === 'admin') {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else if (highestRole === 'coach') {
-      return <Navigate to="/coach/dashboard" replace />;
-    } else if (highestRole === 'climber') {
-      return <Navigate to="/climber/dashboard" replace />;
-    }
-  }
-
-  // Show welcome page for non-authenticated users with Figma design
-  return (
-    <div className="min-h-screen bg-[#f3f3f5]">
-      {/* Header */}
-      <header className="bg-[#35383d] border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-[74px] py-4">
-            <Logo showText={true} size="md" />
-            <div className="flex items-center gap-4">
-              <Link
-                to="/login"
-                className="text-white hover:text-gray-200 transition-colors"
-              >
-                Влез
-              </Link>
-              <Link
-                to="/register"
-                className="bg-[#ea7a24] hover:bg-[#d86a1a] text-white px-4 py-2 rounded-[10px] transition-colors"
-              >
-                Регистрирай се
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-medium text-neutral-950 mb-4">
-            Добре дошли в WonderClimb
-          </h1>
-          <p className="text-lg text-[#4a5565]">
-            Управлявайте вашата катерачна зала ефективно
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-8">
-            <h2 className="text-2xl font-medium text-neutral-950 mb-4">За WonderClimb</h2>
-            <p className="text-[#4a5565] mb-6">
-              Професионална система за управление на катерачни зали и тренировки. 
-              Следете сесии, управлявайте катерачи и треньори, и организирайте вашата зала.
-            </p>
-          </div>
-          <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-8">
-            <h2 className="text-2xl font-medium text-neutral-950 mb-4">Започнете сега</h2>
-            <p className="text-[#4a5565] mb-6">
-              Регистрирайте се или влезте в системата, за да започнете да управлявате 
-              вашата катерачна зала.
-            </p>
-            <div className="flex gap-4">
-              <Link
-                to="/login"
-                className="flex-1 bg-[#35383d] hover:bg-[#2d3035] text-white px-6 py-3 rounded-[10px] text-center transition-colors"
-              >
-                Влез
-              </Link>
-              <Link
-                to="/register"
-                className="flex-1 bg-[#ea7a24] hover:bg-[#d86a1a] text-white px-6 py-3 rounded-[10px] text-center transition-colors"
-              >
-                Регистрирай се
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <Footer />
-    </div>
-  );
+  return <PublicLandingPage />;
 };
 
 function App() {
@@ -152,9 +77,36 @@ function App() {
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
 
-          {/* Root-level sessions route - accessible by admin and coach */}
+          {/* Root-level calendar route - accessible by all users */}
           <Route
-            path="/sessions"
+            path="/calendar"
+            element={<AdminLayout />}
+          >
+            <Route index element={<AdminCalendar />} />
+          </Route>
+
+          {/* Public routes - accessible without authentication */}
+          <Route path="/sessions" element={<PublicSessions />} />
+          <Route path="/sessions-1" element={<PublicSessions1 />} />
+          <Route path="/competitions" element={<PublicCompetition />} />
+          <Route path="/competitions/:id" element={<PublicCompetitionDetail />} />
+
+          {/* Admin competition routes - accessible by admin and coach */}
+          <Route
+            path="/admin/competitions"
+            element={
+              <ProtectedRoute requiredRoles={['admin', 'coach']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Competitions />} />
+            <Route path=":id" element={<CompetitionDetail />} />
+          </Route>
+
+          {/* Admin sessions route - accessible by admin and coach */}
+          <Route
+            path="/admin/sessions"
             element={
               <ProtectedRoute requiredRoles={['admin', 'coach']}>
                 <AdminLayout />
@@ -164,31 +116,9 @@ function App() {
             <Route index element={<AdminSessions />} />
           </Route>
 
-          {/* Root-level calendar route - accessible by admin and coach */}
+          {/* Admin climbers route - accessible by admin, coach, and instructor */}
           <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute requiredRoles={['admin', 'coach']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminCalendar />} />
-          </Route>
-
-          {/* Redirect old admin routes to new root-level routes */}
-          <Route
-            path="/admin/sessions"
-            element={<Navigate to="/sessions" replace />}
-          />
-          <Route
-            path="/admin/calendar"
-            element={<Navigate to="/calendar" replace />}
-          />
-
-          {/* Climbers route - accessible from main site */}
-          <Route
-            path="/climbers"
+            path="/admin/climbers"
             element={
               <ProtectedRoute requiredRoles={['admin', 'coach', 'instructor']}>
                 <AdminLayout />
@@ -199,10 +129,40 @@ function App() {
             <Route path=":id" element={<ClimberProfile />} />
           </Route>
 
-          {/* Redirect old admin/climbers route to new climbers route */}
+          {/* Universal routes - accessible by all authenticated users */}
           <Route
-            path="/admin/climbers"
-            element={<Navigate to="/climbers" replace />}
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
+                  <Header />
+                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+                    <Profile />
+                  </main>
+                  <Footer />
+                </div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-sessions"
+            element={
+              <ProtectedRoute>
+                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
+                  <Header />
+                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+                    <MySessions />
+                  </main>
+                  <Footer />
+                </div>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Redirect old admin/calendar route */}
+          <Route
+            path="/admin/calendar"
+            element={<Navigate to="/calendar" replace />}
           />
 
           <Route
@@ -214,10 +174,21 @@ function App() {
             }
           >
             <Route path="dashboard" element={<CoachDashboard />} />
-            <Route path="todays-sessions" element={<CoachTodaysSessions />} />
             <Route path="attendance" element={<CoachAttendance />} />
             <Route path="attendance/:sessionId" element={<CoachAttendance />} />
             <Route path="*" element={<Navigate to="/coach/dashboard" replace />} />
+          </Route>
+
+          <Route
+            path="/instructor"
+            element={
+              <ProtectedRoute requiredRoles={['instructor', 'admin']}>
+                <CoachLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="dashboard" element={<InstructorDashboard />} />
+            <Route path="*" element={<Navigate to="/instructor/dashboard" replace />} />
           </Route>
 
           <Route
@@ -237,7 +208,7 @@ function App() {
           <Route
             path="/parent"
             element={
-              <ProtectedRoute requiredRoles={['climber', 'parent', 'admin', 'coach']}>
+              <ProtectedRoute requiredRoles={['climber', 'admin', 'coach']}>
                 <ParentLayout />
               </ProtectedRoute>
             }

@@ -51,6 +51,11 @@ const sessionSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  targetGroups: {
+    type: [String],
+    enum: ['beginner', 'experienced', 'advanced'],
+    default: [],
+  },
 }, {
   timestamps: true,
 });

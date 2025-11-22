@@ -73,6 +73,25 @@ const userSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  photos: {
+    type: [{
+      filename: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      isMain: {
+        type: Boolean,
+        default: false,
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    default: [],
+  },
+  // Legacy fields - kept for backward compatibility during migration
   photo: {
     type: String,
     default: null,

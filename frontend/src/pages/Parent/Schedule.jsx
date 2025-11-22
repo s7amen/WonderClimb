@@ -1272,9 +1272,9 @@ const Schedule = () => {
                     onClick={handleBulkBook}
                     disabled={isBulkBooking || bulkBookingClimberIds.length === 0}
                     variant="primary"
-                    className="w-full md:w-auto"
+                    className="w-full md:w-auto text-xs md:text-sm"
                   >
-                    {isBulkBooking ? 'Резервиране...' : 'Запази място във всички маркирани тренировки'}
+                    {isBulkBooking ? 'Резервиране...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
                   </Button>
                 )}
                 <div className="flex flex-row gap-2 items-center">
@@ -1283,7 +1283,7 @@ const Schedule = () => {
                     onClick={selectAllFilteredSessions}
                     className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
                   >
-                    Маркирай всички тренировки
+                    Маркирай всички
                   </button>
                   {selectedSessionIds.length > 0 && (
                     <button

@@ -6,6 +6,8 @@ import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
+import SessionFilters from '../../components/Sessions/SessionFilters';
+import SessionList from '../../components/Sessions/SessionList';
 
 const Sessions = () => {
   const [sessions, setSessions] = useState([]);
@@ -34,6 +36,9 @@ const Sessions = () => {
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -43,6 +48,7 @@ const Sessions = () => {
     durationMinutes: 60,
     capacity: 10,
     coachIds: [],
+    targetGroups: [],
   });
 
   // Calculate default dates
@@ -65,15 +71,17 @@ const Sessions = () => {
     durationMinutes: 60,
     capacity: 10,
     coachIds: [],
+    targetGroups: [],
   });
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewSessions, setPreviewSessions] = useState([]);
   const [selectedSessions, setSelectedSessions] = useState(new Set());
 
-  // Get unique session titles for autocomplete
+  // Get unique session titles for autocomplete (only training sessions, not competitions)
   const getUniqueTitles = () => {
     const titles = sessions
+      .filter(s => s.type !== 'competition') // Ensure we only get training sessions
       .map(s => s.title)
       .filter((title, index, self) => title && self.indexOf(title) === index)
       .sort();
@@ -90,8 +98,12 @@ const Sessions = () => {
     try {
       setLoading(true);
       const response = await sessionsAPI.getAll();
-      console.log('Fetched sessions:', response.data);
-      setSessions(response.data.sessions || []);
+      // Filter out competitions and cancelled sessions - only show actual training sessions
+      const allEvents = response.data.sessions || [];
+      const trainingSessions = allEvents.filter(event => 
+        event.type !== 'competition' && event.status !== 'cancelled'
+      );
+      setSessions(trainingSessions);
     } catch (error) {
       console.error('Error fetching sessions:', error);
       console.error('Error response:', error.response?.data);
@@ -145,9 +157,21 @@ const Sessions = () => {
 
     try {
       await sessionsAPI.createManualBooking(sessionId, selectedClimberId);
+      
+      // Обновяваме само конкретната сесия в масива (увеличаваме bookedCount)
+      setSessions(prev => prev.map(s => {
+        if (s._id === sessionId) {
+          return {
+            ...s,
+            bookedCount: (s.bookedCount || 0) + 1
+          };
+        }
+        return s;
+      }));
+      
       showToast('Катерачът е резервиран успешно', 'success');
       setSelectedClimberForSession({ ...selectedClimberForSession, [sessionId]: '' });
-      fetchSessions();
+      
       if (viewingRoster === sessionId) {
         fetchRoster(sessionId);
       }
@@ -168,18 +192,43 @@ const Sessions = () => {
         durationMinutes: parseInt(formData.durationMinutes),
         capacity: parseInt(formData.capacity),
         coachIds: formData.coachIds,
+        targetGroups: formData.targetGroups,
       };
 
       if (editingSession) {
-        await sessionsAPI.update(editingSession._id, sessionData);
+        const response = await sessionsAPI.update(editingSession._id, sessionData);
+        const updatedSession = response.data.session;
+        
+        // Обновяваме само редактираната сесия в масива
+        setSessions(prev => prev.map(s => s._id === editingSession._id ? updatedSession : s));
+        
         showToast('Тренировката е обновена успешно', 'success');
+        resetForm();
+        setShowEditModal(false);
+        
+        // Скролваме до редактираната сесия
+        scrollToElement(`session-${editingSession._id}`);
       } else {
-        await sessionsAPI.create(sessionData);
+        const response = await sessionsAPI.create(sessionData);
+        const newSession = response.data.session;
+        
+        // Добавяме новата сесия в масива
+        setSessions(prev => {
+          const filtered = prev.filter(event => 
+            event.type !== 'competition' && event.status !== 'cancelled'
+          );
+          return [...filtered, newSession].sort((a, b) => 
+            new Date(a.date) - new Date(b.date)
+          );
+        });
+        
         showToast('Тренировката е създадена успешно', 'success');
+        resetForm();
+        setShowForm(false);
+        
+        // Скролваме до новата сесия
+        scrollToElement(`session-${newSession._id}`);
       }
-
-      resetForm();
-      fetchSessions();
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при запазване на тренировка', 'error');
     }
@@ -195,9 +244,10 @@ const Sessions = () => {
       durationMinutes: session.durationMinutes,
       capacity: session.capacity,
       coachIds: session.coachIds?.map(c => c._id || c) || [],
+      targetGroups: session.targetGroups || [],
     });
     setEditingSession(session);
-    setShowForm(true);
+    setShowEditModal(true);
   };
 
   const handleDeleteClick = (sessionId) => {
@@ -211,10 +261,13 @@ const Sessions = () => {
     setIsDeleting(true);
     try {
       await sessionsAPI.update(sessionToDelete, { status: 'cancelled' });
+      
+      // Премахваме сесията от масива (филтрираме я като cancelled)
+      setSessions(prev => prev.filter(s => s._id !== sessionToDelete));
+      
       showToast('Сесията е изтрита успешно', 'success');
       setShowDeleteModal(false);
       setSessionToDelete(null);
-      fetchSessions();
     } catch (error) {
       showToast('Грешка при изтриване на сесия', 'error');
     } finally {
@@ -237,15 +290,22 @@ const Sessions = () => {
     try {
       let successCount = 0;
       let errorCount = 0;
+      const successfulIds = [];
 
       for (const sessionId of selectedSessionIds) {
         try {
           await sessionsAPI.update(sessionId, { status: 'cancelled' });
+          successfulIds.push(sessionId);
           successCount++;
         } catch (error) {
           console.error('Error deleting session:', error);
           errorCount++;
         }
+      }
+
+      // Премахваме успешно изтритите сесии от масива
+      if (successfulIds.length > 0) {
+        setSessions(prev => prev.filter(s => !successfulIds.includes(s._id)));
       }
 
       if (errorCount === 0) {
@@ -256,7 +316,6 @@ const Sessions = () => {
 
       setSelectedSessionIds([]);
       setShowBulkDeleteModal(false);
-      fetchSessions();
     } catch (error) {
       showToast('Грешка при масово изтриване', 'error');
     } finally {
@@ -273,9 +332,11 @@ const Sessions = () => {
       durationMinutes: 60,
       capacity: 10,
       coachIds: [],
+      targetGroups: [],
     });
     setEditingSession(null);
     setShowForm(false);
+    setShowEditModal(false);
     setIsBulkMode(false);
   };
 
@@ -290,6 +351,7 @@ const Sessions = () => {
       durationMinutes: 60,
       capacity: 10,
       coachIds: [],
+      targetGroups: [],
     });
     setShowForm(false);
     setIsBulkMode(false);
@@ -384,6 +446,7 @@ const Sessions = () => {
 
       let successCount = 0;
       let errorCount = 0;
+      const newSessions = [];
 
       for (const session of sessionsToCreate) {
         try {
@@ -394,14 +457,28 @@ const Sessions = () => {
             durationMinutes: parseInt(bulkFormData.durationMinutes),
             capacity: parseInt(bulkFormData.capacity),
             coachIds: bulkFormData.coachIds,
+            targetGroups: bulkFormData.targetGroups,
           };
 
-          await sessionsAPI.create(sessionData);
+          const response = await sessionsAPI.create(sessionData);
+          newSessions.push(response.data.session);
           successCount++;
         } catch (error) {
           console.error('Error creating session:', error);
           errorCount++;
         }
+      }
+
+      // Добавяме новите сесии в масива
+      if (newSessions.length > 0) {
+        setSessions(prev => {
+          const filtered = prev.filter(event => 
+            event.type !== 'competition' && event.status !== 'cancelled'
+          );
+          return [...filtered, ...newSessions].sort((a, b) => 
+            new Date(a.date) - new Date(b.date)
+          );
+        });
       }
 
       if (errorCount === 0) {
@@ -411,7 +488,11 @@ const Sessions = () => {
       }
 
       resetBulkForm();
-      fetchSessions();
+      
+      // Скролваме до първата нова сесия ако има успешно създадени
+      if (newSessions.length > 0) {
+        scrollToElement(`session-${newSessions[0]._id}`);
+      }
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при създаване на тренировки', 'error');
     }
@@ -435,9 +516,21 @@ const Sessions = () => {
     });
   };
 
+  const toggleTargetGroup = (group) => {
+    setFormData({
+      ...formData,
+      targetGroups: formData.targetGroups.includes(group)
+        ? formData.targetGroups.filter(g => g !== group)
+        : [...formData.targetGroups, group],
+    });
+  };
+
   // Filter functions
   const getUniqueTimes = () => {
-    const times = sessions.map(session => format(new Date(session.date), 'HH:mm'));
+    // Only get times from training sessions, not competitions
+    const times = sessions
+      .filter(session => session.type !== 'competition')
+      .map(session => format(new Date(session.date), 'HH:mm'));
     return [...new Set(times)].sort();
   };
 
@@ -446,6 +539,11 @@ const Sessions = () => {
     const viewEndDate = addDays(today, daysToShow);
     
     return sessions.filter(session => {
+      // Exclude competitions - only show training sessions
+      if (session.type === 'competition') {
+        return false;
+      }
+
       const sessionDate = new Date(session.date);
       const sessionDay = sessionDate.getDay();
       const sessionTime = format(sessionDate, 'HH:mm');
@@ -551,7 +649,7 @@ const Sessions = () => {
   };
 
   const getBulgarianDayName = (date) => {
-    const dayNames = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
+    const dayNames = ['Нед', 'Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб'];
     return dayNames[date.getDay()];
   };
 
@@ -565,18 +663,34 @@ const Sessions = () => {
   };
 
   const toggleSessionSelectionForDelete = (sessionId) => {
-    setSelectedSessionIds(prev => 
-      prev.includes(sessionId)
-        ? prev.filter(id => id !== sessionId)
-        : [...prev, sessionId]
-    );
+    // Normalize sessionId to string for consistent comparison
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
+      ? sessionId.toString() 
+      : String(sessionId);
+    
+    setSelectedSessionIds(prev => {
+      const normalizedPrev = prev.map(id => 
+        typeof id === 'object' && id?.toString ? id.toString() : String(id)
+      );
+      
+      return normalizedPrev.includes(normalizedSessionId)
+        ? prev.filter(id => {
+            const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+            return normalizedId !== normalizedSessionId;
+          })
+        : [...prev, sessionId];
+    });
   };
 
   const selectAllFilteredSessions = () => {
     const filteredSessions = getFilteredSessions();
+    
+    // Get all filtered sessions (don't filter by status - include all)
     const availableSessionIds = filteredSessions
-      .filter(session => session.status === 'active')
-      .map(session => session._id);
+      .map(session => session._id || session.id)
+      .filter(id => id); // Remove any undefined/null IDs
+    
+    // Always select all available sessions
     setSelectedSessionIds(availableSessionIds);
   };
 
@@ -592,53 +706,118 @@ const Sessions = () => {
     return 0;
   };
 
+  // Helper функция за scroll до елемент
+  const scrollToElement = (elementId) => {
+    setTimeout(() => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100); // Малко забавяне за да се рендерира DOM-а
+  };
+
   if (loading) {
     return <Loading text="Зареждане на сесии..." />;
   }
 
+
   return (
-    <div className="space-y-6 px-4 md:px-0">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-base font-medium text-neutral-950 mb-1">Сесии</h1>
-          <p className="text-sm text-[#4a5565]">Управление на тренировки и сесии</p>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="mb-4">
+          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 leading-9">График</h1>
         </div>
-        <div className="flex gap-2">
+
+        {/* Action Buttons */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-2">
           {showForm && (
             <Button variant="secondary" onClick={() => {
               setShowForm(false);
               setIsBulkMode(false);
               setEditingSession(null);
               setShowPreviewModal(false);
-            }}>
+              resetForm();
+              resetBulkForm();
+            }} className="w-full sm:w-auto">
               Отказ
             </Button>
           )}
           {!showForm && (
-            <>
-              <Button onClick={() => {
-                setShowForm(true);
-                setIsBulkMode(false);
-                setEditingSession(null);
-              }}>
-                Нова тренировка
-              </Button>
-              <Button variant="secondary" onClick={() => {
-                setShowForm(true);
-                setIsBulkMode(true);
-                setEditingSession(null);
-              }}>
-                Нови тренировки
-              </Button>
-            </>
+            <Button onClick={() => {
+              setShowForm(true);
+              setIsBulkMode(false);
+              setEditingSession(null);
+            }} className="w-full sm:w-auto">
+              Нова тренировка
+            </Button>
           )}
         </div>
-      </div>
 
       <ToastComponent />
 
-      {showForm && (
-        <Card title={editingSession ? 'Редактирай тренировка' : (isBulkMode ? 'Създай нови тренировки' : 'Създай нова тренировка')}>
+      {showForm && !editingSession && (
+        <Card title={isBulkMode ? 'Създай нови тренировки' : 'Създай нова тренировка'}>
+          {!isBulkMode && (
+            <div className="mb-6 flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBulkMode(false);
+                    // Reset bulk form when switching to single mode
+                    if (isBulkMode) {
+                      setBulkFormData({
+                        title: '',
+                        description: '',
+                        daysOfWeek: [],
+                        startDate: getTodayDate(),
+                        endDate: getEndDate(),
+                        time: '',
+                        durationMinutes: 60,
+                        capacity: 10,
+                        coachIds: [],
+                        targetGroups: [],
+                      });
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-rubik font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    !isBulkMode
+                      ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
+                  }`}
+                >
+                  Една тренировка
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBulkMode(true);
+                    // Reset single form when switching to bulk mode
+                    if (!isBulkMode) {
+                      setFormData({
+                        title: '',
+                        description: '',
+                        date: '',
+                        time: '',
+                        durationMinutes: 60,
+                        capacity: 10,
+                        coachIds: [],
+                        targetGroups: [],
+                      });
+                    }
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-rubik font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    isBulkMode
+                      ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
+                  }`}
+                >
+                  Няколко тренировки
+                </button>
+              </div>
+            </div>
+          )}
           <form onSubmit={isBulkMode && !editingSession ? handleBulkSubmit : handleSubmit}>
             {isBulkMode && !editingSession ? (
               <>
@@ -704,7 +883,7 @@ const Sessions = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <Input
                     label="Начална дата"
                     type="date"
@@ -729,7 +908,7 @@ const Sessions = () => {
                   required
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
                     label="Продължителност (минути)"
                     type="number"
@@ -746,6 +925,39 @@ const Sessions = () => {
                     required
                     min={1}
                   />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Подходящо за
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'beginner', label: 'Начинаещи' },
+                      { value: 'experienced', label: 'Деца с опит' },
+                      { value: 'advanced', label: 'Напреднали' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setBulkFormData({
+                            ...bulkFormData,
+                            targetGroups: bulkFormData.targetGroups.includes(value)
+                              ? bulkFormData.targetGroups.filter(g => g !== value)
+                              : [...bulkFormData.targetGroups, value],
+                          });
+                        }}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                          bulkFormData.targetGroups.includes(value)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mb-4">
@@ -783,11 +995,11 @@ const Sessions = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-4">
-                  <Button type="submit" variant="primary">
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                  <Button type="submit" variant="primary" className="w-full sm:w-auto">
                     Създай
                   </Button>
-                  <Button type="button" variant="secondary" onClick={resetBulkForm}>
+                  <Button type="button" variant="secondary" onClick={resetBulkForm} className="w-full sm:w-auto">
                     Отказ
                   </Button>
                 </div>
@@ -826,7 +1038,7 @@ const Sessions = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Дата"
                 type="date"
@@ -843,7 +1055,7 @@ const Sessions = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Продължителност (минути)"
                 type="number"
@@ -860,6 +1072,32 @@ const Sessions = () => {
                 required
                 min={1}
               />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Подходящо за
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'beginner', label: 'Начинаещи' },
+                  { value: 'experienced', label: 'Деца с опит' },
+                  { value: 'advanced', label: 'Напреднали' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleTargetGroup(value)}
+                    className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                      formData.targetGroups.includes(value)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="mb-4">
@@ -890,11 +1128,11 @@ const Sessions = () => {
               </div>
             </div>
 
-                <div className="flex gap-2 mt-4">
-                  <Button type="submit" variant="primary">
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                  <Button type="submit" variant="primary" className="w-full sm:w-auto">
                     {editingSession ? 'Обнови' : 'Създай'}
                   </Button>
-                  <Button type="button" variant="secondary" onClick={resetForm}>
+                  <Button type="button" variant="secondary" onClick={resetForm} className="w-full sm:w-auto">
                     Отказ
                   </Button>
                 </div>
@@ -906,9 +1144,9 @@ const Sessions = () => {
 
       {/* Preview Confirmation Modal */}
       {showPreviewModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-4">Преглед на тренировките за създаване</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4">Преглед на тренировките за създаване</h2>
             <p className="text-gray-600 mb-4">
               Избрани <strong>{selectedSessions.size}</strong> от <strong>{previewSessions.length}</strong> тренировки:
             </p>
@@ -936,14 +1174,15 @@ const Sessions = () => {
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setShowPreviewModal(false)}>
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
+              <Button variant="secondary" onClick={() => setShowPreviewModal(false)} className="w-full sm:w-auto">
                 Отказ
               </Button>
               <Button 
                 variant="primary" 
                 onClick={confirmBulkCreate}
                 disabled={selectedSessions.size === 0}
+                className="w-full sm:w-auto"
               >
                 Потвърди ({selectedSessions.size})
               </Button>
@@ -956,7 +1195,7 @@ const Sessions = () => {
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Потвърждение на изтриване</h2>
+            <h2 className="text-lg sm:text-xl font-bold mb-4">Потвърждение на изтриване</h2>
             
             {sessionToDelete && (() => {
               const session = sessions.find(s => s._id === sessionToDelete);
@@ -980,7 +1219,7 @@ const Sessions = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
               <Button
                 type="button"
                 variant="secondary"
@@ -989,6 +1228,7 @@ const Sessions = () => {
                   setSessionToDelete(null);
                 }}
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 Отказ
               </Button>
@@ -997,6 +1237,7 @@ const Sessions = () => {
                 variant="danger"
                 onClick={confirmDeleteSession}
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 {isDeleting ? 'Изтриване...' : 'Потвърди изтриване'}
               </Button>
@@ -1009,7 +1250,7 @@ const Sessions = () => {
       {showBulkDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Потвърждение на масово изтриване</h2>
+            <h2 className="text-lg sm:text-xl font-bold mb-4">Потвърждение на масово изтриване</h2>
             
             <div className="mb-4">
               <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки за изтриване:</h3>
@@ -1035,12 +1276,13 @@ const Sessions = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex flex-col sm:flex-row gap-2 justify-end">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => setShowBulkDeleteModal(false)}
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 Отказ
               </Button>
@@ -1049,6 +1291,7 @@ const Sessions = () => {
                 variant="danger"
                 onClick={confirmBulkDelete}
                 disabled={isDeleting}
+                className="w-full sm:w-auto"
               >
                 {isDeleting ? 'Изтриване...' : `Потвърди изтриване (${selectedSessionIds.length})`}
               </Button>
@@ -1057,445 +1300,244 @@ const Sessions = () => {
         </div>
       )}
 
-      {/* Schedule View */}
-      <div>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
-          <h2 className="text-base font-medium text-neutral-950">График на тренировки</h2>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-4 space-y-2">
-          {/* Days of week filter */}
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-sm font-medium text-gray-700">Дни:</span>
-            {selectedDays.length > 0 && (
-              <button
-                type="button"
-                onClick={() => selectAllFilter('day')}
-                className="px-2 py-1 text-xs rounded-md font-medium bg-green-100 text-green-700 hover:bg-green-200"
-              >
-                Избери всички
-              </button>
-            )}
-            {[1, 2, 3, 4, 5, 6, 0].map((day) => {
-              const dayNames = ['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'];
-              const dayIndex = day === 0 ? 6 : day - 1;
-              const isSelected = selectedDays.includes(day);
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => toggleFilter('day', day)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {dayNames[dayIndex]}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Time filter */}
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-sm font-medium text-gray-700">Час:</span>
-            {selectedTimes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => selectAllFilter('time')}
-                className="px-2 py-1 text-xs rounded-md font-medium bg-green-100 text-green-700 hover:bg-green-200"
-              >
-                Избери всички
-              </button>
-            )}
-            {getUniqueTimes().map((time) => {
-              const isSelected = selectedTimes.includes(time);
-              return (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => toggleFilter('time', time)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {time}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Title filter */}
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-sm font-medium text-gray-700">Тренировка:</span>
-            {selectedTitles.length > 0 && (
-              <button
-                type="button"
-                onClick={() => selectAllFilter('title')}
-                className="px-2 py-1 text-xs rounded-md font-medium bg-green-100 text-green-700 hover:bg-green-200"
-              >
-                Избери всички
-              </button>
-            )}
-            {getUniqueTitles().map((title) => {
-              const isSelected = selectedTitles.includes(title);
-              return (
-                <button
-                  key={title}
-                  type="button"
-                  onClick={() => toggleFilter('title', title)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors truncate max-w-[200px] ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                  title={title}
-                >
-                  {title}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Clear all filters button */}
-          {hasActiveFilters() && (
-            <div className="flex justify-center mt-3">
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors"
-              >
-                Премахни всички филтри
-              </button>
-            </div>
-          )}
-
-          {/* Bulk delete section */}
-          <div className="mt-6 pt-6 border-t-2 border-gray-300 space-y-3">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-              <div className="flex-1">
-                {selectedSessionIds.length > 0 && (
-                  <p className="text-sm text-gray-700">
-                    Избрани {selectedSessionIds.length} тренировки за изтриване
-                  </p>
-                )}
+      {/* Edit Session Modal */}
+      {showEditModal && editingSession && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">Редактирай тренировка</h2>
+            
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Заглавие
+                </label>
+                <input
+                  type="text"
+                  list="session-titles-edit"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Въведете или изберете заглавие"
+                  required
+                />
+                <datalist id="session-titles-edit">
+                  {getUniqueTitles().map((title, index) => (
+                    <option key={index} value={title} />
+                  ))}
+                </datalist>
               </div>
 
-              <div className="flex flex-col items-end md:items-end gap-2 w-full md:w-auto">
-                {selectedSessionIds.length > 0 && (
-                  <Button
-                    onClick={handleBulkDeleteClick}
-                    disabled={isDeleting}
-                    variant="danger"
-                    className="w-full md:w-auto"
-                  >
-                    {isDeleting ? 'Изтриване...' : 'Изтрий избраните тренировки'}
-                  </Button>
-                )}
-                <div className="flex flex-row gap-2 items-center">
-                  <button
-                    type="button"
-                    onClick={selectAllFilteredSessions}
-                    className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
-                  >
-                    Маркирай всички тренировки
-                  </button>
-                  {selectedSessionIds.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Описание
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <Input
+                  label="Дата"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Час"
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <Input
+                  label="Продължителност (минути)"
+                  type="number"
+                  value={formData.durationMinutes}
+                  onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                  required
+                  min={1}
+                />
+                <Input
+                  label="Капацитет"
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  required
+                  min={1}
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Подходящо за
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'beginner', label: 'Начинаещи' },
+                    { value: 'experienced', label: 'Деца с опит' },
+                    { value: 'advanced', label: 'Напреднали' },
+                  ].map(({ value, label }) => (
                     <button
+                      key={value}
                       type="button"
-                      onClick={clearAllSelectedSessions}
-                      className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+                      onClick={() => toggleTargetGroup(value)}
+                      className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                        formData.targetGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                     >
-                      Изчисти всички
+                      {label}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Треньори
+                </label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
+                  {coaches.length === 0 ? (
+                    <p className="text-sm text-gray-500">Няма налични треньори. Моля, създайте потребители треньори първо.</p>
+                  ) : (
+                    coaches.map((coach) => (
+                      <label key={coach.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.coachIds.includes(coach.id)}
+                          onChange={() => toggleCoach(coach.id)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">
+                          {coach.firstName && coach.lastName 
+                            ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
+                            : coach.name || coach.email}
+                          {coach.email && ` (${coach.email})`}
+                        </span>
+                      </label>
+                    ))
                   )}
                 </div>
               </div>
-            </div>
-          </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 justify-end mt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingSession(null);
+                    resetForm();
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Отказ
+                </Button>
+                <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                  Обнови
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
+      )}
 
-        <div className="space-y-4">
-          {(() => {
-            const groupedSessions = groupSessionsByDay();
-            const filteredSessions = getFilteredSessions();
-            const today = startOfDay(new Date());
-            const viewEndDate = addDays(today, daysToShow);
-            
-            const days = eachDayOfInterval({ start: today, end: viewEndDate });
-            
-            const hasResults = days.some(day => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayData = groupedSessions[dayKey];
-              return dayData && dayData.sessions.length > 0;
-            });
-            
-            if (hasActiveFilters() && !hasResults && filteredSessions.length === 0) {
-              return (
-                <Card>
-                  <div className="text-center py-12">
-                    <p className="text-gray-600 text-lg mb-2">Няма намерени тренировки с избраните филтри</p>
-                    <p className="text-gray-500 text-sm mb-4">Моля, опитайте с други филтри или премахнете филтрите</p>
-                    <button
-                      type="button"
-                      onClick={clearAllFilters}
-                      className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md font-medium transition-colors"
-                    >
-                      Премахни всички филтри
-                    </button>
-                  </div>
-                </Card>
-              );
-            }
-            
-            return days.map((day) => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayData = groupedSessions[dayKey];
-              const dayName = getBulgarianDayName(day);
-              const dayDate = format(day, 'dd/MM/yyyy');
-              
-              if (hasActiveFilters() && (!dayData || dayData.sessions.length === 0)) {
-                return null;
-              }
-              
-              return (
-                <div key={dayKey} className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-                  {/* Day Header */}
-                  <div className="bg-[#35383d] text-white px-4 py-3">
-                    <h3 className="text-base font-medium">
-                      {dayName} | {dayDate}
-                    </h3>
-                  </div>
+      {/* Filters Card */}
+      <SessionFilters
+        selectedDays={selectedDays}
+        selectedTimes={selectedTimes}
+        selectedTitles={selectedTitles}
+        getUniqueTimes={getUniqueTimes}
+        getUniqueTitles={getUniqueTitles}
+        toggleFilter={toggleFilter}
+        clearAllFilters={clearAllFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
 
-                  {/* Sessions List */}
-                  <div>
-                    {dayData && dayData.sessions.length > 0 ? (
-                      dayData.sessions.map((session, index) => {
-                        const bookedCount = getBookedCount(session._id);
-                        const availableSpots = session.capacity - bookedCount;
-                        const isFull = bookedCount >= session.capacity;
-                        const isEvenRow = index % 2 === 0;
-                        const isActive = session.status === 'active';
-                        const hasBookings = bookedCount > 0;
-                        const selectedClimberId = selectedClimberForSession[session._id] || '';
-                        
-                        return (
-                          <div
-                            key={session._id}
-                            className={`px-4 py-3 ${
-                              hasBookings 
-                                ? 'bg-green-50' 
-                                : (isEvenRow ? 'bg-white' : 'bg-orange-50')
-                            } border-b border-gray-100 last:border-b-0`}
-                          >
-                            {/* Mobile Layout */}
-                            <div className="md:hidden space-y-2">
-                              <div className="flex justify-between items-start">
-                                <div className="font-medium text-gray-900">
-                                  {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                                </div>
-                              </div>
-                              <div className="text-gray-800 font-medium">
-                                {session.title}
-                              </div>
-                              <div className="text-gray-600 text-sm">
-                                {bookedCount}/{session.capacity}
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                {isActive && (
-                                  <>
-                                    {/* First row: Dropdown and "Запази място" button */}
-                                    <div className="flex gap-2">
-                                      <select
-                                        value={selectedClimberId}
-                                        onChange={(e) => setSelectedClimberForSession({ ...selectedClimberForSession, [session._id]: e.target.value })}
-                                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md"
-                                      >
-                                        <option value="">Избери катерач...</option>
-                                        {allClimbers.map((climber) => (
-                                          <option key={climber._id} value={climber._id}>
-                                            {climber.firstName} {climber.lastName}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        onClick={() => handleManualBooking(session._id)}
-                                        disabled={!selectedClimberId}
-                                        className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:text-gray-400 whitespace-nowrap"
-                                      >
-                                        Запази място
-                                      </button>
-                                    </div>
-                                    {/* Second row: Other buttons and checkbox */}
-                                    <div className="flex gap-2 flex-wrap">
-                                      <button
-                                        onClick={() => viewingRoster === session._id ? setViewingRoster(null) : fetchRoster(session._id)}
-                                        className="text-gray-600 hover:text-gray-700 text-sm"
-                                      >
-                                        {viewingRoster === session._id ? 'Скрий списъка' : 'Виж списъка'}
-                                      </button>
-                                      <button
-                                        onClick={() => handleEdit(session)}
-                                        className="text-gray-600 hover:text-gray-700 text-sm"
-                                      >
-                                        Редактирай
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteClick(session._id)}
-                                        className="text-red-600 hover:text-red-700 text-sm"
-                                      >
-                                        Изтрий
-                                      </button>
-                                      <label className="flex items-center cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedSessionIds.includes(session._id)}
-                                          onChange={() => toggleSessionSelectionForDelete(session._id)}
-                                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        />
-                                      </label>
-                                    </div>
-                                  </>
-                                )}
-                                {!isActive && (
-                                  <span className="text-sm text-gray-500">Отменена</span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Desktop Layout */}
-                            <div className="hidden md:grid md:grid-cols-5 gap-4 items-center">
-                              {/* Time */}
-                              <div className="font-medium text-gray-900">
-                                {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                              </div>
-                              
-                              {/* Activity Name */}
-                              <div className="text-gray-800">
-                                {session.title}
-                              </div>
-                              
-                              {/* Available Spots */}
-                              <div className="text-gray-600">
-                                {bookedCount}/{session.capacity}
-                              </div>
-                              
-                              {/* All controls in one column - dropdown, buttons, checkbox */}
-                              {isActive && (
-                                <div className="flex flex-col gap-2">
-                                  {/* First row: Dropdown and "Запази място" button */}
-                                  <div className="flex items-center gap-2">
-                                    <select
-                                      value={selectedClimberId}
-                                      onChange={(e) => setSelectedClimberForSession({ ...selectedClimberForSession, [session._id]: e.target.value })}
-                                      className="px-2 py-1.5 text-sm border border-gray-300 rounded-md h-8 flex-1"
-                                    >
-                                      <option value="">Избери катерач...</option>
-                                      {allClimbers.map((climber) => (
-                                        <option key={climber._id} value={climber._id}>
-                                          {climber.firstName} {climber.lastName}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <button
-                                      onClick={() => handleManualBooking(session._id)}
-                                      disabled={!selectedClimberId}
-                                      className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:text-gray-400 whitespace-nowrap border border-blue-600 rounded-md h-8 disabled:border-gray-300"
-                                    >
-                                      Запази място
-                                    </button>
-                                  </div>
-                                  {/* Second row: Other buttons and checkbox */}
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <button
-                                      onClick={() => viewingRoster === session._id ? setViewingRoster(null) : fetchRoster(session._id)}
-                                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700 whitespace-nowrap border border-gray-300 rounded-md h-8"
-                                    >
-                                      {viewingRoster === session._id ? 'Скрий списъка' : 'Виж списъка'}
-                                    </button>
-                                    <button
-                                      onClick={() => handleEdit(session)}
-                                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700 whitespace-nowrap border border-gray-300 rounded-md h-8"
-                                    >
-                                      Редактирай
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteClick(session._id)}
-                                      className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 whitespace-nowrap border border-red-600 rounded-md h-8"
-                                    >
-                                      Изтрий
-                                    </button>
-                                    <label className="flex items-center cursor-pointer h-8">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedSessionIds.includes(session._id)}
-                                        onChange={() => toggleSessionSelectionForDelete(session._id)}
-                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                      />
-                                    </label>
-                                  </div>
-                                </div>
-                              )}
-                              {!isActive && (
-                                <div className="text-sm text-gray-500">Отменена</div>
-                              )}
-                            </div>
-
-                            {/* Roster View */}
-                            {viewingRoster === session._id && (
-                              <div className="mt-4 pt-4 border-t border-gray-200">
-                                <h4 className="font-semibold mb-3">Регистрирани катерачи ({roster.length})</h4>
-                                {roster.length === 0 ? (
-                                  <p className="text-gray-500 text-sm">Все още няма регистрирани катерачи</p>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {roster.map((item) => {
-                                      const climber = item.climber || item;
-                                      const bookedBy = item.bookedBy;
-                                      return (
-                                        <div key={item.bookingId || climber._id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                                          <div>
-                                            <span className="font-medium">{climber.firstName} {climber.lastName}</span>
-                                            {climber.dateOfBirth && (
-                                              <span className="text-sm text-gray-500 ml-2">
-                                                (Възраст: {new Date().getFullYear() - new Date(climber.dateOfBirth).getFullYear()})
-                                              </span>
-                                            )}
-                                            {bookedBy && (
-                                              <span className="text-xs text-gray-400 ml-2">
-                                                Резервирано от: {
-                                                  bookedBy.firstName && bookedBy.lastName
-                                                    ? `${bookedBy.firstName} ${bookedBy.middleName || ''} ${bookedBy.lastName}`.trim()
-                                                    : bookedBy.name || bookedBy.email
-                                                }
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="px-4 py-6 text-center text-gray-500 bg-gray-50">
-                        Няма налични тренировки за този ден
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            });
-          })()}
+      {/* Bulk Actions */}
+      <div className="flex justify-between items-center mb-4 px-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={selectAllFilteredSessions}
+            className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+          >
+            Маркирай всички
+          </button>
+          {selectedSessionIds.length > 0 && (
+            <>
+              <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+              <button
+                type="button"
+                onClick={clearAllSelectedSessions}
+                className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+              >
+                Изчисти всички
+              </button>
+            </>
+          )}
         </div>
+        <div className="text-base text-[#45556c] leading-6">
+          Общо {getFilteredSessions().length} налични сесии
+        </div>
+      </div>
+
+      {/* Bulk Delete Button */}
+      {selectedSessionIds.length > 0 && (
+        <div className="mb-4">
+          <Button
+            onClick={handleBulkDeleteClick}
+            disabled={isDeleting}
+            variant="danger"
+            className="w-full sm:w-auto"
+          >
+            {isDeleting ? 'Изтриване...' : `Изтрий избраните тренировки (${selectedSessionIds.length})`}
+          </Button>
+        </div>
+      )}
+
+      {/* Sessions List */}
+      <SessionList
+        sessions={sessions}
+        getFilteredSessions={getFilteredSessions}
+        hasActiveFilters={hasActiveFilters}
+        clearAllFilters={clearAllFilters}
+        getBookedCount={getBookedCount}
+        getBulgarianDayName={getBulgarianDayName}
+        formatTime={formatTime}
+        getEndTime={getEndTime}
+        mode="admin"
+        onReserve={handleManualBooking}
+        onSelect={toggleSessionSelectionForDelete}
+        selectedSessionIds={selectedSessionIds}
+        coaches={coaches}
+        allClimbers={allClimbers}
+        selectedClimberForSession={selectedClimberForSession}
+        onClimberSelect={(sessionId, climberId) => {
+          setSelectedClimberForSession({ ...selectedClimberForSession, [sessionId]: climberId });
+        }}
+        viewingRoster={viewingRoster}
+        roster={roster}
+        onViewRoster={(sessionId) => {
+          if (viewingRoster === sessionId) {
+            setViewingRoster(null);
+          } else {
+            fetchRoster(sessionId);
+          }
+        }}
+        onEdit={handleEdit}
+        onDelete={handleDeleteClick}
+        showToast={showToast}
+      />
       </div>
     </div>
   );

@@ -72,3 +72,61 @@ frontend/
 - **API Docs**: http://localhost:3000/api/v1/docs
 - **Health Check**: http://localhost:3000/health
 
+---
+
+## Best Practices
+
+### Обновяване на данни без презареждане на страницата
+
+При обновяване/създаване/изтриване на елементи **НЕ** използвай пълно презареждане на данните. Вместо това:
+
+1. **Обновявай само конкретния елемент в масива:**
+   ```javascript
+   // ✅ Правилно
+   const response = await api.update(id, data);
+   const updatedItem = response.data.item;
+   setItems(prev => prev.map(item => item._id === id ? updatedItem : item));
+   
+   // ❌ Неправилно
+   await api.update(id, data);
+   fetchItems(); // Презарежда всички
+   ```
+
+2. **Добави id атрибути за scroll функционалност:**
+   ```jsx
+   <div id={`item-${item._id}`}>
+     {/* content */}
+   </div>
+   ```
+
+3. **Използвай helper функция за scroll:**
+   ```javascript
+   const scrollToElement = (elementId) => {
+     setTimeout(() => {
+       const element = document.getElementById(elementId);
+       if (element) {
+         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+       }
+     }, 100);
+   };
+   
+   // След успешно обновяване
+   scrollToElement(`item-${id}`);
+   ```
+
+4. **При създаване - добави новия елемент в масива:**
+   ```javascript
+   const response = await api.create(data);
+   const newItem = response.data.item;
+   setItems(prev => [...prev, newItem].sort(/* сортиране ако е нужно */));
+   scrollToElement(`item-${newItem._id}`);
+   ```
+
+5. **При изтриване - премахни елемента от масива:**
+   ```javascript
+   await api.delete(id);
+   setItems(prev => prev.filter(item => item._id !== id));
+   ```
+
+**ВАЖНО**: Този подход трябва да се прилага за всички страници с подобни операции!
+

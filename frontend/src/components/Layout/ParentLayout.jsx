@@ -3,19 +3,12 @@ import Header from './Header';
 import Footer from './Footer';
 
 const ParentLayout = () => {
-  const navigation = [
-    { name: 'График', href: '/parent/schedule' },
-    { name: 'Моят график', href: '/parent/saved-sessions' },
-    { name: 'Абонаменти', href: '/parent/subscriptions' },
-    { name: 'Профил', href: '/parent/profile' },
-  ];
-
   return (
     <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
-      <Header navigation={navigation} />
+      <Header />
       
       {/* Main content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
       

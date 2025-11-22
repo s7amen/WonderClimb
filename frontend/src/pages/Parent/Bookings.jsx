@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI } from '../../services/api';
 import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks } from 'date-fns';
 import Card from '../../components/UI/Card';
@@ -76,8 +77,20 @@ const Bookings = () => {
 
       setAvailableSessions(sessionsRes.data.sessions || []);
       setMyBookings(bookingsRes.data.bookings || []);
-      // Filter by accountStatus
-      setChildren(childrenRes.data.climbers?.filter(c => c.accountStatus === 'active') || []);
+      // Filter by accountStatus - show active children or children without accountStatus (treat as active)
+      const allClimbers = childrenRes.data.climbers || [];
+      const activeClimbers = allClimbers.filter(c => 
+        c.accountStatus === 'active' || c.accountStatus === null || c.accountStatus === undefined
+      );
+      if (allClimbers.length > 0 && activeClimbers.length === 0) {
+        console.warn('All children have inactive accountStatus:', allClimbers);
+        // Show warning to user if all children are inactive
+        showToast('Всички деца са неактивни. Моля, активирайте ги от профила.', 'warning');
+      }
+      if (allClimbers.length > activeClimbers.length) {
+        console.info(`Filtered out ${allClimbers.length - activeClimbers.length} inactive children`);
+      }
+      setChildren(activeClimbers);
     } catch (error) {
       if (error.response?.status === 429) {
         showToast('Твърде много заявки. Моля, изчакайте малко преди да опитате отново.', 'error');
@@ -241,13 +254,13 @@ const Bookings = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Резервации</h1>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowBookingForm(!showBookingForm)}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Резервации</h1>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="primary" onClick={() => setShowBookingForm(!showBookingForm)} className="w-full sm:w-auto">
             Резервирай сесия
           </Button>
-          <Button variant="secondary" onClick={() => setShowRecurringForm(!showRecurringForm)}>
+          <Button variant="secondary" onClick={() => setShowRecurringForm(!showRecurringForm)} className="w-full sm:w-auto">
             Повтаряща се резервация
           </Button>
         </div>
@@ -259,22 +272,43 @@ const Bookings = () => {
         <Card title="Резервирай сесия">
           <form onSubmit={handleBookSession}>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Избери дете
-              </label>
-              <select
-                value={bookingData.climberId}
-                onChange={(e) => setBookingData({ ...bookingData, climberId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
-              >
-                <option value="">Избери дете...</option>
-                {children.map((child) => (
-                  <option key={child._id} value={child._id}>
-                    {child.firstName} {child.lastName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Избери дете
+                </label>
+                <Link
+                  to="/parent/profile"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  + Добави дете
+                </Link>
+              </div>
+              {children.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800 mb-2">
+                    Няма добавени деца. Моля, добавете дете преди да направите резервация.
+                  </p>
+                  <Link to="/parent/profile">
+                    <Button variant="primary" className="w-full sm:w-auto">
+                      Добави дете
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <select
+                  value={bookingData.climberId}
+                  onChange={(e) => setBookingData({ ...bookingData, climberId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="">Избери дете...</option>
+                  {children.map((child) => (
+                    <option key={child._id} value={child._id}>
+                      {child.firstName} {child.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {selectedSession ? (
@@ -315,15 +349,15 @@ const Bookings = () => {
               </div>
             )}
 
-            <div className="flex gap-2">
-              <Button type="submit" variant="primary">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
                 Резервирай сесия
               </Button>
               <Button type="button" variant="secondary" onClick={() => {
                 setShowBookingForm(false);
                 setSelectedSession(null);
                 setBookingData({ climberId: '', sessionId: '' });
-              }}>
+              }} className="w-full sm:w-auto">
                 Отказ
               </Button>
             </div>
@@ -335,22 +369,43 @@ const Bookings = () => {
         <Card title="Създай повтарящи се резервации">
           <form onSubmit={handleBookRecurring}>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Избери дете
-              </label>
-              <select
-                value={recurringData.climberId}
-                onChange={(e) => setRecurringData({ ...recurringData, climberId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                required
-              >
-                <option value="">Избери дете...</option>
-                {children.map((child) => (
-                  <option key={child._id} value={child._id}>
-                    {child.firstName} {child.lastName}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Избери дете
+                </label>
+                <Link
+                  to="/parent/profile"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  + Добави дете
+                </Link>
+              </div>
+              {children.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800 mb-2">
+                    Няма добавени деца. Моля, добавете дете преди да направите резервация.
+                  </p>
+                  <Link to="/parent/profile">
+                    <Button variant="primary" className="w-full sm:w-auto">
+                      Добави дете
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <select
+                  value={recurringData.climberId}
+                  onChange={(e) => setRecurringData({ ...recurringData, climberId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="">Избери дете...</option>
+                  {children.map((child) => (
+                    <option key={child._id} value={child._id}>
+                      {child.firstName} {child.lastName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="mb-4">
@@ -378,7 +433,7 @@ const Bookings = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <Input
                 label="Начална дата"
                 type="date"
@@ -395,7 +450,7 @@ const Bookings = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <Input
                 label="Час"
                 type="time"
@@ -413,11 +468,11 @@ const Bookings = () => {
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button type="submit" variant="primary">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto">
                 Създай повтарящи се резервации
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setShowRecurringForm(false)}>
+              <Button type="button" variant="secondary" onClick={() => setShowRecurringForm(false)} className="w-full sm:w-auto">
                 Отказ
               </Button>
             </div>
@@ -585,8 +640,8 @@ const Bookings = () => {
                 
                 return (
                   <Card key={booking._id}>
-                    <div className="flex justify-between items-start">
-                      <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                      <div className="flex-1">
                         <h3 className="text-lg font-semibold">{booking.session.title}</h3>
                         <div className="mt-2 space-y-1 text-sm text-gray-600">
                           <p>📅 {format(sessionDate, 'PPpp')}</p>
@@ -600,6 +655,7 @@ const Bookings = () => {
                       <Button
                         variant="danger"
                         onClick={() => handleCancelBooking(booking._id)}
+                        className="w-full sm:w-auto"
                       >
                         Отмени
                       </Button>

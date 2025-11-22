@@ -91,7 +91,7 @@ export const authAPI = {
 
 // Sessions API
 export const sessionsAPI = {
-  // Public - get available sessions
+  // Public - get available sessions (no auth required)
   getAvailable: (params) => api.get('/sessions', { params }),
   
   // Admin - session management
@@ -144,6 +144,7 @@ export const parentClimbersAPI = {
   create: (data) => api.post('/parents/me/climbers', data),
   update: (id, data) => api.put(`/parents/me/climbers/${id}`, data),
   deactivate: (id) => api.delete(`/parents/me/climbers/${id}`),
+  linkExisting: (childId) => api.post(`/parents/me/climbers/${childId}/link-existing`),
 };
 
 // My Climber API (self-managed climber)
@@ -172,6 +173,40 @@ export const adminUsersAPI = {
   update: (id, data) => api.put(`/admin/users/${id}`, data),
   updateRoles: (id, roles) => api.put(`/admin/users/${id}/roles`, { roles }),
   getCoaches: () => api.get('/admin/users?role=coach'),
+};
+
+// Climber Photos API
+export const climberPhotosAPI = {
+  upload: (climberId, file) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return api.post(`/admin/climbers/${climberId}/photos`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  delete: (climberId, filename) => api.delete(`/admin/climbers/${climberId}/photos/${filename}`),
+  setMain: (climberId, filename) => api.put(`/admin/climbers/${climberId}/photos/${filename}/set-main`),
+  getPhotoUrl: (climberId, filename) => {
+    const token = localStorage.getItem('token');
+    return `${API_BASE_URL}/admin/photos/${climberId}/${filename}${token ? `?token=${token}` : ''}`;
+  },
+};
+
+// Competitions API
+export const competitionsAPI = {
+  // Public endpoints (no authentication required)
+  getCompetitions: (params) => api.get('/competitions', { params }),
+  getCompetition: (id) => api.get(`/competitions/${id}`),
+  
+  // Admin endpoints (require authentication)
+  getCompetitionsAdmin: (params) => api.get('/admin/competitions', { params }),
+  getCompetitionAdmin: (id) => api.get(`/admin/competitions/${id}`),
+  previewImport: () => api.post('/admin/competitions/import/preview'),
+  importCompetitions: (competitions) => api.post('/admin/competitions/import', { competitions }),
+  updateCompetition: (id, data) => api.put(`/admin/competitions/${id}`, data),
+  deleteCompetition: (id) => api.delete(`/admin/competitions/${id}`),
 };
 
 export default api;

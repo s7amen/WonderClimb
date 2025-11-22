@@ -294,6 +294,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Competitions Section -->
+        <div class="section">
+            <h2>6. Admin - Competitions</h2>
+            <div class="grid">
+                <div>
+                    <h3>Get Competitions</h3>
+                    <button onclick="getCompetitions()">Get All Competitions</button>
+                    <div id="competitionsResponse" class="response" style="display:none;"></div>
+                </div>
+                <div>
+                    <h3>Import from BFKA</h3>
+                    <button onclick="importBFKA()">Import Preview</button>
+                    <div id="importResponse" class="response" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -464,6 +481,18 @@
 
             const result = await apiCall(`/admin/calendar?view=${view}&startDate=${startDate}&endDate=${endDate}`);
             showResponse('calendarResponse', result, !result.ok);
+        }
+
+        async function getCompetitions() {
+            const result = await apiCall('/admin/competitions');
+            showResponse('competitionsResponse', result, !result.ok);
+        }
+
+        async function importBFKA() {
+            const result = await apiCall('/admin/competitions/import/preview', {
+                method: 'POST'
+            });
+            showResponse('importResponse', result, !result.ok);
         }
     </script>
 </body>

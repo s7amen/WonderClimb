@@ -404,7 +404,13 @@ export const getBookingsForUser = async (userId, userRoles = [], filters = {}) =
     }
 
     const bookings = await Booking.find(query)
-      .populate('sessionId')
+      .populate({
+        path: 'sessionId',
+        populate: {
+          path: 'coachIds',
+          select: 'firstName middleName lastName email'
+        }
+      })
       .populate('climberId')
       .sort({ createdAt: -1 })
       .lean();

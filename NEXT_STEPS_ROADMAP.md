@@ -7,6 +7,7 @@
 - ✅ **Authentication** - Register/login with JWT
 - ✅ **API Testing** - HTML test page for manual testing
 - ✅ **Session Creation** - Fixed coach selection
+- ✅ **UX Optimization** - Update operations without page reload (scroll to edited element)
 
 ---
 
@@ -103,6 +104,7 @@
 
 **Tasks**:
 1. **UI/UX Improvements**:
+   - ✅ Update operations without page reload (scroll to edited element)
    - Better error handling
    - Loading states
    - Form validation

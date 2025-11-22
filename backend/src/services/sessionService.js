@@ -10,17 +10,29 @@ export const getAvailableSessions = async (filters = {}) => {
   try {
     const now = new Date();
     const query = {
-      status: 'active',
-      date: { $gt: now },
+      // Filter out only cancelled sessions
+      status: { $ne: 'cancelled' }
     };
 
+    // Build date query properly
+    const dateQuery = {};
+    
+    // Use startDate if provided
     if (filters.startDate) {
-      query.date.$gte = new Date(filters.startDate);
+      const startDate = new Date(filters.startDate);
+      dateQuery.$gte = startDate;
+    } else {
+      // Only show future sessions if no startDate provided
+      dateQuery.$gt = now;
     }
 
     if (filters.endDate) {
-      query.date.$lte = new Date(filters.endDate);
+      const endDate = new Date(filters.endDate);
+      dateQuery.$lte = endDate;
     }
+    
+    // Always add date query
+    query.date = dateQuery;
 
     if (filters.coachId) {
       query.coachIds = filters.coachId;
@@ -31,10 +43,18 @@ export const getAvailableSessions = async (filters = {}) => {
       .sort({ date: 1 })
       .lean();
 
-    // Filter by booking horizon
-    const filteredSessions = sessions.filter(session =>
-      isWithinBookingHorizon(session.date)
-    );
+    // Filter by booking horizon - but only if we don't have explicit date filters
+    // If user provided startDate/endDate, respect those instead of booking horizon
+    let filteredSessions;
+    if (filters.startDate || filters.endDate) {
+      // User provided explicit date range, use it directly
+      filteredSessions = sessions;
+    } else {
+      // No explicit date range, apply booking horizon filter
+      filteredSessions = sessions.filter(session =>
+        isWithinBookingHorizon(session.date)
+      );
+    }
 
     // Add booking counts for each session
     const sessionsWithCounts = await Promise.all(
@@ -88,6 +108,7 @@ export const createSession = async (sessionData) => {
       capacity: sessionData.capacity,
       status: sessionData.status || 'active',
       coachIds: sessionData.coachIds || [],
+      targetGroups: sessionData.targetGroups || [],
     });
 
     await session.save();
@@ -123,17 +144,24 @@ export const updateSession = async (sessionId, updateData) => {
       throw error;
     }
 
+    const updateFields = {
+      title: updateData.title,
+      description: updateData.description,
+      date: updateData.date ? new Date(updateData.date) : undefined,
+      durationMinutes: updateData.durationMinutes,
+      capacity: updateData.capacity,
+      status: updateData.status,
+      coachIds: updateData.coachIds !== undefined ? updateData.coachIds : undefined,
+    };
+
+    // Добавяме targetGroups само ако е предоставено
+    if (updateData.targetGroups !== undefined) {
+      updateFields.targetGroups = updateData.targetGroups;
+    }
+
     const session = await Session.findByIdAndUpdate(
       sessionId,
-      {
-        title: updateData.title,
-        description: updateData.description,
-        date: updateData.date ? new Date(updateData.date) : undefined,
-        durationMinutes: updateData.durationMinutes,
-        capacity: updateData.capacity,
-        status: updateData.status,
-        coachIds: updateData.coachIds !== undefined ? updateData.coachIds : undefined,
-      },
+      updateFields,
       { new: true, runValidators: true }
     );
 
@@ -170,8 +198,12 @@ export const getCalendarSessions = async (view, startDate, endDate, filters = {}
       },
     };
 
+    // Filter out cancelled sessions unless explicitly requested
     if (filters.status) {
       query.status = filters.status;
+    } else {
+      // By default, exclude cancelled sessions
+      query.status = { $ne: 'cancelled' };
     }
 
     if (filters.coachId) {
@@ -228,6 +260,7 @@ export const createBulkSessions = async (sessionData) => {
       durationMinutes,
       capacity,
       coachIds,
+      targetGroups,
       status = 'active',
     } = sessionData;
 
@@ -264,6 +297,7 @@ export const createBulkSessions = async (sessionData) => {
             capacity,
             status,
             coachIds: coachIds || [],
+            targetGroups: targetGroups || [],
           });
         }
       }

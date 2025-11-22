@@ -1,54 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { format } from 'date-fns';
-import Card from '../../components/UI/Card';
-import Button from '../../components/UI/Button';
-import Input from '../../components/UI/Input';
+import { format, startOfDay } from 'date-fns';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
-import { myClimberAPI, parentClimbersAPI } from '../../services/api';
+import { parentClimbersAPI, bookingsAPI } from '../../services/api';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [children, setChildren] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingChild, setEditingChild] = useState(null);
-  const [profileData, setProfileData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    dateOfBirth: '',
-    notes: '',
-  });
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [groupBy, setGroupBy] = useState('date'); // 'date' or 'child'
   const { showToast, ToastComponent } = useToast();
-
-  const [formData, setFormData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    dateOfBirth: '',
-    notes: '',
-  });
 
   const hasFetchedRef = useRef(false);
   const userIdRef = useRef(null);
 
   useEffect(() => {
-    // Wait for auth to finish loading before fetching data
     if (authLoading) return;
     
-    // If user changed, reset the fetch flag
     const currentUserId = user?._id || user?.id;
     if (userIdRef.current !== currentUserId) {
       hasFetchedRef.current = false;
       userIdRef.current = currentUserId;
     }
     
-    // Prevent duplicate requests
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
     
@@ -75,137 +53,53 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [childrenRes, profileRes] = await Promise.all([
+      const [childrenRes, bookingsRes] = await Promise.all([
         parentClimbersAPI.getAll().catch(() => ({ data: { climbers: [] } })),
-        fetchProfile(),
+        bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } })),
       ]);
 
       setChildren(childrenRes.data.climbers || []);
-      if (profileRes) {
-        setProfileData({
-          firstName: profileRes.firstName || '',
-          middleName: profileRes.middleName || '',
-          lastName: profileRes.lastName || '',
-          email: profileRes.email || '',
-          phone: profileRes.phone || '',
-          dateOfBirth: profileRes.dateOfBirth || '',
-          notes: profileRes.notes || '',
-        });
-      }
+      
+      // Get all upcoming bookings (no date limit)
+      const now = startOfDay(new Date());
+      const allBookings = bookingsRes.data.bookings || [];
+      const upcomingBookings = allBookings.filter(booking => {
+        if (booking.status !== 'booked' || !booking.session?.date) return false;
+        const sessionDate = startOfDay(new Date(booking.session.date));
+        return sessionDate >= now;
+      });
+      
+      // Sort by date
+      upcomingBookings.sort((a, b) => 
+        new Date(a.session.date) - new Date(b.session.date)
+      );
+      
+      setBookings(upcomingBookings);
     } catch (error) {
       if (error.response?.status === 429) {
         showToast('Твърде много заявки. Моля, изчакайте малко преди да опитате отново.', 'error');
       } else {
         showToast('Грешка при зареждане на данни', 'error');
       }
-      console.error('Error fetching profile data:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchProfile = async () => {
-    // Only fetch climber profile if user has climber role
-    if (!user?.roles?.includes('climber')) {
-      return user || {};
-    }
-    
-    try {
-      const response = await myClimberAPI.getProfile();
-      return response.data.climber;
-    } catch (error) {
-      // Only log if it's not a 404 or 403 (expected for users without climber role)
-      if (error.response?.status !== 404 && error.response?.status !== 403) {
-        console.error('Error fetching profile:', error);
-      }
-      // Fallback to user from context
-      return user || {};
-    }
-  };
-
-  const updateProfile = async () => {
-    try {
-      await myClimberAPI.updateProfile({
-        firstName: profileData.firstName,
-        middleName: profileData.middleName,
-        lastName: profileData.lastName,
-        phone: profileData.phone,
-        dateOfBirth: profileData.dateOfBirth ? new Date(profileData.dateOfBirth).toISOString() : null,
-        notes: profileData.notes,
-      });
-      showToast('Профилът е обновен успешно', 'success');
-      setIsEditingProfile(false);
-      fetchData();
-    } catch (error) {
-      showToast(error.response?.data?.error?.message || 'Грешка при обновяване на профил', 'error');
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const childData = {
-        firstName: formData.firstName,
-        middleName: formData.middleName,
-        lastName: formData.lastName,
-        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : null,
-        notes: formData.notes,
-      };
-
-      if (editingChild) {
-        await parentClimbersAPI.update(editingChild._id, childData);
-        showToast('Детето е обновено успешно', 'success');
-      } else {
-        await parentClimbersAPI.create(childData);
-        showToast('Детето е добавено успешно', 'success');
-      }
-
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error('Error creating/updating child:', error);
-      const errorMessage = error.response?.data?.error?.message || error.response?.data?.error?.details || 'Грешка при запазване на дете';
-      showToast(errorMessage, 'error');
-    }
-  };
-
-  const handleEdit = (child) => {
-    setFormData({
-      firstName: child.firstName,
-      middleName: child.middleName || '',
-      lastName: child.lastName,
-      dateOfBirth: child.dateOfBirth ? format(new Date(child.dateOfBirth), 'yyyy-MM-dd') : '',
-      notes: child.notes || '',
-    });
-    setEditingChild(child);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (childId) => {
-    if (!window.confirm('Сигурни ли сте, че искате да изтриете това дете? Това действие не може да бъде отменено.')) {
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Сигурни ли сте, че искате да откажете тази резервация?')) {
       return;
     }
 
     try {
-      await parentClimbersAPI.deactivate(childId);
-      showToast('Детето е изтрито успешно', 'success');
+      await bookingsAPI.cancel(bookingId);
+      showToast('Резервацията е отменена успешно', 'success');
       fetchData();
     } catch (error) {
-      const errorMessage = error.response?.data?.error?.message || 'Грешка при изтриване на дете';
+      const errorMessage = error.response?.data?.error?.message || 'Грешка при отменяне на резервация';
       showToast(errorMessage, 'error');
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      firstName: '',
-      middleName: '',
-      lastName: '',
-      dateOfBirth: '',
-      notes: '',
-    });
-    setEditingChild(null);
-    setShowForm(false);
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -220,253 +114,384 @@ const Dashboard = () => {
     return age;
   };
 
+  const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0 && mins > 0) {
+      return `${hours} ч ${mins} м`;
+    } else if (hours > 0) {
+      return `${hours} ч`;
+    } else {
+      return `${mins} м`;
+    }
+  };
+
+  const getBulgarianDayName = (date) => {
+    const dayNames = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
+    return dayNames[date.getDay()];
+  };
+
+  const getCoaches = (session) => {
+    if (!session?.coachIds) return [];
+    // Handle both populated objects and IDs
+    return session.coachIds.map(coach => {
+      if (typeof coach === 'object' && coach.firstName) {
+        return `${coach.firstName} ${coach.lastName || ''}`.trim();
+      }
+      return null;
+    }).filter(Boolean);
+  };
+
+  // Group bookings by date
+  const groupByDate = () => {
+    const grouped = {};
+    bookings.forEach(booking => {
+      const date = startOfDay(new Date(booking.session.date));
+      const dateKey = format(date, 'yyyy-MM-dd');
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
+          date,
+          bookings: []
+        };
+      }
+      grouped[dateKey].bookings.push(booking);
+    });
+    return Object.values(grouped).sort((a, b) => a.date - b.date);
+  };
+
+  // Group bookings by child
+  const groupByChild = () => {
+    const grouped = {};
+    bookings.forEach(booking => {
+      const climberId = booking.climber?._id || booking.climberId;
+      if (!climberId) return;
+      
+      const climberKey = climberId.toString();
+      if (!grouped[climberKey]) {
+        grouped[climberKey] = {
+          climber: booking.climber,
+          bookings: []
+        };
+      }
+      grouped[climberKey].bookings.push(booking);
+    });
+    return Object.values(grouped);
+  };
+
+  const groupedData = groupBy === 'date' ? groupByDate() : groupByChild();
+
+  const totalBookings = bookings.length;
+
   if (loading) {
-    return <Loading text="Зареждане на профил..." />;
+    return <Loading text="Зареждане..." />;
   }
 
-  const age = calculateAge(profileData.dateOfBirth);
-
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Моят профил</h1>
-        <p className="text-base leading-6" style={{ color: '#4a5565' }}>Управление на лична информация</p>
-      </div>
-
+    <div className="flex h-full bg-[#f3f3f5]">
       <ToastComponent />
-
-      {/* Climber Profile Section */}
-      <Card>
-        <div className="border-b border-gray-200 px-6 py-6">
-          <h2 className="text-base font-medium text-neutral-950 mb-1">Моята информация</h2>
-          <p className="text-sm" style={{ color: '#4a5565' }}>Лична информация и профилни данни</p>
-        </div>
-        <div className="px-6 py-6">
-        {isEditingProfile ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Име"
-                value={profileData.firstName}
-                onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
-                required
-              />
-              <Input
-                label="Презиме"
-                value={profileData.middleName}
-                onChange={(e) => setProfileData({ ...profileData, middleName: e.target.value })}
-              />
-            </div>
-            <Input
-              label="Фамилия"
-              value={profileData.lastName}
-              onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
-              required
-            />
-            <Input
-              label="Имейл"
-              value={profileData.email}
-              disabled
-              className="bg-gray-100"
-            />
-            <Input
-              label="Телефон"
-              value={profileData.phone}
-              onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-              placeholder="+359..."
-            />
-            <Input
-              label="Дата на раждане"
-              type="date"
-              value={profileData.dateOfBirth ? format(new Date(profileData.dateOfBirth), 'yyyy-MM-dd') : ''}
-              onChange={(e) => setProfileData({ ...profileData, dateOfBirth: e.target.value })}
-            />
+      
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-12 py-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Бележки
-              </label>
-              <textarea
-                value={profileData.notes}
-                onChange={(e) => setProfileData({ ...profileData, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-500"
-                rows={3}
-                placeholder="Специални бележки или информация..."
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={updateProfile}>
-                Запази
-              </Button>
-              <Button variant="secondary" onClick={() => setIsEditingProfile(false)}>
-                Отказ
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm text-gray-500">Име</p>
-              <p className="text-lg font-medium">
-                {profileData.firstName && profileData.lastName 
-                  ? `${profileData.firstName} ${profileData.middleName || ''} ${profileData.lastName}`.trim()
-                  : (user?.firstName && user?.lastName
-                    ? `${user.firstName} ${user.middleName || ''} ${user.lastName}`.trim()
-                    : user?.name || '')}
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-6 h-6">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 2V6M16 2V6M3 10H21M5 4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4Z" stroke="#ea7a24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <h1 className="text-xl font-normal text-neutral-950">
+                  Запазени часове
+                </h1>
+              </div>
+              <p className="text-base text-[#4a5565]">
+                Преглед на всички резервации за вашите деца
               </p>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Имейл</p>
-              <p className="text-lg">{profileData.email || user?.email}</p>
-            </div>
-            {profileData.phone && (
-              <div>
-                <p className="text-sm text-gray-500">Телефон</p>
-                <p className="text-lg">{profileData.phone}</p>
-              </div>
-            )}
-            {profileData.dateOfBirth && (
-              <div>
-                <p className="text-sm text-gray-500">Дата на раждане</p>
-                <p className="text-lg">
-                  {format(new Date(profileData.dateOfBirth), 'PP')}
-                  {age !== null && ` (${age} години)`}
-                </p>
-              </div>
-            )}
-            {profileData.notes && (
-              <div>
-                <p className="text-sm text-gray-500">Бележки</p>
-                <p className="text-lg">{profileData.notes}</p>
-              </div>
-            )}
-            <div className="mt-4">
-              <Button variant="secondary" onClick={() => setIsEditingProfile(true)}>
-                Редактирай профил
-              </Button>
+            
+            {/* Toggle Buttons */}
+            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2">
+              <button
+                onClick={() => setGroupBy('date')}
+                className={`px-4 py-2 rounded-[8px] text-sm font-normal flex items-center gap-2 transition-colors ${
+                  groupBy === 'date'
+                    ? 'bg-[#ea7a24] text-white'
+                    : 'text-[#4a5565] hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 2H5V4H3V2ZM7 2H9V4H7V2ZM11 2H13V4H11V2ZM3 6H5V8H3V6ZM7 6H9V8H7V6ZM11 6H13V8H11V6ZM3 10H5V12H3V10ZM7 10H9V12H7V10ZM11 10H13V12H11V10Z" fill="currentColor"/>
+                </svg>
+                По дата
+              </button>
+              <button
+                onClick={() => setGroupBy('child')}
+                className={`px-4 py-2 rounded-[8px] text-sm font-normal flex items-center gap-2 transition-colors ${
+                  groupBy === 'child'
+                    ? 'bg-[#ea7a24] text-white'
+                    : 'text-[#4a5565] hover:bg-gray-50'
+                }`}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                </svg>
+                По дете
+              </button>
             </div>
           </div>
-        )}
-        </div>
-      </Card>
 
-      {/* Children Section */}
-      <Card>
-        <div className="border-b border-gray-200 px-6 py-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-base font-medium text-neutral-950 mb-1">Свързани профили - Моите деца</h2>
-              <p className="text-sm" style={{ color: '#4a5565' }}>Управлявайте профилите на децата си</p>
+          {/* Reservations List */}
+          {bookings.length === 0 ? (
+            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-8 text-center">
+              <p className="text-[#4a5565]">Няма запазени часове</p>
             </div>
-            <Button onClick={() => setShowForm(!showForm)}>
-              {showForm ? 'Отказ' : 'Добави дете'}
-            </Button>
-          </div>
-        </div>
-        <div className="px-6 py-6">
-
-        {showForm && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="font-semibold mb-4">{editingChild ? 'Редактирай дете' : 'Добави ново дете'}</h3>
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-4 gap-4">
-                <Input
-                  label="Име"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Презиме"
-                  value={formData.middleName}
-                  onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                />
-                <Input
-                  label="Фамилия"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Дата на раждане"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Бележки
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-500"
-                  rows={3}
-                  placeholder="Специални бележки или информация за детето ви..."
-                />
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <Button type="submit" variant="primary">
-                  {editingChild ? 'Обнови' : 'Добави дете'}
-                </Button>
-                <Button type="button" variant="secondary" onClick={resetForm}>
-                  Отказ
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {children.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Все още няма добавени деца</p>
           ) : (
-            children.map((child) => {
-              const age = calculateAge(child.dateOfBirth);
-              
-              return (
-                <div key={child._id} className="p-4 border border-gray-200 rounded-lg bg-white">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-semibold">
-                        {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
-                      </h3>
-                      <div className="mt-2 space-y-1 text-sm text-gray-600">
-                        {child.dateOfBirth && (
-                          <p>
-                            📅 Дата на раждане: {format(new Date(child.dateOfBirth), 'dd.MM.yyyy')}
-                            {age !== null && ` (${age} години)`}
-                          </p>
-                        )}
-                        {child.notes && <p>📝 {child.notes}</p>}
+            <div className="space-y-8">
+              {groupedData.map((group, groupIndex) => (
+                <div key={groupIndex} className="space-y-4">
+                  {/* Group Header */}
+                  <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] px-6 py-6">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-[#ea7a24] rounded-[10px] w-9 h-9 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M8 2V6M16 2V6M3 10H21M5 4H19C20.1046 4 21 4.89543 21 6V20C21 21.1046 20.1046 22 19 22H5C3.89543 22 3 21.1046 3 20V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                       </div>
-                      {child.accountStatus === 'active' && (
-                        <span className="inline-block mt-2 px-2 py-1 text-xs rounded-lg font-medium" style={{ backgroundColor: '#eddcca', color: '#35383d' }}>
-                          Активно
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="secondary" onClick={() => handleEdit(child)}>
-                        Редактирай
-                      </Button>
-                      <Button variant="danger" onClick={() => handleDelete(child._id)} className="text-sm">
-                        Изтрий
-                      </Button>
+                      <div>
+                        <h2 className="text-base font-normal text-neutral-950">
+                          {groupBy === 'date' 
+                            ? `${getBulgarianDayName(group.date)}, ${format(group.date, 'dd.MM.yyyy')}`
+                            : `${group.climber?.firstName || ''} ${group.climber?.lastName || ''}`.trim()}
+                        </h2>
+                        <p className="text-sm text-[#4a5565]">
+                          {group.bookings.length} {group.bookings.length === 1 ? 'резервация' : 'резервации'}
+                        </p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Reservation Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {group.bookings.map((booking) => {
+                      const sessionDate = new Date(booking.session.date);
+                      const climber = booking.climber;
+                      const coaches = getCoaches(booking.session);
+                      const isConfirmed = booking.status === 'booked'; // For now, all booked are confirmed
+                      
+                      return (
+                        <div
+                          key={booking._id}
+                          className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-5 flex flex-col"
+                        >
+                          {/* Child Name */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <svg className="w-4 h-4 text-[#35383d]" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                            </svg>
+                            <span className="text-base font-normal text-[#35383d]">
+                              {climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Неизвестен'}
+                            </span>
+                          </div>
+
+                          {/* Time and Duration */}
+                          <div className="flex items-center gap-2 mb-4">
+                            <svg className="w-4 h-4 text-[#ea7a24]" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor"/>
+                            </svg>
+                            <span className="text-sm font-normal text-[#ea7a24]">
+                              {format(sessionDate, 'HH:mm')}
+                            </span>
+                            <span className="text-sm font-normal text-[#4a5565]">
+                              {formatDuration(booking.session.durationMinutes)}
+                            </span>
+                          </div>
+
+                          {/* Session Title */}
+                          <h3 className="text-base font-normal text-neutral-950 mb-4">
+                            {booking.session.title}
+                          </h3>
+
+                          {/* Trainers */}
+                          {coaches.length > 0 && (
+                            <div className="mb-4">
+                              <p className="text-xs text-[#4a5565] mb-1">Треньори:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {coaches.map((coach, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="bg-[#eddcca] text-[#35383d] text-xs font-normal px-2 py-1 rounded-[4px]"
+                                  >
+                                    {coach}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Status */}
+                          <div className="border-t border-gray-100 pt-3 mb-4 flex items-center gap-2">
+                            {isConfirmed ? (
+                              <>
+                                <svg className="w-4 h-4 text-[#adb933]" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM6.5 11.5L2.5 7.5L3.91 6.09L6.5 8.68L12.09 3.09L13.5 4.5L6.5 11.5Z" fill="currentColor"/>
+                                </svg>
+                                <span className="text-sm font-normal text-[#adb933]">
+                                  Потвърдена
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4 text-[#ea7a24]" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor"/>
+                                </svg>
+                                <span className="text-sm font-normal text-[#ea7a24]">
+                                  Чакаща
+                                </span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex gap-2">
+                            {isConfirmed ? (
+                              <button
+                                onClick={() => handleCancelBooking(booking._id)}
+                                className="flex-1 bg-red-50 text-[#e7000b] text-sm font-normal py-2 px-4 rounded-[10px] hover:bg-red-100 transition-colors"
+                              >
+                                Откажи
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    // TODO: Implement confirm booking
+                                    showToast('Функционалността за потвърждаване ще бъде добавена скоро', 'info');
+                                  }}
+                                  className="flex-1 bg-[#adb933] text-white text-sm font-normal py-2 px-4 rounded-[10px] hover:bg-[#9db02a] transition-colors"
+                                >
+                                  Потвърди
+                                </button>
+                                <button
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                  className="flex-1 bg-red-50 text-[#e7000b] text-sm font-normal py-2 px-4 rounded-[10px] hover:bg-red-100 transition-colors"
+                                >
+                                  Откажи
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })
+              ))}
+            </div>
           )}
         </div>
+      </div>
+
+      {/* Sidebar */}
+      <div className="w-80 bg-white border-l border-[rgba(0,0,0,0.1)] flex-shrink-0 overflow-y-auto">
+        <div className="p-6 space-y-6">
+          {/* User Profile */}
+          <div className="flex items-center gap-3">
+            <div className="bg-[#eddcca] rounded-full w-9 h-9 flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#35383d]" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10ZM10 12.5C6.66 12.5 0 14.175 0 17.5V20H20V17.5C20 14.175 13.34 12.5 10 12.5Z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-base font-normal text-neutral-950">
+                {user?.firstName} {user?.lastName || ''}
+              </p>
+            </div>
+          </div>
+
+          {/* My Children */}
+          <div className="bg-[#f3f3f5] rounded-[10px] p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-neutral-950" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+              </svg>
+              <p className="text-sm font-normal text-neutral-950">Моите деца</p>
+            </div>
+            <div className="space-y-2">
+              {children.length === 0 ? (
+                <p className="text-sm text-[#4a5565]">Няма добавени деца</p>
+              ) : (
+                children.map((child) => {
+                  const age = calculateAge(child.dateOfBirth);
+                  return (
+                    <div key={child._id} className="flex items-center gap-2">
+                      <div className="bg-[#adb933] rounded-full w-1.5 h-1.5"></div>
+                      <p className="text-sm text-[#4a5565]">
+                        {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
+                        {age !== null && ` (${age} г.)`}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Total Reservations */}
+          <div className="bg-[#f3f3f5] rounded-[10px] p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-neutral-950" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor"/>
+              </svg>
+              <p className="text-sm font-normal text-neutral-950">Общо резервации</p>
+            </div>
+            <p className="text-base font-normal text-neutral-950">
+              {totalBookings} {totalBookings === 1 ? 'тренировка' : 'тренировки'}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate('/sessions')}
+              className="w-full bg-[#adb933] text-white text-base font-normal py-3 px-4 rounded-[10px] hover:bg-[#9db02a] transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 2V6M14 2V6M3 10H17M5 4H15C16.1046 4 17 4.89543 17 6V18C17 19.1046 16.1046 20 15 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Запази час
+            </button>
+            <button
+              onClick={() => navigate('/parent/profile')}
+              className="w-full bg-[#ea7a24] text-white text-base font-normal py-3 px-4 rounded-[10px] hover:bg-[#d96a1a] transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              Добави дете
+            </button>
+          </div>
+
+          {/* Footer Links */}
+          <div className="border-t border-gray-200 pt-6 space-y-2">
+            <button
+              onClick={() => navigate('/climber/bookings')}
+              className="w-full text-sm text-[#4a5565] text-center py-2 hover:text-neutral-950 transition-colors"
+            >
+              История на резервациите
+            </button>
+            <button
+              onClick={() => navigate('/parent/profile')}
+              className="w-full text-sm text-[#4a5565] text-center py-2 hover:text-neutral-950 transition-colors"
+            >
+              Профил
+            </button>
+          </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };
 
 export default Dashboard;
-

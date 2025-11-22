@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Competitions API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 0; }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .response.error { border-left-color: #dc3545; }
+        .response.success { border-left-color: #28a745; }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🧗 Test Competitions API</h1>
+    
+    <div class="container">
+        <h2>1. Authentication</h2>
+        <label>Token (from browser localStorage or login):</label>
+        <input type="text" id="token" placeholder="Paste your JWT token here" style="width: 100%;">
+        <button onclick="loadTokenFromStorage()">Load from localStorage</button>
+        <div id="tokenStatus"></div>
+    </div>
+
+    <div class="container">
+        <h2>2. Get Competitions</h2>
+        <button onclick="testGetCompetitions()">GET /admin/competitions</button>
+        <div id="getResponse" class="response" style="display:none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>3. Import Preview (Scrape BFKA)</h2>
+        <button onclick="testImportPreview()">POST /admin/competitions/import/preview</button>
+        <div id="importResponse" class="response" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api/v1';
+        
+        function loadTokenFromStorage() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('token').value = token;
+                document.getElementById('tokenStatus').innerHTML = '<span style="color: green;">✓ Token loaded from localStorage</span>';
+            } else {
+                document.getElementById('tokenStatus').innerHTML = '<span style="color: red;">✗ No token found in localStorage</span>';
+            }
+        }
+
+        function getHeaders() {
+            const token = document.getElementById('token').value;
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return headers;
+        }
+
+        function showResponse(elementId, result, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'response ' + (isError ? 'error' : 'success');
+            element.textContent = JSON.stringify(result, null, 2);
+        }
+
+        async function testGetCompetitions() {
+            const responseDiv = document.getElementById('getResponse');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            responseDiv.textContent = 'Loading...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/competitions`, {
+                    method: 'GET',
+                    headers: getHeaders(),
+                });
+                
+                const data = await response.json();
+                showResponse('getResponse', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResponse('getResponse', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+
+        async function testImportPreview() {
+            const responseDiv = document.getElementById('importResponse');
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            responseDiv.textContent = 'Scraping BFKA calendar... This may take a few seconds...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/competitions/import/preview`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                });
+                
+                const data = await response.json();
+                showResponse('importResponse', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: data,
+                    count: data.competitions?.length || 0
+                }, !response.ok);
+            } catch (error) {
+                showResponse('importResponse', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+
+        // Auto-load token on page load
+        window.addEventListener('load', () => {
+            loadTokenFromStorage();
+        });
+    </script>
+</body>
+</html>
+

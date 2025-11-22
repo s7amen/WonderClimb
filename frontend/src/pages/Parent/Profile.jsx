@@ -101,15 +101,27 @@ const Profile = () => {
 
   const updateProfile = async () => {
     try {
-      await parentProfileAPI.updateProfile({
+      const response = await parentProfileAPI.updateProfile({
         firstName: profileData.firstName,
         middleName: profileData.middleName,
         lastName: profileData.lastName,
         phone: profileData.phone,
       });
+      
+      // Обновяваме профилните данни от отговора
+      const updatedProfile = response.data.user;
+      if (updatedProfile) {
+        setProfileData({
+          firstName: updatedProfile.firstName || profileData.firstName,
+          middleName: updatedProfile.middleName || profileData.middleName,
+          lastName: updatedProfile.lastName || profileData.lastName,
+          email: updatedProfile.email || profileData.email,
+          phone: updatedProfile.phone || profileData.phone,
+        });
+      }
+      
       showToast('Профилът е обновен успешно', 'success');
       setIsEditingProfile(false);
-      fetchData();
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при обновяване на профил', 'error');
     }
@@ -127,15 +139,30 @@ const Profile = () => {
       };
 
       if (editingChild) {
-        await parentClimbersAPI.update(editingChild._id, childData);
+        const response = await parentClimbersAPI.update(editingChild._id, childData);
+        const updatedChild = response.data.climber;
+        
+        // Обновяваме само редактираното дете в масива
+        setChildren(prev => prev.map(c => c._id === editingChild._id ? updatedChild : c));
+        
         showToast('Детето е обновено успешно', 'success');
+        resetForm();
+        
+        // Скролваме до редактираното дете
+        scrollToElement(`child-${editingChild._id}`);
       } else {
-        await parentClimbersAPI.create(childData);
+        const response = await parentClimbersAPI.create(childData);
+        const newChild = response.data.climber;
+        
+        // Добавяме новото дете в масива
+        setChildren(prev => [...prev, newChild]);
+        
         showToast('Детето е добавено успешно', 'success');
+        resetForm();
+        
+        // Скролваме до новото дете
+        scrollToElement(`child-${newChild._id}`);
       }
-
-      resetForm();
-      fetchData();
     } catch (error) {
       console.error('Error creating/updating child:', error);
       console.error('Error response:', error.response?.data);
@@ -164,8 +191,11 @@ const Profile = () => {
 
     try {
       await parentClimbersAPI.deactivate(childId);
+      
+      // Премахваме детето от масива
+      setChildren(prev => prev.filter(c => c._id !== childId));
+      
       showToast('Детето е изтрито успешно', 'success');
-      fetchData();
     } catch (error) {
       const errorMessage = error.response?.data?.error?.message || 'Грешка при изтриване на дете';
       showToast(errorMessage, 'error');
@@ -196,13 +226,23 @@ const Profile = () => {
     return age;
   };
 
+  // Helper функция за scroll до елемент
+  const scrollToElement = (elementId) => {
+    setTimeout(() => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
   if (loading) {
     return <Loading text="Зареждане на профил..." />;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">Профил</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Профил</h1>
 
       <ToastComponent />
 
@@ -210,7 +250,7 @@ const Profile = () => {
       <Card title="Моята информация">
         {isEditingProfile ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Име"
                 value={profileData.firstName}
@@ -241,11 +281,11 @@ const Profile = () => {
               onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
               placeholder="+359..."
             />
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={updateProfile}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="primary" onClick={updateProfile} className="w-full sm:w-auto">
                 Запази
               </Button>
-              <Button variant="secondary" onClick={() => setIsEditingProfile(false)}>
+              <Button variant="secondary" onClick={() => setIsEditingProfile(false)} className="w-full sm:w-auto">
                 Отказ
               </Button>
             </div>
@@ -283,9 +323,9 @@ const Profile = () => {
 
       {/* Children Section */}
       <Card title="Свързани профили - Моите деца">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <p className="text-sm text-gray-600">Управлявайте профилите на децата си</p>
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button variant={showForm ? 'secondary' : 'primary'} onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
             {showForm ? 'Отказ' : 'Добави дете'}
           </Button>
         </div>
@@ -294,7 +334,7 @@ const Profile = () => {
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-semibold mb-4">{editingChild ? 'Редактирай дете' : 'Добави ново дете'}</h3>
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Input
                   label="Име"
                   value={formData.firstName}
@@ -333,11 +373,11 @@ const Profile = () => {
                 />
               </div>
 
-              <div className="flex gap-2 mt-4">
-                <Button type="submit" variant="primary">
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <Button type="submit" variant="primary" className="w-full sm:w-auto">
                   {editingChild ? 'Обнови' : 'Добави дете'}
                 </Button>
-                <Button type="button" variant="secondary" onClick={resetForm}>
+                <Button type="button" variant="secondary" onClick={resetForm} className="w-full sm:w-auto">
                   Отказ
                 </Button>
               </div>
@@ -353,9 +393,9 @@ const Profile = () => {
               const age = calculateAge(child.dateOfBirth);
               
               return (
-                <div key={child._id} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
+                <div key={child._id} id={`child-${child._id}`} className="p-4 border border-gray-200 rounded-lg">
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div className="flex-1">
                       <h3 className="text-lg font-semibold">
                         {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
                       </h3>
@@ -374,11 +414,11 @@ const Profile = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="secondary" onClick={() => handleEdit(child)}>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      <Button variant="secondary" onClick={() => handleEdit(child)} className="w-full sm:w-auto">
                         Редактирай
                       </Button>
-                      <Button variant="danger" onClick={() => handleDelete(child._id)}>
+                      <Button variant="danger" onClick={() => handleDelete(child._id)} className="w-full sm:w-auto">
                         Изтрий
                       </Button>
                     </div>

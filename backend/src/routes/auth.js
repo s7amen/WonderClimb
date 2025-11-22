@@ -11,9 +11,9 @@ const router = express.Router();
  */
 router.post('/register', authRateLimiter, validateRegister, async (req, res, next) => {
   try {
-    const { email, password, firstName, middleName, lastName } = req.body;
+    const { email, password, firstName, middleName, lastName, roles } = req.body;
     
-    const user = await registerUser(email, password, firstName, middleName, lastName);
+    const user = await registerUser(email, password, firstName, middleName, lastName, roles);
     
     res.status(201).json({
       message: 'User registered successfully',

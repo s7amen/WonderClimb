@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { bookingsAPI, parentClimbersAPI } from '../../services/api';
 import Card from '../../components/UI/Card';
 import Loading from '../../components/UI/Loading';
@@ -78,11 +79,23 @@ const ParentDashboard = () => {
       </div>
 
       <Card>
-        <h2 className="text-base font-medium text-neutral-950 mb-4">Бързи действия</h2>
-        <div className="space-y-2">
-          <p className="text-sm text-[#4a5565]">• Управлявайте профилите на децата си</p>
-          <p className="text-sm text-[#4a5565]">• Резервирайте тренировъчни сесии</p>
-          <p className="text-sm text-[#4a5565]">• Преглеждайте и отменяйте резервации</p>
+        <div className="border-b border-gray-200 px-6 py-6">
+          <h2 className="text-base font-medium text-neutral-950 mb-1">Бързи действия</h2>
+          <p className="text-sm" style={{ color: '#4a5565' }}>Често използвани действия</p>
+        </div>
+        <div className="px-6 py-6">
+          <div className="space-y-2">
+            <p className="text-sm text-[#4a5565]">• Управлявайте профилите на децата си</p>
+            <p className="text-sm text-[#4a5565]">• Резервирайте тренировъчни сесии</p>
+            <p className="text-sm text-[#4a5565]">• Преглеждайте и отменяйте резервации</p>
+          </div>
+          <div className="mt-6">
+            <Link to="/my-sessions">
+              <button className="w-full bg-[#ea7a24] text-white px-4 py-2 rounded-lg hover:bg-[#d66a1a] transition-colors">
+                Моят график
+              </button>
+            </Link>
+          </div>
         </div>
       </Card>
     </div>

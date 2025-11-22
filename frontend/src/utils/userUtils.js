@@ -40,11 +40,12 @@ export const getUserDisplayName = (user) => {
 };
 
 /**
- * Role priority order: admin > coach > climber
+ * Role priority order: admin > coach > instructor > climber
  */
 const ROLE_PRIORITY = {
-  admin: 3,
-  coach: 2,
+  admin: 4,
+  coach: 3,
+  instructor: 2,
   climber: 1,
 };
 
@@ -99,19 +100,90 @@ export const getAvailableRoleDashboards = (user) => {
   
   const dashboards = [];
   
-  if (roles.includes('admin')) {
+  // Check each role and add dashboard if user has that role
+  // Use Set for faster lookup and ensure we check all roles
+  const rolesSet = new Set(roles);
+  
+  if (rolesSet.has('admin')) {
     dashboards.push({ role: 'admin', path: '/admin/dashboard', label: 'Администратор' });
   }
-  if (roles.includes('coach')) {
+  if (rolesSet.has('coach')) {
     dashboards.push({ role: 'coach', path: '/coach/dashboard', label: 'Треньор' });
   }
-  if (roles.includes('instructor')) {
+  if (rolesSet.has('instructor')) {
     dashboards.push({ role: 'instructor', path: '/coach/dashboard', label: 'Инструктор' });
   }
-  if (roles.includes('climber')) {
+  if (rolesSet.has('climber')) {
     dashboards.push({ role: 'climber', path: '/climber/dashboard', label: 'Катерач' });
   }
   
   return dashboards;
+};
+
+/**
+ * Get the active role based on current pathname
+ * Returns the role that matches the current route, or highest priority role if no match
+ */
+export const getActiveRole = (user, pathname) => {
+  if (!user || !user.roles || user.roles.length === 0) return null;
+  
+  // Normalize roles
+  let roles = [];
+  if (Array.isArray(user.roles)) {
+    roles = user.roles.map(r => String(r).toLowerCase().trim()).filter(Boolean);
+  } else if (user.roles) {
+    try {
+      const parsed = typeof user.roles === 'string' && user.roles.startsWith('[') 
+        ? JSON.parse(user.roles) 
+        : [user.roles];
+      if (Array.isArray(parsed)) {
+        roles = parsed.map(r => String(r).toLowerCase().trim()).filter(Boolean);
+      }
+    } catch (e) {
+      roles = [String(user.roles).toLowerCase().trim()].filter(Boolean);
+    }
+  }
+  
+  // Check pathname to determine active role
+  if (pathname.startsWith('/admin/')) {
+    return roles.includes('admin') ? 'admin' : getHighestPriorityRole(user);
+  }
+  if (pathname.startsWith('/coach/')) {
+    if (roles.includes('coach')) return 'coach';
+    if (roles.includes('instructor')) return 'instructor';
+    return getHighestPriorityRole(user);
+  }
+  if (pathname.startsWith('/climber/')) {
+    return roles.includes('climber') ? 'climber' : getHighestPriorityRole(user);
+  }
+  
+  // If no route match, return highest priority role
+  return getHighestPriorityRole(user);
+};
+
+/**
+ * Get dashboard path for a role
+ */
+export const getDashboardPathForRole = (role) => {
+  const roleMap = {
+    admin: '/admin/dashboard',
+    coach: '/coach/dashboard',
+    instructor: '/instructor/dashboard',
+    climber: '/climber/dashboard',
+  };
+  return roleMap[role] || '/';
+};
+
+/**
+ * Get role label in Bulgarian
+ */
+export const getRoleLabel = (role) => {
+  const labelMap = {
+    admin: 'Администратор',
+    coach: 'Треньор',
+    instructor: 'Инструктор',
+    climber: 'Катерач',
+  };
+  return labelMap[role] || role;
 };
 
