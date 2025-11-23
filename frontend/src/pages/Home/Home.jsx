@@ -180,7 +180,7 @@ const Home = () => {
         <div className="relative z-10 w-full max-w-md px-4 flex flex-col items-center justify-center">
           {/* Title section - moved up */}
           <div className="text-center mb-6 -mt-20">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 leading-tight whitespace-nowrap">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 leading-tight md:whitespace-nowrap">
               Тренировки по катерене
             </h1>
             <p className="text-lg md:text-xl text-white/90 font-normal">

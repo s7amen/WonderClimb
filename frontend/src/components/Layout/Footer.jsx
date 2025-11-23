@@ -41,12 +41,6 @@ const Footer = () => {
               >
                 Състезания
               </Link>
-              <Link
-                to="/"
-                className="text-[#99a1af] text-base hover:text-white transition-colors font-normal"
-              >
-                За нас
-              </Link>
             </nav>
           </div>
 

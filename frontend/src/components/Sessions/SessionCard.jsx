@@ -246,7 +246,6 @@ const SessionCard = ({
               {/* Target Groups */}
               {session.targetGroups && session.targetGroups.length > 0 && (
                 <div className="flex items-center flex-wrap gap-2">
-                  <span className="text-xs text-[#64748b]">Подходящо за:</span>
                   {session.targetGroups.map((group) => {
                     const groupConfig = {
                       beginner: { label: 'Начинаещи', bgColor: 'bg-green-100', textColor: 'text-green-700' },
@@ -343,7 +342,6 @@ const SessionCard = ({
             {/* 4. Подходящо за */}
             {session.targetGroups && session.targetGroups.length > 0 && (
               <div className="mb-2 flex items-center flex-wrap gap-2">
-                <span className="text-xs text-[#64748b]">Подходящо за:</span>
                 {session.targetGroups.map((group) => {
                   const groupConfig = {
                     beginner: { label: 'Начинаещи', bgColor: 'bg-green-100', textColor: 'text-green-700' },
@@ -462,12 +460,12 @@ const SessionCard = ({
         {/* Admin Controls */}
         {mode === 'admin' && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-2 items-stretch sm:items-center">
               {onClimberSelect && (
                 <select
                   value={selectedClimberId || ''}
                   onChange={(e) => onClimberSelect(session._id, e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
+                  className="px-3 py-2 sm:py-1.5 text-sm border border-gray-300 rounded-md w-full sm:w-auto min-w-[200px] sm:min-w-0"
                 >
                   <option value="">Избери катерач...</option>
                   {allClimbers.map((climber) => (
@@ -477,30 +475,32 @@ const SessionCard = ({
                   ))}
                 </select>
               )}
-              {onViewRoster && (
-                <button
-                  onClick={() => onViewRoster(session._id)}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md"
-                >
-                  {viewingRoster ? 'Скрий списъка' : 'Виж списъка'}
-                </button>
-              )}
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(session)}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md"
-                >
-                  Редактирай
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={() => onDelete(session._id)}
-                  className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md"
-                >
-                  Изтрий
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row gap-2 flex-1 sm:flex-initial">
+                {onViewRoster && (
+                  <button
+                    onClick={() => onViewRoster(session._id)}
+                    className="px-3 py-2 sm:py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md transition-colors w-full sm:w-auto"
+                  >
+                    {viewingRoster ? 'Скрий списъка' : 'Виж списъка'}
+                  </button>
+                )}
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(session)}
+                    className="px-3 py-2 sm:py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md transition-colors w-full sm:w-auto"
+                  >
+                    Редактирай
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(session._id)}
+                    className="px-3 py-2 sm:py-1.5 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md transition-colors w-full sm:w-auto"
+                  >
+                    Изтрий
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -508,32 +508,34 @@ const SessionCard = ({
         {/* Roster View - Admin only */}
         {viewingRoster && mode === 'admin' && (
           <div className="mt-4 pt-4 border-t border-gray-200">
-            <h4 className="font-semibold mb-3">Регистрирани катерачи ({roster.length})</h4>
+            <h4 className="font-semibold mb-3 text-base sm:text-lg">Регистрирани катерачи ({roster.length})</h4>
             {roster.length === 0 ? (
               <p className="text-gray-500 text-sm">Все още няма регистрирани катерачи</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 sm:space-y-3">
                 {roster.map((item) => {
                   const climber = item.climber || item;
                   const bookedBy = item.bookedBy;
                   return (
-                    <div key={item.bookingId || climber._id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                      <div>
-                        <span className="font-medium">{climber.firstName} {climber.lastName}</span>
-                        {climber.dateOfBirth && (
-                          <span className="text-sm text-gray-500 ml-2">
-                            (Възраст: {new Date().getFullYear() - new Date(climber.dateOfBirth).getFullYear()})
-                          </span>
-                        )}
-                        {bookedBy && (
-                          <span className="text-xs text-gray-400 ml-2">
-                            Резервирано от: {
-                              bookedBy.firstName && bookedBy.lastName
-                                ? `${bookedBy.firstName} ${bookedBy.middleName || ''} ${bookedBy.lastName}`.trim()
-                                : bookedBy.name || bookedBy.email
-                            }
-                          </span>
-                        )}
+                    <div key={item.bookingId || climber._id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-2 sm:p-3 bg-gray-50 rounded">
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <span className="font-medium text-sm sm:text-base">{climber.firstName} {climber.lastName}</span>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-wrap">
+                          {climber.dateOfBirth && (
+                            <span className="text-xs sm:text-sm text-gray-500">
+                              (Възраст: {new Date().getFullYear() - new Date(climber.dateOfBirth).getFullYear()})
+                            </span>
+                          )}
+                          {bookedBy && (
+                            <span className="text-xs text-gray-400 break-words">
+                              Резервирано от: {
+                                bookedBy.firstName && bookedBy.lastName
+                                  ? `${bookedBy.firstName} ${bookedBy.middleName || ''} ${bookedBy.lastName}`.trim()
+                                  : bookedBy.name || bookedBy.email
+                              }
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

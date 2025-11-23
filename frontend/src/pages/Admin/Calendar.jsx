@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI, competitionsAPI } from '../../services/api';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfDay } from 'date-fns';
+import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
@@ -363,7 +364,7 @@ const Calendar = () => {
               className={`bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-4 ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}`}
             >
               <div className="font-medium text-base text-neutral-950 mb-3">
-                {format(day, 'EEEE, d MMMM yyyy')}
+                {format(day, 'EEEE, d MMMM yyyy', { locale: bg })}
               </div>
               <div className="space-y-2">
                 {daySessions.map((event) => {
@@ -413,7 +414,7 @@ const Calendar = () => {
         
         {/* Desktop Grid View */}
         <div className="hidden md:grid md:grid-cols-7 gap-1">
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+          {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
             <div key={day} className="p-2 text-center font-semibold text-gray-700">
               {day}
             </div>
@@ -482,7 +483,7 @@ const Calendar = () => {
               className={`bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-4 ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}`}
             >
               <div className="font-medium text-base mb-3 text-neutral-950">
-                {format(day, 'EEEE, d MMMM')}
+                {format(day, 'EEEE, d MMMM', { locale: bg })}
               </div>
               <div className="space-y-2">
                 {daySessions.length === 0 ? (
@@ -539,7 +540,7 @@ const Calendar = () => {
                 className={`bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-2 ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}`}
               >
                 <div className="font-medium text-center mb-2 text-neutral-950">
-                  {format(day, 'EEE d')}
+                  {format(day, 'EEE d', { locale: bg })}
                 </div>
                 <div className="space-y-2">
                   {daySessions.map((event) => {
@@ -579,7 +580,7 @@ const Calendar = () => {
     return (
       <div className="space-y-4">
         <div className="text-center text-2xl font-bold mb-4">
-          {format(currentDate, 'EEEE, MMMM d, yyyy')}
+          {format(currentDate, 'EEEE, MMMM d, yyyy', { locale: bg })}
         </div>
         {daySessions.length === 0 ? (
           <div className="text-center text-gray-500 py-8">No sessions scheduled</div>
@@ -686,9 +687,9 @@ const Calendar = () => {
           </Button>
           <div className="flex flex-col sm:flex-row items-center gap-2">
             <h2 className="text-base font-medium text-neutral-950 text-center">
-              {view === 'month' && format(currentDate, 'MMMM yyyy')}
-              {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')}`}
-              {view === 'day' && format(currentDate, 'MMMM d, yyyy')}
+              {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
+              {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
+              {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
             </h2>
             <Button 
               variant="secondary" 
@@ -726,7 +727,7 @@ const Calendar = () => {
               </button>
             </div>
             <div className="space-y-2 text-sm text-[#4a5565]">
-              <p><strong className="text-neutral-950">Дата:</strong> {format(new Date(selectedSession.date), 'PPpp')}</p>
+              <p><strong className="text-neutral-950">Дата:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}</p>
               {selectedSession.type === 'competition' ? (
                 <>
                   <p><strong className="text-neutral-950">Място:</strong> {selectedSession.location}</p>
@@ -946,7 +947,7 @@ const Calendar = () => {
                 <strong className="text-neutral-950">Тренировка:</strong> {selectedSession.title}
               </p>
               <p>
-                <strong className="text-neutral-950">Дата и час:</strong> {format(new Date(selectedSession.date), 'PPpp')}
+                <strong className="text-neutral-950">Дата и час:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}
               </p>
               <p>
                 <strong className="text-neutral-950">Избрани деца:</strong>

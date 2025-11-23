@@ -175,7 +175,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col lg:flex-row h-full">
       <ToastComponent />
       
       {/* Main Content */}
@@ -183,23 +183,23 @@ const Dashboard = () => {
         <div className="space-y-6">
           {/* Header */}
           <div>
-            <h1 className="text-3xl font-bold text-neutral-950">
+            <h1 className="text-2xl sm:text-3xl font-bold text-neutral-950">
               Табло
             </h1>
           </div>
 
           {/* Запазени часове Section */}
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-neutral-950">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-neutral-950">
                 Запазени часове
               </h2>
               
               {/* Toggle Buttons */}
-              <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2">
+              <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => setGroupBy('date')}
-                  className={`px-4 py-2 rounded-[8px] text-sm font-normal flex items-center gap-2 transition-colors ${
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
                     groupBy === 'date'
                       ? 'bg-[#ea7a24] text-white'
                       : 'text-[#4a5565] hover:bg-gray-50'
@@ -212,7 +212,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   onClick={() => setGroupBy('child')}
-                  className={`px-4 py-2 rounded-[8px] text-sm font-normal flex items-center gap-2 transition-colors ${
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
                     groupBy === 'child'
                       ? 'bg-[#ea7a24] text-white'
                       : 'text-[#4a5565] hover:bg-gray-50'
@@ -228,7 +228,7 @@ const Dashboard = () => {
 
             {/* Reservations List */}
           {bookings.length === 0 ? (
-            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-8 text-center">
+            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-6 sm:p-8 text-center">
               <p className="text-[#4a5565]">Няма запазени часове</p>
             </div>
           ) : groupBy === 'date' ? (
@@ -243,7 +243,7 @@ const Dashboard = () => {
                 return (
                   <div
                     key={booking._id}
-                    className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-5 flex flex-col"
+                    className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-4 sm:p-5 flex flex-col"
                   >
                     {/* Date Header */}
                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
@@ -359,7 +359,7 @@ const Dashboard = () => {
                       return (
                         <div
                           key={booking._id}
-                          className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-5 flex flex-col"
+                          className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-4 sm:p-5 flex flex-col"
                         >
                           {/* Date Header */}
                           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
@@ -467,10 +467,10 @@ const Dashboard = () => {
 
           {/* Активни абонаменти Section */}
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-neutral-950">
+            <h2 className="text-xl sm:text-2xl font-bold text-neutral-950">
               Активни абонаменти
             </h2>
-            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-8 text-center">
+            <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-6 sm:p-8 text-center">
               <p className="text-[#4a5565]">В процес на разработка</p>
             </div>
           </div>
@@ -478,7 +478,7 @@ const Dashboard = () => {
       </div>
 
       {/* Sidebar */}
-      <div className="w-80 bg-white border-l border-[rgba(0,0,0,0.1)] flex-shrink-0 overflow-y-auto">
+      <div className="hidden lg:block w-80 bg-white border-l border-[rgba(0,0,0,0.1)] flex-shrink-0 overflow-y-auto">
         <div className="p-6 space-y-6">
           {/* User Profile */}
           <div className="flex items-center gap-3">

@@ -357,7 +357,7 @@ const Header = () => {
       </header>
 
       {/* Second Menu - Only for logged in users */}
-      {isAuthenticated && roleLabel && secondMenuItems.length > 0 && (
+      {isAuthenticated && roleLabel && activeRole && (
         <div className="bg-[#2a2d31] border-b border-gray-700 sticky top-0 z-30">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4 h-[44px]">
@@ -383,23 +383,92 @@ const Header = () => {
                 </span>
               </div>
 
-              {/* Second Menu Navigation */}
+              {/* Second Menu Navigation - Desktop */}
               <nav className="hidden lg:flex items-center gap-4">
-                {secondMenuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`
-                      text-sm font-normal transition-colors
-                      ${isActive(item.href) 
-                        ? 'text-[#ea7a24] font-medium' 
-                        : 'text-[#d1d5dc] hover:text-white'
-                      }
-                    `}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {(() => {
+                  const dashboardPath = getDashboardPathForRole(activeRole);
+                  const schedulePath = activeRole === 'admin' || activeRole === 'coach' 
+                    ? '/admin/sessions' 
+                    : '/sessions';
+                  
+                  const desktopMenuItems = [];
+                  
+                  // Always add Табло if dashboard path exists
+                  if (dashboardPath && dashboardPath !== '/') {
+                    desktopMenuItems.push({ name: 'Табло', href: dashboardPath });
+                  }
+                  
+                  // Always add График
+                  desktopMenuItems.push({ name: 'График', href: schedulePath });
+                  
+                  // Always add Моя график
+                  desktopMenuItems.push({ name: 'Моя график', href: '/my-sessions' });
+                  
+                  // Add other second menu items (excluding Табло, График, and Моя график if already added)
+                  secondMenuItems.forEach((item) => {
+                    const isDashboard = item.name === 'Табло' && dashboardPath && item.href === dashboardPath;
+                    const isSchedule = item.name === 'График' && item.href === schedulePath;
+                    const isMySchedule = item.name === 'Моя график' && item.href === '/my-sessions';
+                    if (!isDashboard && !isSchedule && !isMySchedule) {
+                      desktopMenuItems.push(item);
+                    }
+                  });
+                  
+                  return desktopMenuItems.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        text-sm font-normal transition-colors
+                        ${isActive(item.href) 
+                          ? 'text-[#ea7a24] font-medium' 
+                          : 'text-[#d1d5dc] hover:text-white'
+                        }
+                      `}
+                    >
+                      {item.name}
+                    </Link>
+                  ));
+                })()}
+              </nav>
+
+              {/* Second Menu Navigation - Mobile */}
+              <nav className="lg:hidden flex items-center gap-3 overflow-x-auto flex-1">
+                {(() => {
+                  const dashboardPath = getDashboardPathForRole(activeRole);
+                  const schedulePath = activeRole === 'admin' || activeRole === 'coach' 
+                    ? '/admin/sessions' 
+                    : '/sessions';
+                  
+                  const mobileSecondMenuItems = [];
+                  
+                  // Always add Табло if dashboard path exists
+                  if (dashboardPath && dashboardPath !== '/') {
+                    mobileSecondMenuItems.push({ name: 'Табло', href: dashboardPath });
+                  }
+                  
+                  // Always add График
+                  mobileSecondMenuItems.push({ name: 'График', href: schedulePath });
+                  
+                  // Always add Моя график
+                  mobileSecondMenuItems.push({ name: 'Моя график', href: '/my-sessions' });
+                  
+                  return mobileSecondMenuItems.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        text-sm font-normal transition-colors whitespace-nowrap
+                        ${isActive(item.href) 
+                          ? 'text-[#ea7a24] font-medium' 
+                          : 'text-[#d1d5dc] hover:text-white'
+                        }
+                      `}
+                    >
+                      {item.name}
+                    </Link>
+                  ));
+                })()}
               </nav>
             </div>
           </div>
@@ -500,27 +569,54 @@ const Header = () => {
               </nav>
 
               {/* Second Menu Links */}
-              {isAuthenticated && secondMenuItems.length > 0 && (
+              {isAuthenticated && activeRole && (
                 <nav className="flex-1 py-4 border-b border-gray-700">
                   <div className="px-4 py-2 text-xs uppercase text-gray-400 tracking-wider">
                     {roleLabel}
                   </div>
-                  {secondMenuItems.map((item) => (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      onClick={() => setShowMobileMenu(false)}
-                      className={`
-                        block px-4 py-3 text-sm font-normal transition-colors
-                        ${isActive(item.href) 
-                          ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' 
-                          : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
-                        }
-                      `}
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
+                  {/* Always show Табло and График for mobile */}
+                  {(() => {
+                    const dashboardPath = getDashboardPathForRole(activeRole);
+                    const schedulePath = activeRole === 'admin' || activeRole === 'coach' 
+                      ? '/admin/sessions' 
+                      : '/sessions';
+                    
+                    const mobileMenuItems = [];
+                    
+                    // Always add Табло if dashboard path exists
+                    if (dashboardPath && dashboardPath !== '/') {
+                      mobileMenuItems.push({ name: 'Табло', href: dashboardPath });
+                    }
+                    
+                    // Always add График
+                    mobileMenuItems.push({ name: 'График', href: schedulePath });
+                    
+                    // Add other second menu items (excluding Табло and График if already added)
+                    secondMenuItems.forEach((item) => {
+                      const isDashboard = item.name === 'Табло' && dashboardPath && item.href === dashboardPath;
+                      const isSchedule = item.name === 'График' && item.href === schedulePath;
+                      if (!isDashboard && !isSchedule) {
+                        mobileMenuItems.push(item);
+                      }
+                    });
+                    
+                    return mobileMenuItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        onClick={() => setShowMobileMenu(false)}
+                        className={`
+                          block px-4 py-3 text-sm font-normal transition-colors
+                          ${isActive(item.href) 
+                            ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' 
+                            : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
+                          }
+                        `}
+                      >
+                        {item.name}
+                      </Link>
+                    ));
+                  })()}
                 </nav>
               )}
 
