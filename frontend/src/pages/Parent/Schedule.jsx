@@ -129,16 +129,13 @@ const Schedule = () => {
       if (filteredChildren.length > 0) {
         // Select all linked children by default
         const defaultIds = filteredChildren.map(c => c._id);
-        console.log('Setting default selection to all children:', defaultIds);
         setBookingData(prev => ({ ...prev, selectedClimberIds: defaultIds }));
         setBulkBookingClimberIds(defaultIds);
       } else if (fetchedSelfClimber) {
         // Select self if no children but user has climber role
-        console.log('Setting default selection to self:', fetchedSelfClimber._id);
         setBookingData(prev => ({ ...prev, selectedClimberIds: [fetchedSelfClimber._id] }));
         setBulkBookingClimberIds([fetchedSelfClimber._id]);
-      } else {
-        console.log('No default selection - no children or self climber');
+      }
       }
     } catch (error) {
       if (error.response?.status === 429) {
@@ -167,7 +164,7 @@ const Schedule = () => {
         return;
       }
 
-      console.log('Creating bookings:', {
+      // Creating bookings
         sessionId: sessionIdToUse,
         climberIds: selectedIds,
         user: user,
@@ -859,13 +856,11 @@ const Schedule = () => {
                       typeof id === 'object' && id?.toString ? id.toString() : String(id)
                     );
                     const isSelected = selectedIds.includes(climberIdStr);
-                    console.log('Rendering climber button:', { climberIdStr, selectedIds, isSelected, climberName: `${climber.firstName} ${climber.lastName}` });
                     return (
                       <button
                         key={climberIdStr}
                         type="button"
                         onClick={() => {
-                          console.log('Button clicked for climber:', climberIdStr);
                           toggleClimberSelection(climber._id);
                         }}
                         className={`px-4 py-2 rounded-md font-medium transition-colors ${

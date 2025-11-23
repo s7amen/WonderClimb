@@ -11,13 +11,15 @@ import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/UI/LoginModal';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
+import ReservationCard from '../../components/Sessions/ReservationCard';
 import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
+import { BOOKING_HORIZON_DAYS, BREAKPOINTS } from '../../utils/constants';
 
 const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [daysToShow] = useState(30); // Booking horizon - 30 days
+  const [daysToShow] = useState(BOOKING_HORIZON_DAYS);
   const { showToast, ToastComponent } = useToast();
 
   // Login modal state
@@ -131,8 +133,8 @@ const Sessions = () => {
   // Track scroll position for sticky bulk booking button (mobile only)
   useEffect(() => {
     const handleScroll = () => {
-      // Only apply sticky on mobile (screen width < 768px)
-      if (window.innerWidth < 768) {
+      // Only apply sticky on mobile
+      if (window.innerWidth < BREAKPOINTS.MOBILE) {
         const scrollY = window.scrollY || window.pageYOffset;
         // Set sticky when scrolled down, remove when back at top
         setIsSticky(scrollY > 50);
@@ -146,7 +148,7 @@ const Sessions = () => {
     handleScroll();
     
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
+      if (window.innerWidth >= BREAKPOINTS.MOBILE) {
         setIsSticky(false);
       } else {
         handleScroll();
@@ -977,145 +979,19 @@ const Sessions = () => {
           {/* Left Sidebar - Reservation and Filters */}
           <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-2 lg:space-y-4">
             {/* Default Climber Selection - In Sidebar */}
-            {isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) && (
-              <Card ref={reservationCardRef} className="bg-white/80 border border-slate-200 rounded-[16px]">
-                <div className="overflow-hidden">
-                  {/* Title */}
-                  <div className="pt-[12px] px-[16px] pb-0">
-                    <h2 className="text-[#cbd5e1] text-sm leading-5 font-semibold uppercase">РЕЗЕРВАЦИЯ ЗА:</h2>
-                  </div>
-
-                  {/* Header with divider */}
-                  <div className="flex justify-end items-center pb-px pt-[12px] px-[16px] border-b border-slate-200">
-                  </div>
-
-                  {/* Content */}
-                  <div className="px-[16px] pt-[12px] pb-[12px]">
-                    <div className="flex flex-col gap-2">
-                    {/* Self profile option for climbers */}
-                    {user?.roles?.includes('climber') && (
-                      <button
-                        key="self"
-                        type="button"
-                        onClick={() => {
-                          const selfId = 'self';
-                          const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                            typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                          );
-                          const isSelected = selectedIds.includes(selfId);
-                          if (isSelected) {
-                            setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                              const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                              return idStr !== selfId;
-                            }));
-                          } else {
-                            setDefaultSelectedClimberIds(prev => [...prev, selfId]);
-                          }
-                        }}
-                        className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                          (defaultSelectedClimberIds || []).some(id => {
-                            const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                            return idStr === 'self';
-                          })
-                            ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
-                          <span className="text-white text-xs font-medium">
-                            {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
-                          </span>
-                        </div>
-                        {/* Name */}
-                        <div className="text-left flex-1 min-w-0">
-                          <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                            {getUserDisplayName(user) || user?.email || 'Аз'}
-                          </div>
-                        </div>
-                      </button>
-                    )}
-                    {/* Children options */}
-                    {children.map((climber) => {
-                      const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
-                      const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                        typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                      );
-                      const isSelected = selectedIds.includes(climberIdStr);
-                      
-                      // Get first letter from first name for avatar
-                      const firstLetter = climber.firstName?.[0]?.toUpperCase() || climber.lastName?.[0]?.toUpperCase() || '?';
-                      
-                      // Avatar color based on index
-                      const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
-                      const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
-                      
-                      return (
-                        <button
-                          key={climberIdStr}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                                return idStr !== climberIdStr;
-                              }));
-                            } else {
-                              setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
-                            }
-                          }}
-                          className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                            isSelected
-                              ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {/* Avatar */}
-                          <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
-                            <span className="text-white text-xs font-medium">
-                              {firstLetter}
-                            </span>
-                          </div>
-                          {/* Name */}
-                          <div className="text-left flex-1 min-w-0">
-                            <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                              {climber.firstName} {climber.lastName}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                    
-                    {/* Add Child Button */}
-                    {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAddChildModal(true);
-                          setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                          setFoundExistingProfile(null);
-                        }}
-                        className="h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 border-dashed border-gray-300 rounded-[8px] hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
-                      >
-                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </div>
-                        <div className="text-xs leading-4 font-normal whitespace-nowrap">
-                          Добави дете
-                        </div>
-                      </button>
-                    )}
-                    </div>
-                    {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
-                      <p className="text-[10px] text-blue-600 font-medium mt-2">
-                        Моля, изберете поне един катерач преди резервиране на тренировки
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
+            {isAuthenticated && (
+              <ReservationCard
+                ref={reservationCardRef}
+                user={user}
+                children={children}
+                defaultSelectedClimberIds={defaultSelectedClimberIds}
+                setDefaultSelectedClimberIds={setDefaultSelectedClimberIds}
+                onAddChildClick={() => {
+                  setShowAddChildModal(true);
+                  setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
+                  setFoundExistingProfile(null);
+                }}
+              />
             )}
 
             {/* Filters */}

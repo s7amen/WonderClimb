@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { ClockIcon, PersonIcon } from './SessionIcons';
+import { getReservationColor, getTargetGroupConfig, COLORS } from '../../utils/constants';
 
 const SessionCard = ({
   session,
@@ -45,12 +46,12 @@ const SessionCard = ({
   const getBorderColor = () => {
     // If selected, use orange
     if (isSelected) {
-      return '#ff6900';
+      return COLORS.PRIMARY;
     }
     
     // If no target groups, use default green
     if (!session.targetGroups || session.targetGroups.length === 0) {
-      return '#00c950';
+      return COLORS.SUCCESS;
     }
     
     // Priority order: beginner < experienced < advanced
@@ -61,15 +62,15 @@ const SessionCard = ({
     
     // Return color based on lowest priority group
     if (hasBeginner) {
-      return '#00c950'; // Green for beginner
+      return COLORS.SUCCESS; // Green for beginner
     } else if (hasExperienced) {
-      return '#ff6900'; // Orange for experienced
+      return COLORS.PRIMARY; // Orange for experienced
     } else if (hasAdvanced) {
-      return '#dc2626'; // Darker red for advanced (better contrast with orange)
+      return COLORS.ERROR; // Darker red for advanced (better contrast with orange)
     }
     
     // Default green
-    return '#00c950';
+    return COLORS.SUCCESS;
   };
   
   const borderColor = getBorderColor();
@@ -214,19 +215,7 @@ const SessionCard = ({
                 <span className="text-xs text-[#64748b]">За:</span>
                 <div className="flex items-center flex-wrap gap-2">
                   {allReservations.map((reservation, index) => {
-                    // Различни цветове за всяко дете
-                    const colorClasses = [
-                      { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-                      { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-                      { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-                      { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-                      { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-                      { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-                      { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
-                      { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                    ];
-                    const colorIndex = index % colorClasses.length;
-                    const colors = colorClasses[colorIndex];
+                    const colors = getReservationColor(index);
                     
                     return (
                       <span
@@ -247,11 +236,7 @@ const SessionCard = ({
               {session.targetGroups && session.targetGroups.length > 0 && (
                 <div className="flex items-center flex-wrap gap-2">
                   {session.targetGroups.map((group) => {
-                    const groupConfig = {
-                      beginner: { label: 'Начинаещи', bgColor: 'bg-green-100', textColor: 'text-green-700' },
-                      experienced: { label: 'Деца с опит', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
-                      advanced: { label: 'Напреднали', bgColor: 'bg-red-100', textColor: 'text-red-700' },
-                    }[group] || { label: group, bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
+                    const groupConfig = getTargetGroupConfig(group);
                     
                     return (
                       <span
@@ -312,19 +297,7 @@ const SessionCard = ({
                 <span className="text-xs text-[#64748b]">За:</span>
                 <div className="flex items-center flex-wrap gap-2">
                   {allReservations.map((reservation, index) => {
-                    // Различни цветове за всяко дете
-                    const colorClasses = [
-                      { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-                      { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-                      { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-                      { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-                      { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-                      { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-                      { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
-                      { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                    ];
-                    const colorIndex = index % colorClasses.length;
-                    const colors = colorClasses[colorIndex];
+                    const colors = getReservationColor(index);
                     
                     return (
                       <span
@@ -343,11 +316,7 @@ const SessionCard = ({
             {session.targetGroups && session.targetGroups.length > 0 && (
               <div className="mb-2 flex items-center flex-wrap gap-2">
                 {session.targetGroups.map((group) => {
-                  const groupConfig = {
-                    beginner: { label: 'Начинаещи', bgColor: 'bg-green-100', textColor: 'text-green-700' },
-                    experienced: { label: 'Деца с опит', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
-                    advanced: { label: 'Напреднали', bgColor: 'bg-red-100', textColor: 'text-red-700' },
-                  }[group] || { label: group, bgColor: 'bg-gray-100', textColor: 'text-gray-800' };
+                  const groupConfig = getTargetGroupConfig(group);
                   
                   return (
                     <span

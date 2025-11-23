@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import Card from '../UI/Card';
 import SessionCard from './SessionCard';
 import { CalendarIcon } from './SessionIcons';
+import { normalizeId, compareIds } from '../../utils/idUtils';
 
 const SessionList = ({
   sessions,
@@ -40,6 +42,27 @@ const SessionList = ({
 }) => {
   const filteredSessions = getFilteredSessions();
 
+  // Memoize reservations lookup to avoid recalculating on every render
+  const reservationsBySessionId = useMemo(() => {
+    if (!userBookings || userBookings.length === 0) return {};
+    
+    const map = {};
+    userBookings.forEach(booking => {
+      if (!booking || booking.status !== 'booked') return;
+      
+      const sessionId = booking.sessionId ? normalizeId(booking.sessionId) : 
+                       (booking.session ? normalizeId(booking.session) : null);
+      
+      if (sessionId) {
+        if (!map[sessionId]) {
+          map[sessionId] = [];
+        }
+        map[sessionId].push(booking);
+      }
+    });
+    return map;
+  }, [userBookings]);
+
   if (hasActiveFilters() && filteredSessions.length === 0) {
     return (
       <Card>
@@ -58,49 +81,33 @@ const SessionList = ({
     );
   }
 
-  // Group sessions by day
-  const groupedSessions = {};
-  filteredSessions.forEach((session) => {
-    const sessionDate = new Date(session.date);
-    const dayKey = format(sessionDate, 'yyyy-MM-dd');
-    if (!groupedSessions[dayKey]) {
-      groupedSessions[dayKey] = {
-        date: sessionDate,
-        sessions: [],
-      };
-    }
-    groupedSessions[dayKey].sessions.push(session);
-  });
+  // Group sessions by day (memoized)
+  const { groupedSessions, sortedDays } = useMemo(() => {
+    const grouped = {};
+    filteredSessions.forEach((session) => {
+      const sessionDate = new Date(session.date);
+      const dayKey = format(sessionDate, 'yyyy-MM-dd');
+      if (!grouped[dayKey]) {
+        grouped[dayKey] = {
+          date: sessionDate,
+          sessions: [],
+        };
+      }
+      grouped[dayKey].sessions.push(session);
+    });
+    return {
+      groupedSessions: grouped,
+      sortedDays: Object.keys(grouped).sort(),
+    };
+  }, [filteredSessions]);
 
-  // Sort days
-  const sortedDays = Object.keys(groupedSessions).sort();
-
-  // Helper function to get all reservations for a session
-  const getReservationsForSession = (sessionId) => {
-    if (!userBookings || userBookings.length === 0) return [];
-    
-    // Normalize sessionId for comparison
-    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-      ? sessionId.toString() 
-      : String(sessionId);
-    
-    return userBookings.filter(b => {
-      if (!b || b.status !== 'booked') return false;
+  // Helper function to get all reservations for a session (memoized)
+  const getReservationsForSession = useMemo(() => {
+    return (sessionId) => {
+      const normalizedSessionId = normalizeId(sessionId);
+      const bookings = reservationsBySessionId[normalizedSessionId] || [];
       
-      // Check sessionId field (could be string or object)
-      const bookingSessionId = b.sessionId 
-        ? (typeof b.sessionId === 'object' && b.sessionId._id 
-            ? String(b.sessionId._id) 
-            : String(b.sessionId))
-        : null;
-      
-      // Check session object (populated)
-      const sessionObjId = b.session 
-        ? (b.session._id ? String(b.session._id) : String(b.session))
-        : null;
-      
-      return bookingSessionId === normalizedSessionId || sessionObjId === normalizedSessionId;
-    }).map(booking => {
+      return bookings.map(booking => {
       const climber = booking.climber || booking.climberId;
       let climberName = 'Неизвестен';
       let climberId = null;
@@ -116,15 +123,10 @@ const SessionList = ({
           climberId = climber._id || climber.id || climber;
         } else {
           // Climber е само ID - опитай да го намериш в children масива
-          const climberIdStr = typeof climber === 'object' && climber?.toString 
-            ? climber.toString() 
-            : String(climber);
+          const climberIdStr = normalizeId(climber);
           
           const foundClimber = children.find(child => {
-            const childIdStr = typeof child._id === 'object' && child._id?.toString 
-              ? child._id.toString() 
-              : String(child._id);
-            return childIdStr === climberIdStr;
+            return compareIds(child._id, climberIdStr);
           });
           
           if (foundClimber && foundClimber.firstName && foundClimber.lastName) {
@@ -136,13 +138,14 @@ const SessionList = ({
         }
       }
       
-      return {
-        climberName,
-        bookingId: booking._id || booking.id,
-        climberId: climberId || (typeof climber === 'object' && climber._id ? climber._id : climber),
-      };
-    });
-  };
+        return {
+          climberName,
+          bookingId: booking._id || booking.id,
+          climberId: climberId || (typeof climber === 'object' && climber._id ? climber._id : climber),
+        };
+      });
+    };
+  }, [reservationsBySessionId, children]);
 
   // Helper function to get reservation info for a session (first one for display)
   const getReservationInfo = (sessionId) => {
@@ -191,29 +194,16 @@ const SessionList = ({
                 const bookedCount = getBookedCount ? getBookedCount(session._id) : (session.bookedCount || 0);
                 const isFull = bookedCount >= session.capacity;
                 // Normalize session ID for comparison
-                const sessionId = session._id || session.id;
-                const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-                  ? sessionId.toString() 
-                  : String(sessionId);
-                const isSelected = selectedSessionIds.some(id => {
-                  const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                  return normalizedId === normalizedSessionId;
-                });
+                const normalizedSessionId = normalizeId(session._id || session.id);
+                const isSelected = selectedSessionIds.some(id => compareIds(id, normalizedSessionId));
                 
                 // Get selected climber ID - use session._id directly as key
                 const selectedClimberId = mode === 'admin' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || '') : null;
                 
                 // Normalize viewingRoster comparison
-                let isViewingRoster = false;
-                if (viewingRoster && session._id) {
-                  const normalizedViewingRoster = typeof viewingRoster === 'object' && viewingRoster?.toString 
-                    ? viewingRoster.toString() 
-                    : String(viewingRoster);
-                  const normalizedSessionId = typeof session._id === 'object' && session._id?.toString 
-                    ? session._id.toString() 
-                    : String(session._id);
-                  isViewingRoster = normalizedViewingRoster === normalizedSessionId;
-                }
+                const isViewingRoster = viewingRoster && session._id 
+                  ? compareIds(viewingRoster, session._id)
+                  : false;
                 
                 const sessionRoster = mode === 'admin' && isViewingRoster ? roster : null;
                 const reservationInfo = getReservationInfo(session._id);

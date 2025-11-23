@@ -93,11 +93,8 @@ const Competitions = () => {
   const handleImportClick = async () => {
     try {
       setIsScraping(true);
-      console.log('Starting import from БФКА...');
       const response = await competitionsAPI.previewImport();
-      console.log('Import response:', response);
       const scraped = response.data.competitions || [];
-      console.log(`Found ${scraped.length} competitions`);
       
       if (scraped.length === 0) {
         showToast('Не са намерени състезания за импортиране', 'warning');

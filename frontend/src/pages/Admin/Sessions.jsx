@@ -119,7 +119,6 @@ const Sessions = () => {
   const fetchCoaches = async () => {
     try {
       const response = await adminUsersAPI.getCoaches();
-      console.log('Fetched coaches:', response.data);
       setCoaches(response.data.users || []);
     } catch (error) {
       console.error('Error loading coaches:', error);
@@ -130,7 +129,6 @@ const Sessions = () => {
   const fetchAllClimbers = async () => {
     try {
       const response = await adminAPI.getAllClimbers();
-      console.log('Fetched climbers:', response.data);
       setAllClimbers(response.data.climbers || []);
     } catch (error) {
       console.error('Error loading climbers:', error);

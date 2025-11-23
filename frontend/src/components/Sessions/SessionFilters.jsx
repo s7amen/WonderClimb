@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BREAKPOINTS } from '../../utils/constants';
 import Card from '../UI/Card';
 
 const SessionFilters = ({
@@ -18,7 +19,7 @@ const SessionFilters = ({
   const [showMoreFilters, setShowMoreFilters] = useState(compact); // In compact mode, show all filters on desktop by default
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window !== 'undefined') {
-      return window.innerWidth < 768; // md breakpoint
+      return window.innerWidth < BREAKPOINTS.MOBILE;
     }
     return false;
   });
@@ -31,7 +32,7 @@ const SessionFilters = ({
         // In compact mode, only collapse on mobile
         return window.innerWidth < 768;
       }
-      return window.innerWidth < 768; // md breakpoint
+      return window.innerWidth < BREAKPOINTS.MOBILE;
     }
     return false;
   });
@@ -46,7 +47,7 @@ const SessionFilters = ({
   // Handle screen size changes
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768;
+      const mobile = window.innerWidth < BREAKPOINTS.MOBILE;
       setIsMobile(mobile);
       
       if (compact) {
