@@ -13,6 +13,7 @@ const SessionFilters = ({
   hasActiveFilters,
   compact = false,
   sticky = false,
+  onCollapseChange,
 }) => {
   const [showMoreFilters, setShowMoreFilters] = useState(compact); // In compact mode, show all filters on desktop by default
   const [isMobile, setIsMobile] = useState(() => {
@@ -34,6 +35,13 @@ const SessionFilters = ({
     }
     return false;
   });
+
+  // Notify parent when collapse state changes
+  useEffect(() => {
+    if (onCollapseChange) {
+      onCollapseChange(isCollapsed);
+    }
+  }, [isCollapsed, onCollapseChange]);
 
   // Handle screen size changes
   useEffect(() => {
@@ -63,30 +71,26 @@ const SessionFilters = ({
   }, [isCollapsed, compact]);
   
   // In compact mode on desktop, always show all filters
+  // On mobile, always show all filters when expanded
   const shouldShowAllFilters = compact && !isMobile;
-  const showTitleFilter = shouldShowAllFilters || showMoreFilters;
+  const showTitleFilter = shouldShowAllFilters || showMoreFilters || (isMobile && !isCollapsed);
 
   return (
     <>
-      <Card className={`${compact ? 'mb-4' : 'mb-6'} bg-white/80 border border-slate-200 rounded-[16px] ${sticky ? 'sticky top-0 z-10 shadow-sm' : ''}`}>
+      <Card className={`${compact ? (isMobile ? 'mb-2' : 'mb-4') : (isMobile ? 'mb-2' : 'mb-6')} bg-white/80 border border-slate-200 rounded-[16px] ${sticky ? 'sticky top-0 z-10 shadow-sm' : ''} ${isMobile ? 'w-full' : ''} [&>div]:p-0`}>
         <div className="overflow-hidden">
-          {/* Title */}
-          <div className={`${compact ? 'pt-[12px] px-[16px] pb-0' : 'pt-[16px] px-[24px] pb-0'}`}>
-            <h2 className={`text-[#cbd5e1] ${compact ? 'text-sm leading-5' : 'text-lg leading-7'} font-semibold uppercase`}>ФИЛТРИ</h2>
-          </div>
+          {/* Title - Hide on mobile */}
+          {!isMobile && (
+            <div className={`${compact ? 'pt-[12px] px-[16px] pb-0' : 'pt-[16px] px-[24px] pb-0'}`}>
+              <h2 className={`text-[#cbd5e1] ${compact ? 'text-sm leading-5' : 'text-lg leading-7'} font-semibold uppercase`}>ФИЛТРИ</h2>
+            </div>
+          )}
 
-          {/* Header with clear all filters button */}
-          <div className={`flex justify-end items-center pb-px ${compact ? 'pt-[12px] px-[16px]' : 'pt-[16px] px-[24px]'} border-b border-slate-200`}>
-            {hasActiveFilters() && (
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className={`${compact ? 'h-[20px] text-xs leading-4' : 'h-[24px] text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
-              >
-                Премахни всички филтри
-              </button>
-            )}
-          </div>
+          {/* Header with divider - Hide on mobile */}
+          {!isMobile && (
+            <div className={`flex justify-end items-center pb-px ${compact ? 'pt-[12px] px-[16px]' : 'pt-[16px] px-[24px]'} border-b border-slate-200`}>
+            </div>
+          )}
 
           {/* Filter content - показва се само ако не са скрити всички филтри */}
           {!isCollapsed && (
@@ -202,42 +206,74 @@ const SessionFilters = ({
               </div>
             )}
 
-            {/* Show More Filters / Hide All Filters Button - Hide on desktop in compact mode */}
-            {(!compact || isMobile) && (
-              <div className="flex justify-start">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (showMoreFilters) {
-                      // Ако допълнителните филтри са показани, скрий всички филтри
+            {/* Премахни всички филтри и Скрий филтри бутони - под филтрите */}
+            <div className="flex flex-col gap-2">
+              {/* Премахни всички филтри */}
+              {hasActiveFilters() && (
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className={`${compact ? 'h-[20px] text-xs leading-4' : 'h-[24px] text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
+                  >
+                    Премахни всички филтри
+                  </button>
+                </div>
+              )}
+              
+              {/* Скрий филтри бутон - Hide on desktop in compact mode */}
+              {(!compact || isMobile) && !isMobile && (
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (showMoreFilters) {
+                        // Ако допълнителните филтри са показани, скрий всички филтри
+                        setIsCollapsed(true);
+                        setShowMoreFilters(false);
+                      } else {
+                        // Покажи допълнителните филтри
+                        setShowMoreFilters(true);
+                      }
+                    }}
+                    className={`${compact ? 'h-[20px] text-xs leading-4' : 'h-[24px] text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
+                  >
+                    {showMoreFilters ? 'Скрий филтри' : 'Покажи още филтри'}
+                  </button>
+                </div>
+              )}
+              
+              {/* Скрий филтри бутон за мобилно */}
+              {isMobile && (
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => {
                       setIsCollapsed(true);
                       setShowMoreFilters(false);
-                    } else {
-                      // Покажи допълнителните филтри
-                      setShowMoreFilters(true);
-                    }
-                  }}
-                  className={`${compact ? 'h-[20px] text-xs leading-4' : 'h-[24px] text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
-                >
-                  {showMoreFilters ? 'Скрий филтри' : 'Покажи още филтри'}
-                </button>
-              </div>
-            )}
+                    }}
+                    className="h-[20px] text-xs leading-4 text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline"
+                  >
+                    Скрий филтри
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           )}
           
           {/* Show All Filters Button - показва се само когато всички филтри са скрити - Hide on desktop in compact mode */}
           {isCollapsed && (!compact || isMobile) && (
-            <div className={`flex justify-start pb-0 ${compact ? 'pt-[12px] px-[16px]' : 'pt-[24px] px-[24px]'}`}>
+            <div className="flex justify-center py-2">
               <button
                 type="button"
                 onClick={() => {
                   setIsCollapsed(false);
-                  if (compact) {
-                    setShowMoreFilters(true); // Show all filters when expanding in compact mode
+                  if (compact || isMobile) {
+                    setShowMoreFilters(true); // Show all filters when expanding in compact mode or on mobile
                   }
                 }}
-                className={`${compact ? 'h-[20px] text-xs leading-4' : 'h-[24px] text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
+                className={`${compact ? 'text-xs leading-4' : 'text-base leading-6'} text-[#ff6900] hover:text-[#f54900] transition-all duration-200 hover:underline`}
               >
                 Покажи филтри
               </button>

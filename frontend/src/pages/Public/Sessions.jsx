@@ -75,6 +75,7 @@ const Sessions = () => {
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedTitles, setSelectedTitles] = useState([]);
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
   useEffect(() => {
     fetchSessions();
@@ -965,16 +966,16 @@ const Sessions = () => {
       <Header />
       <div className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-normal text-[#0f172b] mb-4 leading-9">График</h1>
+        <div className="mb-2 lg:mb-4">
+          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График</h1>
         </div>
 
         <ToastComponent />
 
         {/* Layout with Sidebar and Main Content */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className={`flex flex-col lg:flex-row ${filtersCollapsed ? 'lg:gap-8' : 'gap-y-2 lg:gap-6'}`}>
           {/* Left Sidebar - Reservation and Filters */}
-          <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-4">
+          <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-2 lg:space-y-4">
             {/* Default Climber Selection - In Sidebar */}
             {isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) && (
               <Card ref={reservationCardRef} className="bg-white/80 border border-slate-200 rounded-[16px]">
@@ -1134,6 +1135,7 @@ const Sessions = () => {
                 clearAllFilters={clearAllFilters}
                 hasActiveFilters={hasActiveFilters}
                 compact={true}
+                onCollapseChange={setFiltersCollapsed}
               />
             </div>
           </div>
@@ -1143,49 +1145,22 @@ const Sessions = () => {
             {/* Bulk Actions */}
             {isAuthenticated && (
               <>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 px-2">
-                  {/* Ред 1: Маркирай всички и Изчисти всички */}
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={selectAllFilteredSessions}
-                      className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
-                    >
-                      Маркирай всички
-                    </button>
-                    {selectedSessionIds.length > 0 && (
-                      <>
-                        <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
-                        <button
-                          type="button"
-                          onClick={clearAllSelectedSessions}
-                          className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
-                        >
-                          Изчисти всички
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {/* Ред 2 (мобилно) / Ред 1 (десктоп): Bulk booking button */}
-                  <div className={`flex-shrink-0 w-full sm:w-auto md:static ${
-                    isSticky && selectedSessionIds.length > 0 
-                      ? 'fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-2 mx-[-8px]' 
-                      : ''
-                  }`}>
-                    {selectedSessionIds.length > 0 ? (
-                    <Button
-                      onClick={handleBulkBook}
-                        disabled={isBulkBooking}
-                      variant="primary"
-                        className="w-full sm:w-auto text-xs md:text-sm"
-                    >
-                        {isBulkBooking ? 'Запазване...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
-                    </Button>
-                    ) : (
-                      // Placeholder to maintain layout when button is not visible
-                      <div className="h-[36px] w-full sm:w-auto" />
-                  )}
-                  </div>
+                {/* Bulk booking button */}
+                <div className={`flex-shrink-0 w-full sm:w-auto md:static mb-2 lg:mb-4 ${
+                  isSticky && selectedSessionIds.length > 0 
+                    ? 'fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-2 mx-[-8px]' 
+                    : ''
+                }`}>
+                  {selectedSessionIds.length > 0 ? (
+                  <Button
+                    onClick={handleBulkBook}
+                      disabled={isBulkBooking}
+                    variant="primary"
+                      className="w-full sm:w-auto text-xs md:text-sm"
+                  >
+                      {isBulkBooking ? 'Запазване...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
+                  </Button>
+                  ) : null}
                 </div>
               </>
             )}
@@ -1193,6 +1168,31 @@ const Sessions = () => {
             {/* Spacer for sticky button on mobile (at bottom) */}
             {isSticky && selectedSessionIds.length > 0 && (
               <div className="h-[60px] md:hidden" />
+            )}
+
+            {/* Маркирай всички бутон - точно над графика в дясно */}
+            {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
+              <div className="flex justify-end items-center gap-3 mb-2 lg:mb-4">
+                <button
+                  type="button"
+                  onClick={selectAllFilteredSessions}
+                  className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+                >
+                  Маркирай всички
+                </button>
+                {selectedSessionIds.length > 0 && (
+                  <>
+                    <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+                    <button
+                      type="button"
+                      onClick={clearAllSelectedSessions}
+                      className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+                    >
+                      Изчисти всички
+                    </button>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Sessions List */}

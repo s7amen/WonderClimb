@@ -14,9 +14,8 @@ const Footer = () => {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      {/* Multiple black layers for very subtle visibility */}
-      <div className="absolute inset-0 bg-black/90"></div>
-      <div className="absolute inset-0 bg-black/80"></div>
+      {/* Dark overlay for readability while keeping background visible */}
+      <div className="absolute inset-0 bg-black/70"></div>
       
       <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
