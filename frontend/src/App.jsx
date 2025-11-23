@@ -1,42 +1,45 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
-import AdminLayout from './components/Layout/AdminLayout';
-import AdminDashboard from './pages/Admin/Dashboard';
-import AdminSessions from './pages/Admin/Sessions';
-import AdminCalendar from './pages/Admin/Calendar';
-import AdminClimbers from './pages/Admin/Climbers';
-import ClimberProfile from './pages/Admin/ClimberProfile';
-import Competitions from './pages/Admin/Competitions';
-import CompetitionDetail from './pages/Admin/CompetitionDetail';
-import PublicCompetition from './pages/Public/Competition';
-import PublicCompetitionDetail from './pages/Public/CompetitionDetail';
-import PublicSessions from './pages/Public/Sessions';
-import TermsOfService from './pages/Public/TermsOfService';
-import CoachLayout from './components/Layout/CoachLayout';
-import CoachDashboard from './pages/Coach/Dashboard';
-import CoachAttendance from './pages/Coach/Attendance';
-import InstructorDashboard from './pages/Instructor/Dashboard';
-import ClimberLayout from './components/Layout/ClimberLayout';
-import ClimberDashboard from './pages/Climber/Dashboard';
-import ClimberSchedule from './pages/Climber/Schedule';
-import ParentLayout from './components/Layout/ParentLayout';
-import ParentDashboard from './pages/Parent/Dashboard';
-import ParentProfile from './pages/Parent/Profile';
-import ParentSchedule from './pages/Parent/Schedule';
-import ParentBookings from './pages/Parent/Bookings';
-import ParentSavedSessions from './pages/Parent/SavedSessions';
-import ParentSubscriptions from './pages/Parent/Subscriptions';
-import Profile from './pages/Profile/Profile';
-import MySessions from './pages/MySessions/MySessions';
-import HomePage from './pages/Home/HomePage';
-import PublicLandingPage from './pages/Home/Home';
 import Loading from './components/UI/Loading';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+
+// Lazy load layouts (smaller, can be loaded immediately)
+import AdminLayout from './components/Layout/AdminLayout';
+import CoachLayout from './components/Layout/CoachLayout';
+import ClimberLayout from './components/Layout/ClimberLayout';
+import ParentLayout from './components/Layout/ParentLayout';
+
+// Lazy load pages for better code splitting
+const Login = lazy(() => import('./pages/Auth/Login'));
+const Register = lazy(() => import('./pages/Auth/Register'));
+const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
+const AdminSessions = lazy(() => import('./pages/Admin/Sessions'));
+const AdminCalendar = lazy(() => import('./pages/Admin/Calendar'));
+const AdminClimbers = lazy(() => import('./pages/Admin/Climbers'));
+const ClimberProfile = lazy(() => import('./pages/Admin/ClimberProfile'));
+const Competitions = lazy(() => import('./pages/Admin/Competitions'));
+const CompetitionDetail = lazy(() => import('./pages/Admin/CompetitionDetail'));
+const PublicCompetition = lazy(() => import('./pages/Public/Competition'));
+const PublicCompetitionDetail = lazy(() => import('./pages/Public/CompetitionDetail'));
+const PublicSessions = lazy(() => import('./pages/Public/Sessions'));
+const TermsOfService = lazy(() => import('./pages/Public/TermsOfService'));
+const CoachDashboard = lazy(() => import('./pages/Coach/Dashboard'));
+const CoachAttendance = lazy(() => import('./pages/Coach/Attendance'));
+const InstructorDashboard = lazy(() => import('./pages/Instructor/Dashboard'));
+const ClimberDashboard = lazy(() => import('./pages/Climber/Dashboard'));
+const ClimberSchedule = lazy(() => import('./pages/Climber/Schedule'));
+const ParentDashboard = lazy(() => import('./pages/Parent/Dashboard'));
+const ParentProfile = lazy(() => import('./pages/Parent/Profile'));
+const ParentSchedule = lazy(() => import('./pages/Parent/Schedule'));
+const ParentBookings = lazy(() => import('./pages/Parent/Bookings'));
+const ParentSavedSessions = lazy(() => import('./pages/Parent/SavedSessions'));
+const ParentSubscriptions = lazy(() => import('./pages/Parent/Subscriptions'));
+const Profile = lazy(() => import('./pages/Profile/Profile'));
+const MySessions = lazy(() => import('./pages/MySessions/MySessions'));
+const PublicLandingPage = lazy(() => import('./pages/Home/Home'));
 
 // Home component - always shows public landing page
 const Home = () => {
@@ -53,11 +56,19 @@ const Home = () => {
   return <PublicLandingPage />;
 };
 
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#f3f3f5]">
+    <Loading text="Зареждане..." />
+  </div>
+);
+
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -236,7 +247,8 @@ function App() {
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </Suspense>
       </Router>
     </AuthProvider>
   );
