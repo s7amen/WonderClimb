@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import Card from '../../components/UI/Card';
@@ -11,7 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/UI/LoginModal';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
-import { getUserFullName } from '../../utils/userUtils';
+import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
 
 const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
@@ -63,9 +63,12 @@ const Sessions = () => {
   const [selectedCancelBookingIds, setSelectedCancelBookingIds] = useState([]);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Sticky button state for mobile and desktop
+  // Sticky button state for mobile
   const [isSticky, setIsSticky] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Sticky positioning state for sidebar sections
+  const reservationCardRef = useRef(null);
+  const [filtersTopOffset, setFiltersTopOffset] = useState('330px');
 
   // Filter states
   const [selectedDays, setSelectedDays] = useState([]);
@@ -100,17 +103,60 @@ const Sessions = () => {
     }
   }, [isAuthenticated, user, showLoginModal]);
 
-  // Check if desktop for styling purposes
+  // Calculate filters top offset based on reservation card height
   useEffect(() => {
-    const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 1024); // lg breakpoint
+    const calculateFiltersOffset = () => {
+      if (reservationCardRef.current && isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber')))) {
+        const reservationCardHeight = reservationCardRef.current.offsetHeight;
+        const headerHeight = isAuthenticated ? 114 : 70; // 70px main header + 44px second menu if authenticated
+        const gapBetweenSections = 16; // space-y-4 = 1rem = 16px
+        const calculatedOffset = headerHeight + reservationCardHeight + gapBetweenSections;
+        setFiltersTopOffset(`${calculatedOffset}px`);
+      }
     };
 
-    checkDesktop();
-    window.addEventListener('resize', checkDesktop);
+    // Calculate on mount and when dependencies change
+    calculateFiltersOffset();
+
+    // Recalculate on window resize
+    const handleResize = () => {
+      calculateFiltersOffset();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isAuthenticated, user, children]);
+
+  // Track scroll position for sticky bulk booking button (mobile only)
+  useEffect(() => {
+    const handleScroll = () => {
+      // Only apply sticky on mobile (screen width < 768px)
+      if (window.innerWidth < 768) {
+        const scrollY = window.scrollY || window.pageYOffset;
+        // Set sticky when scrolled down, remove when back at top
+        setIsSticky(scrollY > 50);
+      } else {
+        setIsSticky(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Check on mount and resize
+    handleScroll();
+    
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSticky(false);
+      } else {
+        handleScroll();
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('resize', checkDesktop);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -241,7 +287,8 @@ const Sessions = () => {
       } else {
         // No child selected, show selection modal
       setSelectedSessionId(sessionId);
-      setSelectedClimberIds([]);
+      // Pre-populate with defaultSelectedClimberIds if available
+      setSelectedClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
       setShowBookingModal(true);
       return;
       }
@@ -890,264 +937,287 @@ const Sessions = () => {
       <div className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-4">
-          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 leading-9">График</h1>
+          <h1 className="text-2xl font-normal text-[#0f172b] mb-4 leading-9">График</h1>
         </div>
 
         <ToastComponent />
 
-        {/* Filters */}
-        <SessionFilters
-          selectedDays={selectedDays}
-          selectedTimes={selectedTimes}
-          selectedTitles={selectedTitles}
-          selectedTargetGroups={selectedTargetGroups}
-          getUniqueTimes={getUniqueTimes}
-          getUniqueTitles={getUniqueTitles}
-          toggleFilter={toggleFilter}
-          clearAllFilters={clearAllFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
+        {/* Layout with Sidebar and Main Content */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left Sidebar - Reservation and Filters */}
+          <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-4">
+            {/* Default Climber Selection - In Sidebar */}
+            {isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) && (
+              <Card ref={reservationCardRef} className="bg-white/80 border border-slate-200 rounded-[16px]">
+                <div className="overflow-hidden">
+                  {/* Title */}
+                  <div className="pt-[12px] px-[16px] pb-0">
+                    <h2 className="text-[#cbd5e1] text-sm leading-5 font-semibold uppercase">РЕЗЕРВАЦИЯ ЗА:</h2>
+                  </div>
 
-        {/* Default Climber Selection - Модерен дизайн като скрийншота */}
-        {isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) && (
-          <Card className="mb-4 bg-white border border-slate-200 rounded-[14px]">
-            <div className="px-[21px] pt-[16px] pb-[21px]">
-              <h2 className="text-[#cbd5e1] text-lg leading-7 font-semibold uppercase mb-3">Резервация за:</h2>
-              <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3">
-                {/* Self profile option for climbers */}
-                {user?.roles?.includes('climber') && (
-                  <button
-                    key="self"
-                    type="button"
-                    onClick={() => {
-                      const selfId = 'self';
+                  {/* Header with divider */}
+                  <div className="flex justify-end items-center pb-px pt-[12px] px-[16px] border-b border-slate-200">
+                  </div>
+
+                  {/* Content */}
+                  <div className="px-[16px] pt-[12px] pb-[12px]">
+                    <div className="flex flex-col gap-2">
+                    {/* Self profile option for climbers */}
+                    {user?.roles?.includes('climber') && (
+                      <button
+                        key="self"
+                        type="button"
+                        onClick={() => {
+                          const selfId = 'self';
+                          const selectedIds = (defaultSelectedClimberIds || []).map(id =>
+                            typeof id === 'object' && id?.toString ? id.toString() : String(id)
+                          );
+                          const isSelected = selectedIds.includes(selfId);
+                          if (isSelected) {
+                            setDefaultSelectedClimberIds(prev => prev.filter(id => {
+                              const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                              return idStr !== selfId;
+                            }));
+                          } else {
+                            setDefaultSelectedClimberIds(prev => [...prev, selfId]);
+                          }
+                        }}
+                        className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
+                          (defaultSelectedClimberIds || []).some(id => {
+                            const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                            return idStr === 'self';
+                          })
+                            ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {/* Avatar */}
+                        <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
+                          <span className="text-white text-xs font-medium">
+                            {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
+                          </span>
+                        </div>
+                        {/* Name */}
+                        <div className="text-left flex-1 min-w-0">
+                          <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
+                            {getUserDisplayName(user) || user?.email || 'Аз'}
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    {/* Children options */}
+                    {children.map((climber) => {
+                      const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
                       const selectedIds = (defaultSelectedClimberIds || []).map(id =>
                         typeof id === 'object' && id?.toString ? id.toString() : String(id)
                       );
-                      const isSelected = selectedIds.includes(selfId);
-                      if (isSelected) {
-                        setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                          const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                          return idStr !== selfId;
-                        }));
-                      } else {
-                        setDefaultSelectedClimberIds(prev => [...prev, selfId]);
-                      }
-                    }}
-                    className={`flex items-center gap-2 md:gap-3 px-2 md:px-4 py-1.5 md:py-2 border-2 rounded-xl transition-all ${
-                      (defaultSelectedClimberIds || []).some(id => {
-                        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                        return idStr === 'self';
-                      })
-                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {/* Avatar */}
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
-                      <span className="text-white text-xs md:text-sm font-medium">
-                        {user?.firstName?.[0]?.toUpperCase() || ''}{user?.lastName?.[0]?.toUpperCase() || ''}
-                      </span>
-                    </div>
-                    {/* Name */}
-                    <div className="text-left">
-                      <div className="text-xs md:text-sm leading-5 font-normal text-[#0f172b] whitespace-nowrap">
-                        {getUserFullName(user) || user?.email || 'Аз'}
-                      </div>
-                    </div>
-                  </button>
-                )}
-                {/* Children options */}
-                {children.map((climber) => {
-                  const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
-                  const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                    typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                  );
-                  const isSelected = selectedIds.includes(climberIdStr);
-                  
-                  // Get initials for avatar
-                  const initials = `${climber.firstName?.[0]?.toUpperCase() || ''}${climber.lastName?.[0]?.toUpperCase() || ''}`;
-                  
-                  // Avatar color based on index
-                  const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
-                  const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
-                  
-                  return (
-                    <button
-                      key={climberIdStr}
-                      type="button"
-                      onClick={() => {
-                        if (isSelected) {
-                          setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                            const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                            return idStr !== climberIdStr;
-                          }));
-                        } else {
-                          setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
-                        }
-                      }}
-                      className={`flex items-center gap-2 md:gap-3 px-2 md:px-4 py-1.5 md:py-2 border-2 rounded-xl transition-all ${
-                        isSelected
-                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      {/* Avatar */}
-                      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
-                        <span className="text-white text-xs md:text-sm font-medium">
-                          {initials}
-                        </span>
-                      </div>
-                      {/* Name */}
-                      <div className="text-left">
-                        <div className="text-xs md:text-sm leading-5 font-normal text-[#0f172b] whitespace-nowrap">
-                      {climber.firstName} {climber.lastName}
+                      const isSelected = selectedIds.includes(climberIdStr);
+                      
+                      // Get first letter from first name for avatar
+                      const firstLetter = climber.firstName?.[0]?.toUpperCase() || climber.lastName?.[0]?.toUpperCase() || '?';
+                      
+                      // Avatar color based on index
+                      const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
+                      const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
+                      
+                      return (
+                        <button
+                          key={climberIdStr}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setDefaultSelectedClimberIds(prev => prev.filter(id => {
+                                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                                return idStr !== climberIdStr;
+                              }));
+                            } else {
+                              setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
+                            }
+                          }}
+                          className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
+                            isSelected
+                              ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {/* Avatar */}
+                          <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
+                            <span className="text-white text-xs font-medium">
+                              {firstLetter}
+                            </span>
+                          </div>
+                          {/* Name */}
+                          <div className="text-left flex-1 min-w-0">
+                            <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
+                              {climber.firstName} {climber.lastName}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    
+                    {/* Add Child Button */}
+                    {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddChildModal(true);
+                          setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
+                          setFoundExistingProfile(null);
+                        }}
+                        className="h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 border-dashed border-gray-300 rounded-[8px] hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
+                      >
+                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
                         </div>
-                      </div>
+                        <div className="text-xs leading-4 font-normal whitespace-nowrap">
+                          Добави дете
+                        </div>
+                      </button>
+                    )}
+                    </div>
+                    {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
+                      <p className="text-[10px] text-blue-600 font-medium mt-2">
+                        Моля, изберете поне един катерач преди резервиране на тренировки
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Filters */}
+            <div 
+              className={`${isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? 'lg:sticky' : (isAuthenticated ? 'lg:sticky lg:top-[114px]' : 'lg:sticky lg:top-[70px]')} lg:z-30`}
+              style={isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? { top: filtersTopOffset } : undefined}
+            >
+              <SessionFilters
+                sticky={true}
+                selectedDays={selectedDays}
+                selectedTimes={selectedTimes}
+                selectedTitles={selectedTitles}
+                selectedTargetGroups={selectedTargetGroups}
+                getUniqueTimes={getUniqueTimes}
+                getUniqueTitles={getUniqueTitles}
+                toggleFilter={toggleFilter}
+                clearAllFilters={clearAllFilters}
+                hasActiveFilters={hasActiveFilters}
+                compact={true}
+              />
+            </div>
+          </div>
+
+          {/* Main Content - Schedule */}
+          <div className="flex-1 min-w-0">
+            {/* Bulk Actions */}
+            {isAuthenticated && (
+              <>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 px-2">
+                  {/* Ред 1: Маркирай всички и Изчисти всички */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={selectAllFilteredSessions}
+                      className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+                    >
+                      Маркирай всички
                     </button>
-                  );
-                })}
-                
-                {/* Add Child Button */}
-                {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
+                    {selectedSessionIds.length > 0 && (
+                      <>
+                        <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+                        <button
+                          type="button"
+                          onClick={clearAllSelectedSessions}
+                          className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+                        >
+                          Изчисти всички
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {/* Ред 2 (мобилно) / Ред 1 (десктоп): Bulk booking button */}
+                  <div className={`flex-shrink-0 w-full sm:w-auto md:static ${
+                    isSticky && selectedSessionIds.length > 0 
+                      ? 'fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-2 mx-[-8px]' 
+                      : ''
+                  }`}>
+                    {selectedSessionIds.length > 0 ? (
+                    <Button
+                      onClick={handleBulkBook}
+                        disabled={isBulkBooking}
+                      variant="primary"
+                        className="w-full sm:w-auto text-xs md:text-sm"
+                    >
+                        {isBulkBooking ? 'Запазване...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
+                    </Button>
+                    ) : (
+                      // Placeholder to maintain layout when button is not visible
+                      <div className="h-[36px] w-full sm:w-auto" />
+                  )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Spacer for sticky button on mobile (at bottom) */}
+            {isSticky && selectedSessionIds.length > 0 && (
+              <div className="h-[60px] md:hidden" />
+            )}
+
+            {/* Sessions List */}
+            <SessionList
+              sessions={sessions}
+              getFilteredSessions={getFilteredSessions}
+              hasActiveFilters={hasActiveFilters}
+              clearAllFilters={clearAllFilters}
+              getBookedCount={getBookedCount}
+              getBulgarianDayName={getBulgarianDayName}
+              formatTime={formatTime}
+              getEndTime={getEndTime}
+              mode="public"
+              onReserve={handleBookClick}
+              onSelect={isAuthenticated ? toggleSessionSelection : undefined}
+              selectedSessionIds={selectedSessionIds}
+              user={user}
+              children={children}
+              selectedClimberForSession={selectedClimberForSession}
+              userBookings={userBookings}
+              onCancelBooking={(sessionId, reservations) => {
+                // Показва popup за потвърждение
+                setCancelBookingSessionId(sessionId);
+                setCancelBookingBookings(reservations);
+                setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
+                setShowCancelBookingModal(true);
+              }}
+            />
+
+            {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
+              <Card>
+                <div className="text-center py-12">
+                  <p className="text-gray-600 text-lg">Няма налични сесии в момента</p>
+                </div>
+              </Card>
+            )}
+            
+            {getFilteredSessions().length === 0 && !loading && sessions.length > 0 && (
+              <Card>
+                <div className="text-center py-12">
+                  <p className="text-gray-600 text-lg mb-2">Няма намерени тренировки с избраните филтри</p>
+                  <p className="text-gray-500 text-sm mb-4">Моля, опитайте с други филтри или премахнете филтрите</p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAddChildModal(true);
-                      setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                      setFoundExistingProfile(null);
-                    }}
-                    className="flex items-center gap-2 md:gap-3 px-2 md:px-4 py-1.5 md:py-2 border-2 border-dashed border-gray-300 rounded-xl hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
+                    onClick={clearAllFilters}
+                    className="px-4 py-2 text-sm text-white bg-[#ea7038] hover:opacity-90 rounded-lg font-medium transition-colors"
                   >
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
-                      <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
-                    <div className="text-xs md:text-sm leading-5 font-normal whitespace-nowrap">
-                      Добави дете
-                    </div>
+                    Премахни всички филтри
                   </button>
-                )}
-              </div>
-              {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
-                <p className="text-xs text-blue-600 font-medium mt-3">
-                  Моля, изберете поне един катерач преди резервиране на тренировки
-                </p>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {/* Bulk Actions */}
-        {isAuthenticated && (
-          <>
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4 px-2">
-              {/* Ред 1: Маркирай всички и Изчисти всички */}
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={selectAllFilteredSessions}
-                  className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
-                >
-                  Маркирай всички
-                </button>
-                {selectedSessionIds.length > 0 && (
-                  <>
-                    <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
-                    <button
-                      type="button"
-                      onClick={clearAllSelectedSessions}
-                      className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
-                    >
-                      Изчисти всички
-                    </button>
-                  </>
-                )}
-              </div>
-              {/* Ред 2 (мобилно) / Ред 1 (десктоп): Bulk booking button */}
-              <div className={`flex-shrink-0 w-full sm:w-auto ${
-                selectedSessionIds.length > 0 
-                  ? 'lg:sticky lg:top-[114px] lg:z-50 lg:self-start' 
-                  : ''
-              } ${
-                isSticky && selectedSessionIds.length > 0 
-                  ? 'fixed z-50 bg-white shadow-md px-4 py-2 mx-[-8px] bottom-0 left-0 right-0 lg:hidden' 
-                  : ''
-              }`}>
-                {selectedSessionIds.length > 0 ? (
-                <Button
-                  onClick={handleBulkBook}
-                    disabled={isBulkBooking}
-                  variant="primary"
-                    className="w-full sm:w-auto text-xs md:text-sm"
-                >
-                    {isBulkBooking ? 'Запазване...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
-                </Button>
-                ) : (
-                  // Placeholder to maintain layout when button is not visible
-                  <div className="h-[36px] w-full sm:w-auto" />
+                </div>
+              </Card>
             )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Spacer for sticky button on mobile (at bottom) */}
-        {isSticky && selectedSessionIds.length > 0 && (
-          <div className="h-[60px] md:hidden" />
-        )}
-
-        {/* Sessions List */}
-        <SessionList
-          sessions={sessions}
-          getFilteredSessions={getFilteredSessions}
-          hasActiveFilters={hasActiveFilters}
-          clearAllFilters={clearAllFilters}
-          getBookedCount={getBookedCount}
-          getBulgarianDayName={getBulgarianDayName}
-          formatTime={formatTime}
-          getEndTime={getEndTime}
-          mode="public"
-          onReserve={handleBookClick}
-          onSelect={isAuthenticated ? toggleSessionSelection : undefined}
-          selectedSessionIds={selectedSessionIds}
-          user={user}
-          children={children}
-          selectedClimberForSession={selectedClimberForSession}
-          userBookings={userBookings}
-          onCancelBooking={(sessionId, reservations) => {
-            // Показва popup за потвърждение
-            setCancelBookingSessionId(sessionId);
-            setCancelBookingBookings(reservations);
-            setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
-            setShowCancelBookingModal(true);
-          }}
-        />
-
-        {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-lg">Няма налични сесии в момента</p>
-            </div>
-          </Card>
-        )}
-        
-        {getFilteredSessions().length === 0 && !loading && sessions.length > 0 && (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-lg mb-2">Няма намерени тренировки с избраните филтри</p>
-              <p className="text-gray-500 text-sm mb-4">Моля, опитайте с други филтри или премахнете филтрите</p>
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="px-4 py-2 text-sm text-white bg-[#ea7038] hover:opacity-90 rounded-lg font-medium transition-colors"
-              >
-                Премахни всички филтри
-              </button>
-            </div>
-          </Card>
-        )}
+          </div>
+        </div>
       </div>
 
       {/* Login Modal */}
@@ -1560,44 +1630,73 @@ const Sessions = () => {
               </div>
             </div>
 
-            {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && bulkBookingClimberIds.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Избрани катерачи:</h3>
-                <div className="space-y-1">
-                  {bulkBookingClimberIds.map(climberId => {
-                    const climber = children.find(c => {
-                      const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
-                      const idStr = typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId);
-                      return climberIdStr === idStr;
-                    });
-                    if (!climber) return null;
-                    return (
-                      <div key={typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId)} className="text-sm text-gray-700">
-                        • {climber.firstName} {climber.lastName}
+            {(() => {
+              // Get the climbers to use - prefer defaultSelectedClimberIds if available, otherwise bulkBookingClimberIds
+              const climbersToUse = defaultSelectedClimberIds.length > 0 
+                ? defaultSelectedClimberIds 
+                : bulkBookingClimberIds;
+              
+              // Filter out 'self' from climber IDs for display
+              const climberIdsForDisplay = climbersToUse.filter(id => {
+                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                return idStr !== 'self';
+              });
+              
+              const hasSelf = climbersToUse.some(id => {
+                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                return idStr === 'self';
+              });
+              
+              const totalClimberCount = climberIdsForDisplay.length + (hasSelf ? 1 : 0);
+              
+              return (
+                <>
+                  {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && climberIdsForDisplay.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-gray-700 mb-2">Избрани катерачи:</h3>
+                      <div className="space-y-1">
+                        {climberIdsForDisplay.map(climberId => {
+                          const climber = children.find(c => {
+                            const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+                            const idStr = typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId);
+                            return climberIdStr === idStr;
+                          });
+                          if (!climber) return null;
+                          return (
+                            <div key={typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId)} className="text-sm text-gray-700">
+                              • {climber.firstName} {climber.lastName}
+                            </div>
+                          );
+                        })}
+                        {hasSelf && (
+                          <div className="text-sm text-gray-700">
+                            • {user?.firstName} {user?.lastName}
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                    </div>
+                  )}
 
-            {user?.roles?.includes('climber') && !user?.roles?.includes('admin') && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
-                <div className="text-sm text-gray-700">
-                  • {user?.firstName} {user?.lastName}
-                </div>
-              </div>
-            )}
+                  {user?.roles?.includes('climber') && !user?.roles?.includes('admin') && children.length === 0 && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
+                      <div className="text-sm text-gray-700">
+                        • {user?.firstName} {user?.lastName}
+                      </div>
+                    </div>
+                  )}
 
-            <div className="mb-4 p-3 bg-blue-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Ще се направят резервации за <strong>{selectedSessionIds.length}</strong> тренировки за <strong>
-                  {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 
-                    ? bulkBookingClimberIds.length 
-                    : 1}</strong> катерач{(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && bulkBookingClimberIds.length > 1 ? 'а' : ''}.
-              </p>
-            </div>
+                  <div className="mb-4 p-3 bg-blue-50 rounded-md">
+                    <p className="text-sm text-gray-700">
+                      Ще се направят резервации за <strong>{selectedSessionIds.length}</strong> тренировки за <strong>
+                        {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 
+                          ? totalClimberCount 
+                          : 1}</strong> катерач{(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && totalClimberCount > 1 ? 'а' : ''}.
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
 
             <div className="flex gap-2 justify-end">
               <Button
@@ -1930,4 +2029,3 @@ const Sessions = () => {
 };
 
 export default Sessions;
-

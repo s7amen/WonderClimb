@@ -722,12 +722,11 @@ const Sessions = () => {
 
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 leading-9">График</h1>
-        </div>
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-950">График</h1>
+      </div>
 
         {/* Action Buttons */}
         <div className="mb-6 flex flex-col sm:flex-row gap-2">
@@ -781,7 +780,7 @@ const Sessions = () => {
                       });
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-rubik font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     !isBulkMode
                       ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
@@ -807,7 +806,7 @@ const Sessions = () => {
                       });
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-rubik font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     isBulkMode
                       ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
@@ -1538,7 +1537,6 @@ const Sessions = () => {
         onDelete={handleDeleteClick}
         showToast={showToast}
       />
-      </div>
     </div>
   );
 };

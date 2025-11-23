@@ -7,8 +7,8 @@ const Button = ({
   className = '',
   ...props 
 }) => {
-  // Base classes: rounded-lg (8px), text-sm (14px), font-rubik font-medium, padding
-  const baseClasses = 'px-4 py-2 rounded-lg text-sm font-rubik font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
+  // Base classes: rounded-lg (8px), text-sm (14px), font-medium, padding
+  const baseClasses = 'px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const variants = {
     // Primary: orange background (#ea7a24), white text

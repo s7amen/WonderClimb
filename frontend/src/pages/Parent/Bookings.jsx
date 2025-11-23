@@ -255,7 +255,7 @@ const Bookings = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Резервации</h1>
+        <h1 className="text-3xl font-bold text-neutral-950">Резервации</h1>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button variant="primary" onClick={() => setShowBookingForm(!showBookingForm)} className="w-full sm:w-auto">
             Резервирай сесия

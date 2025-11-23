@@ -645,10 +645,10 @@ const Calendar = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Календар</h2>
+          <h1 className="text-3xl font-bold text-neutral-950">Календар</h1>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button

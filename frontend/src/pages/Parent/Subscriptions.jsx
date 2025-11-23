@@ -1,58 +1,68 @@
-import { useState, useEffect } from 'react';
 import Card from '../../components/UI/Card';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
-import { format } from 'date-fns';
 
 const Subscriptions = () => {
-  const [loading, setLoading] = useState(true);
-  const { showToast, ToastComponent } = useToast();
-
-  useEffect(() => {
-    // Placeholder for future subscription data fetching
-    setLoading(false);
-  }, []);
-
-  if (loading) {
-    return <Loading text="Зареждане на абонаменти..." />;
-  }
+  const { ToastComponent } = useToast();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Абонаменти</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-950">Абонаменти</h1>
+      </div>
 
       <ToastComponent />
 
-      <Card>
-        <div className="text-center py-8">
-          <p className="text-gray-500 mb-4">
-            Функционалността за абонаменти ще бъде добавена скоро.
-          </p>
-          <p className="text-sm text-gray-400">
-            Тук ще можете да виждате активните и минали абонаменти на децата си.
-          </p>
+      <Card className="p-8 md:p-12">
+        <div className="text-center max-w-2xl mx-auto">
+          {/* Icon */}
+          <div className="mb-6 flex justify-center">
+            <div className="bg-[#ea7a24]/10 rounded-full p-6">
+              <svg
+                className="w-16 h-16 text-[#ea7a24]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold text-neutral-950 mb-4">
+            Страницата е в процес на разработка
+          </h2>
+
+          {/* Contact Info */}
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <p className="text-sm text-[#4a5565]">
+              За въпроси относно абонаменти -{' '}
+              <a
+                href="tel:0878120046"
+                className="text-[#ea7a24] hover:text-[#d86a1a] underline font-medium"
+              >
+                0878 120 046
+              </a>
+              {' '}(Стамен Тодоров) или{' '}
+              <a
+                href="mailto:stamen.todorov@gmail.com"
+                className="text-[#ea7a24] hover:text-[#d86a1a] underline font-medium"
+              >
+                stamen.todorov@gmail.com
+              </a>
+            </p>
+          </div>
         </div>
       </Card>
-
-      {/* Placeholder for future subscription display */}
-      <div className="space-y-4">
-        <Card>
-          <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg">
-            <h3 className="font-semibold mb-2">Активни абонаменти</h3>
-            <p className="text-sm text-gray-500">Няма активни абонаменти</p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg">
-            <h3 className="font-semibold mb-2">Минали абонаменти</h3>
-            <p className="text-sm text-gray-500">Няма минали абонаменти</p>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 };
 
 export default Subscriptions;
-

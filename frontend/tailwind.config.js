@@ -35,6 +35,7 @@ export default {
         },
       },
       fontFamily: {
+        sans: ['Rubik', 'sans-serif'],
         rubik: ['Rubik', 'sans-serif'],
       },
     },

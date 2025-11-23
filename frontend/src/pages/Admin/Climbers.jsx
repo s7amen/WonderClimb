@@ -369,17 +369,13 @@ const Climbers = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">
-              Регистрирани катерачи
-            </h1>
-            <p className="text-base leading-6" style={{ color: '#4a5565' }}>
-              Общо {filteredUsers.length} катерачи
-            </p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-950">
+            Регистрирани катерачи
+          </h1>
+        </div>
         {isAdmin && (
           <Button
             variant="primary"
@@ -985,8 +981,7 @@ const Climbers = () => {
         </div>
       )}
 
-        <ToastComponent />
-      </div>
+      <ToastComponent />
     </div>
   );
 };

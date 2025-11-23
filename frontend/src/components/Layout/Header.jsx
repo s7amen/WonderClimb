@@ -28,14 +28,29 @@ const Header = () => {
   // Use selectedRole as activeRole, fallback to pathname-based detection only on initial load
   const activeRole = selectedRole || (user ? getActiveRole(user, location.pathname) : null);
 
-  // Main menu items (same for everyone)
-  const mainMenuItems = [
-    { name: 'Начало', href: '/' },
-    { name: 'График', href: '/sessions' },
-    { name: 'График 1', href: '/sessions-1' },
-    { name: 'Календар', href: '/calendar' },
-    { name: 'Състезания', href: '/competitions' },
-  ];
+  // Main menu items (same for everyone, except competitions for climbers)
+  const getMainMenuItems = () => {
+    const items = [
+      { name: 'Начало', href: '/' },
+      { name: 'График', href: '/sessions' },
+      { name: 'Календар', href: '/calendar' },
+    ];
+    
+    // Only show competitions for non-climber users or when not logged in
+    // If user has climber role but also has admin/coach roles, show competitions
+    if (!isAuthenticated || !user) {
+      items.push({ name: 'Състезания', href: '/competitions' });
+    } else {
+      const hasClimberOnly = user.roles?.includes('climber') && !user.roles?.some(r => ['admin', 'coach'].includes(r));
+      if (!hasClimberOnly) {
+        items.push({ name: 'Състезания', href: '/competitions' });
+      }
+    }
+    
+    return items;
+  };
+  
+  const mainMenuItems = getMainMenuItems();
 
   // Get second menu items based on active role
   const getSecondMenuItems = () => {
@@ -74,6 +89,7 @@ const Header = () => {
     } else if (activeRole === 'climber') {
       items.push(
         { name: 'График', href: '/sessions' },
+        { name: 'Абонаменти', href: '/climber/subscriptions' },
         { name: 'Профил', href: '/profile' }
       );
     }
@@ -140,9 +156,6 @@ const Header = () => {
     if (path === '/sessions') {
       return location.pathname === '/sessions' || location.pathname.startsWith('/sessions');
     }
-    if (path === '/sessions-1') {
-      return location.pathname === '/sessions-1' || location.pathname.startsWith('/sessions-1');
-    }
     if (path === '/admin/sessions') {
       return location.pathname === '/admin/sessions' || location.pathname.startsWith('/admin/sessions');
     }
@@ -185,7 +198,6 @@ const Header = () => {
                       text-base font-normal text-white hover:text-gray-200 transition-colors
                       ${isActive(item.href) ? 'text-[#ea7a24]' : ''}
                     `}
-                    style={{ fontFamily: 'Rubik, sans-serif' }}
                   >
                     {item.name}
                   </span>
@@ -292,14 +304,12 @@ const Header = () => {
                 <Link
                   to="/login"
                   className="text-white hover:text-gray-200 transition-colors"
-                  style={{ fontFamily: 'Rubik, sans-serif' }}
                 >
                   Влез
                 </Link>
                 <Link
                   to="/register"
                   className="bg-[#ea7a24] hover:bg-[#d86a1a] text-white px-4 py-2 rounded-[10px] transition-colors"
-                  style={{ fontFamily: 'Rubik, sans-serif' }}
                 >
                   Регистрирай се
                 </Link>
@@ -368,7 +378,6 @@ const Header = () => {
                 </svg>
                 <span
                   className="text-[13px] font-medium text-[#ea7a24]"
-                  style={{ fontFamily: 'Rubik, sans-serif' }}
                 >
                   {roleLabel}
                 </span>
@@ -387,7 +396,6 @@ const Header = () => {
                         : 'text-[#d1d5dc] hover:text-white'
                       }
                     `}
-                    style={{ fontFamily: 'Rubik, sans-serif' }}
                   >
                     {item.name}
                   </Link>

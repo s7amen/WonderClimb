@@ -90,6 +90,7 @@ export async function importCompetitions(competitions) {
     let createdCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
+    const resultCompetitions = [];
 
     for (const compData of competitions) {
       try {
@@ -124,6 +125,7 @@ export async function importCompetitions(competitions) {
             await existing.save();
             logger.debug(`Updated competition: ${compData.title} - date changed from ${existingDate.toISOString()} to ${newDate.toISOString()}`);
             updatedCount++;
+            resultCompetitions.push(existing.toObject ? existing.toObject() : existing);
             continue;
           }
         }
@@ -142,6 +144,7 @@ export async function importCompetitions(competitions) {
 
         await competition.save();
         createdCount++;
+        resultCompetitions.push(competition.toObject ? competition.toObject() : competition);
       } catch (error) {
         logger.error(`Error importing competition ${compData.title}:`, error);
         // Continue with next competition
@@ -155,6 +158,7 @@ export async function importCompetitions(competitions) {
       updated: updatedCount,
       skipped: skippedCount,
       total: competitions.length,
+      competitions: resultCompetitions,
     };
   } catch (error) {
     logger.error('Error importing competitions:', error);

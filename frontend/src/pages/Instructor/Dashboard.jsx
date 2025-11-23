@@ -91,9 +91,8 @@ const InstructorDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Табло за инструктор</h1>
-        <p className="text-base leading-6" style={{ color: '#4a5565' }}>Създаване на тренировки и управление</p>
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-950">Табло за инструктор</h1>
       </div>
 
       <ToastComponent />

@@ -289,6 +289,9 @@ const Competitions = () => {
           
           // Скролваме до първото ново състезание
           scrollToElement(`competition-${newCompetitions[0]._id}`);
+        } else {
+          // If competitions array is not in response, refetch all competitions
+          await fetchCompetitions();
         }
         
         showToast('Състезанието е добавено успешно', 'success');
@@ -572,7 +575,7 @@ const Competitions = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-base font-medium text-neutral-950 mb-1">Състезания</h1>
+          <h1 className="text-3xl font-bold text-neutral-950">Състезания</h1>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <Button

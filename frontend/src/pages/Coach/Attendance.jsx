@@ -132,9 +132,8 @@ const Attendance = () => {
   if (!sessionId) {
     return (
       <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Избери сесия</h1>
-          <p className="text-base leading-6" style={{ color: '#4a5565' }}>Изберете сесия за отбелязване на присъствие</p>
+        <div>
+          <h1 className="text-3xl font-bold text-neutral-950">Избери сесия</h1>
         </div>
         <ToastComponent />
         {roster.length === 0 ? (
@@ -172,13 +171,8 @@ const Attendance = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="space-y-2 flex-1">
-          <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">Отбележи присъствие</h1>
-          {session && (
-            <p className="text-base leading-6" style={{ color: '#4a5565' }}>
-              {session.title} - {format(new Date(session.date), 'PPpp')}
-            </p>
-          )}
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold text-neutral-950">Отбележи присъствие</h1>
         </div>
         <Button variant="secondary" onClick={() => navigate('/coach/attendance')} className="w-full sm:w-auto">
           Назад към сесиите

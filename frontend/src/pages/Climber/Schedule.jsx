@@ -882,8 +882,8 @@ const Schedule = () => {
 
   return (
     <div className="space-y-6 px-4 md:px-0">
-      <div className="space-y-2">
-        <h1 className="text-xl font-medium text-neutral-950 leading-8 mb-1">График</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-950">График</h1>
       </div>
 
       <ToastComponent />

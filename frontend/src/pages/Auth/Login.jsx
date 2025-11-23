@@ -9,6 +9,7 @@ import Loading from '../../components/UI/Loading';
 import Logo from '../../components/UI/Logo';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
+import Checkbox from '../../components/UI/Checkbox';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -87,12 +88,19 @@ const Login = () => {
               {...register('password', {
                 required: 'Паролата е задължителна',
                 minLength: {
-                  value: 6,
-                  message: 'Паролата трябва да бъде поне 6 символа',
+                  value: 5,
+                  message: 'Паролата трябва да бъде поне 5 символа',
                 },
               })}
               error={errors.password?.message}
             />
+
+            <div className="mb-4">
+              <Checkbox
+                label="Запомни ме"
+                {...register('rememberMe')}
+              />
+            </div>
 
             <Button
               type="submit"

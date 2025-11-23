@@ -6,11 +6,11 @@ import logger from '../middleware/logging.js';
  * Register a new user
  * If roles are provided, uses them; otherwise automatically assigns "climber" role
  */
-export const registerUser = async (email, password, firstName, middleName, lastName, roles = null) => {
+export const registerUser = async (email, password, firstName, middleName, lastName, roles = null, phone = null) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    throw new Error('User with this email already exists');
+    throw new Error('Потребител с този имейл вече съществува');
   }
 
   // Hash password
@@ -26,6 +26,7 @@ export const registerUser = async (email, password, firstName, middleName, lastN
     firstName: firstName.trim(),
     middleName: middleName ? middleName.trim() : null,
     lastName: lastName.trim(),
+    phone: phone ? phone.trim() : '',
     roles: userRoles,
     accountStatus: 'active',
   });
@@ -47,17 +48,17 @@ export const loginUser = async (email, password) => {
   const user = await User.findOne({ email: email.toLowerCase() });
   
   if (!user) {
-    throw new Error('Invalid email or password');
+    throw new Error('Невалиден имейл или парола');
   }
 
   // Check account status
   if (user.accountStatus !== 'active') {
-    throw new Error('Account is inactive. Please contact administrator.');
+    throw new Error('Профилът е неактивен. Моля, свържете се с администратор.');
   }
 
   // Check if password hash exists
   if (!user.passwordHash) {
-    throw new Error('Invalid email or password');
+    throw new Error('Невалиден имейл или парола');
   }
 
   // Verify password
@@ -65,7 +66,7 @@ export const loginUser = async (email, password) => {
   
   if (!isPasswordValid) {
     logger.warn({ userId: user._id, email: user.email }, 'Failed login attempt');
-    throw new Error('Invalid email or password');
+    throw new Error('Невалиден имейл или парола');
   }
 
   // Ensure roles is an array

@@ -120,14 +120,15 @@ const MySessions = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 leading-9">Моят график</h1>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-neutral-950">Моят график</h1>
+      </div>
 
-        <ToastComponent />
+      <ToastComponent />
+
+      <div className="bg-gray-50 min-h-screen">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Sessions List */}
         <SessionList
@@ -315,6 +316,7 @@ const MySessions = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

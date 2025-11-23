@@ -15,7 +15,7 @@ import CompetitionDetail from './pages/Admin/CompetitionDetail';
 import PublicCompetition from './pages/Public/Competition';
 import PublicCompetitionDetail from './pages/Public/CompetitionDetail';
 import PublicSessions from './pages/Public/Sessions';
-import PublicSessions1 from './pages/Public/Sessions1';
+import TermsOfService from './pages/Public/TermsOfService';
 import CoachLayout from './components/Layout/CoachLayout';
 import CoachDashboard from './pages/Coach/Dashboard';
 import CoachAttendance from './pages/Coach/Attendance';
@@ -23,7 +23,6 @@ import InstructorDashboard from './pages/Instructor/Dashboard';
 import ClimberLayout from './components/Layout/ClimberLayout';
 import ClimberDashboard from './pages/Climber/Dashboard';
 import ClimberSchedule from './pages/Climber/Schedule';
-import ClimberBookings from './pages/Climber/Bookings';
 import ParentLayout from './components/Layout/ParentLayout';
 import ParentDashboard from './pages/Parent/Dashboard';
 import ParentProfile from './pages/Parent/Profile';
@@ -62,6 +61,7 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="/" element={<Home />} />
 
           {/* Protected routes */}
@@ -87,7 +87,6 @@ function App() {
 
           {/* Public routes - accessible without authentication */}
           <Route path="/sessions" element={<PublicSessions />} />
-          <Route path="/sessions-1" element={<PublicSessions1 />} />
           <Route path="/competitions" element={<PublicCompetition />} />
           <Route path="/competitions/:id" element={<PublicCompetitionDetail />} />
 
@@ -158,6 +157,20 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/climber/subscriptions"
+            element={
+              <ProtectedRoute>
+                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
+                  <Header />
+                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+                    <ParentSubscriptions />
+                  </main>
+                  <Footer />
+                </div>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Redirect old admin/calendar route */}
           <Route
@@ -201,7 +214,6 @@ function App() {
           >
             <Route path="dashboard" element={<ClimberDashboard />} />
             <Route path="schedule" element={<ClimberSchedule />} />
-            <Route path="bookings" element={<ClimberBookings />} />
             <Route path="*" element={<Navigate to="/climber/dashboard" replace />} />
           </Route>
 
