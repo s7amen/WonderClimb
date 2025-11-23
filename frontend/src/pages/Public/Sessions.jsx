@@ -360,6 +360,17 @@ const Sessions = () => {
         if (successful && successful.length > 0) {
           const successNames = successful.map(s => s.climberName).join(', ');
           showToast(`Успешно резервирано за: ${successNames}`, 'success');
+          
+          // Optimistically update session booked count
+          setSessions(prev => prev.map(s => {
+            if (s._id === sessionId) {
+              return {
+                ...s,
+                bookedCount: (s.bookedCount || 0) + successful.length
+              };
+            }
+            return s;
+          }));
         }
         if (failed && failed.length > 0) {
           const failedNames = failed.map(f => f.climberName).join(', ');
@@ -367,12 +378,20 @@ const Sessions = () => {
         }
       } else {
         showToast('Сесията е резервирана успешно', 'success');
+        
+        // Optimistically update session booked count
+        setSessions(prev => prev.map(s => {
+          if (s._id === sessionId) {
+            return {
+              ...s,
+              bookedCount: (s.bookedCount || 0) + 1
+            };
+          }
+          return s;
+        }));
       }
-
-      // Refresh sessions to update booked counts
-      await fetchSessions();
       
-      // Refresh user bookings
+      // Refresh user bookings to show reservation info
       if (isAuthenticated) {
         await fetchUserBookings();
       }
@@ -647,10 +666,20 @@ const Sessions = () => {
         showToast(`Неуспешни резервации: ${failedDetails}`, 'error');
       }
 
-      // Refresh sessions
-      await fetchSessions();
+      // Optimistically update sessions booked counts
+      results.successful.forEach(item => {
+        setSessions(prev => prev.map(s => {
+          if (s._id === item.sessionId) {
+            return {
+              ...s,
+              bookedCount: (s.bookedCount || 0) + 1
+            };
+          }
+          return s;
+        }));
+      });
       
-      // Refresh user bookings
+      // Refresh user bookings to show reservation info
       if (isAuthenticated) {
         await fetchUserBookings();
       }
@@ -1988,7 +2017,18 @@ const Sessions = () => {
                         await bookingsAPI.cancel(bookingId);
                       }
                       
-                      await fetchSessions();
+                      // Optimistically update session booked counts
+                      const cancelledCount = selectedCancelBookingIds.length;
+                      setSessions(prev => prev.map(s => {
+                        if (s._id === cancelBookingSessionId) {
+                          return {
+                            ...s,
+                            bookedCount: Math.max(0, (s.bookedCount || 0) - cancelledCount)
+                          };
+                        }
+                        return s;
+                      }));
+                      
                       await fetchUserBookings();
                       
                       showToast(

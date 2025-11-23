@@ -379,10 +379,24 @@ const SessionCard = ({
           </div>
 
           {/* Right side - Buttons and Checkbox */}
-          <div className="flex flex-col items-center gap-2 shrink-0">
+          <div className="flex flex-col items-end gap-2 shrink-0">
             {/* Buttons */}
             {isActive && mode === 'public' && (
-              <div className="flex flex-row items-center gap-2">
+              <div className="flex flex-col gap-2 items-end">
+                {/* Винаги показва бутон "Запази" */}
+                {onReserve && (
+                  <button
+                    onClick={() => onReserve(session._id)}
+                    disabled={isFull}
+                    className={`h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${
+                      isFull
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
+                    }`}
+                  >
+                    {isFull ? 'Няма места' : 'Запази'}
+                  </button>
+                )}
                 {/* Показва "Отмени" само когато има резервация */}
                 {reservationInfo && onCancelBooking && (
                   <button
@@ -394,23 +408,9 @@ const SessionCard = ({
                         onCancelBooking(session._id, [reservationInfo]);
                       }
                     }}
-                    className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap flex-1 flex items-center justify-center"
+                    className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
                   >
                     Отмени
-                  </button>
-                )}
-                {/* Винаги показва бутон "Запази" */}
-                {onReserve && (
-                  <button
-                    onClick={() => onReserve(session._id)}
-                    disabled={isFull}
-                    className={`h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap flex-1 ${
-                      isFull
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
-                    }`}
-                  >
-                    {isFull ? 'Няма места' : 'Запази'}
                   </button>
                 )}
               </div>
@@ -427,7 +427,7 @@ const SessionCard = ({
                   }
                   onReserve(session._id);
                 }}
-                className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white transition-all duration-200 shadow-sm whitespace-nowrap hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md"
+                className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md"
               >
                 Запази
               </button>
@@ -435,7 +435,7 @@ const SessionCard = ({
 
             {/* Checkbox - под бутоните */}
             {((mode === 'admin') || (mode === 'public' && onSelect)) ? (
-              <div className="flex items-center justify-center w-5 h-5 shrink-0 mt-1">
+              <div className="flex items-center justify-center mt-1 w-[80px]">
                 <input
                   type="checkbox"
                   checked={isSelected}

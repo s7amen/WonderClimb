@@ -316,10 +316,21 @@ const Calendar = () => {
       });
 
       showToast('Часът е запазен успешно', 'success');
+      
+      // Optimistically update session booked count
+      setSessions(prev => prev.map(s => {
+        if (s._id === selectedSession._id) {
+          return {
+            ...s,
+            bookedCount: (s.bookedCount || 0) + selectedClimberIds.length
+          };
+        }
+        return s;
+      }));
+      
       setShowBookingConfirmation(false);
       setSelectedSession(null);
       setSelectedClimberIds([]);
-      fetchSessions();
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при запазване на час', 'error');
     } finally {

@@ -282,7 +282,23 @@ const MySessions = () => {
                           await bookingsAPI.cancel(bookingId);
                         }
                         
-                        // Auto-refresh после отменяне
+                        // Optimistically update sessions booked counts
+                        const cancelledBookings = cancelBookingBookings.filter(b => 
+                          selectedCancelBookingIds.includes(b.bookingId)
+                        );
+                        cancelledBookings.forEach(booking => {
+                          setSessions(prev => prev.map(s => {
+                            if (s._id === cancelBookingSessionId) {
+                              return {
+                                ...s,
+                                bookedCount: Math.max(0, (s.bookedCount || 0) - 1)
+                              };
+                            }
+                            return s;
+                          }));
+                        });
+                        
+                        // Refresh bookings to update UI
                         await fetchBookings();
                         
                         showToast(
