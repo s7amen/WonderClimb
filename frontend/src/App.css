@@ -1,0 +1,23 @@
+.App {
+  padding: 2rem;
+}
+
+.App-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.App-header h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  margin-bottom: 0.5rem;
+}
+
+.App-header p {
+  font-size: 1.2em;
+  color: #888;
+}
+

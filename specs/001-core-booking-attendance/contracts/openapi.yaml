@@ -1,0 +1,411 @@
+openapi: 3.0.3
+info:
+  title: WonderClimb Core Booking & Attendance API
+  version: 0.1.0
+  description: >
+    API for WonderClimb MVP: authentication, parent/child management,
+    sessions, bookings, and attendance.
+servers:
+  - url: /api/v1
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      description: Unified model representing anyone in the system (adults and children). All climbers are Users.
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          nullable: true
+          description: Can be null for inactive child accounts
+        firstName:
+          type: string
+        middleName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+        name:
+          type: string
+          description: Computed full name (firstName + middleName + lastName)
+        phone:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, coach, climber, instructor]
+          description: No separate "parent" role - parents are Users with linked children via ParentClimberLink
+        accountStatus:
+          type: string
+          enum: [active, inactive]
+        isTrainee:
+          type: boolean
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        photoHistory:
+          type: array
+          items:
+            type: string
+        clubMembership:
+          type: object
+          properties:
+            isCurrentMember:
+              type: boolean
+            membershipHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  year:
+                    type: integer
+                  wasMember:
+                    type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Climber:
+      type: object
+      description: Alias for User - climbers are Users in the unified model. This schema represents a User with climber role.
+      allOf:
+        - $ref: '#/components/schemas/User'
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        capacity:
+          type: integer
+        status:
+          type: string
+        coachIds:
+          type: array
+          items:
+            type: string
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        climberId:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        bookedById:
+          type: string
+          description: User ID who created the booking
+        updatedAt:
+          type: string
+          format: date-time
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                firstName:
+                  type: string
+                middleName:
+                  type: string
+                lastName:
+                  type: string
+              required: [email, password, firstName, lastName]
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/login:
+    post:
+      summary: Authenticate user and return JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required: [email, password]
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /parents/me/climbers:
+    get:
+      summary: List climbers (children) for the authenticated parent
+      responses:
+        '200':
+          description: List of climbers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Climber'
+    post:
+      summary: Add a new child climber for the authenticated parent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                middleName:
+                  type: string
+                lastName:
+                  type: string
+                dateOfBirth:
+                  type: string
+                  format: date
+                phone:
+                  type: string
+                notes:
+                  type: string
+              required: [firstName, lastName]
+      responses:
+        '201':
+          description: Child User (climber) created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  duplicate:
+                    type: boolean
+                  child:
+                    $ref: '#/components/schemas/User'
+                  existingProfile:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+        '200':
+          description: Duplicate profile found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  duplicate:
+                    type: boolean
+                  existingProfile:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+
+  /sessions:
+    get:
+      summary: List available sessions for booking (parent/climber view)
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+  /admin/sessions:
+    post:
+      summary: Create a new training session (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                durationMinutes:
+                  type: integer
+                capacity:
+                  type: integer
+                status:
+                  type: string
+                coachIds:
+                  type: array
+                  items:
+                    type: string
+                coachPayoutAmount:
+                  type: number
+                coachPayoutStatus:
+                  type: string
+                  enum: [unpaid, paid]
+                description:
+                  type: string
+                location:
+                  type: string
+              required: [title, date, durationMinutes, capacity, status, coachIds]
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+
+  /bookings:
+    post:
+      summary: Create a booking for a climber in a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                climberId:
+                  type: string
+              required: [sessionId, climberId]
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /bookings/{id}/cancel:
+    post:
+      summary: Cancel an existing booking within the allowed window
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /coach/me/sessions/today:
+    get:
+      summary: List today’s sessions for the authenticated coach
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+  /sessions/{id}/attendance:
+    post:
+      summary: Record attendance for a session (coach)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                records:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      climberId:
+                        type: string
+                      status:
+                        type: string
+                        enum: [present, absent]
+                    required: [climberId, status]
+      responses:
+        '200':
+          description: Attendance recorded
+
+

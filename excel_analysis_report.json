@@ -1,0 +1,988 @@
+{
+  "file_path": "old training system.xlsx",
+  "total_sheets": 7,
+  "sheets": {
+    "Карти": {
+      "name": "Карти",
+      "rows": 586,
+      "columns": 11,
+      "column_names": [
+        "cart_id",
+        "date",
+        "child_id",
+        "type_of_visit",
+        "initila_number_of_visit",
+        "price",
+        "payed",
+        "is_valid",
+        "visits",
+        "name",
+        "valid"
+      ],
+      "sample_data": {
+        "cart_id": "0517c358",
+        "date": "2022-10-19 00:00:00",
+        "child_id": "4",
+        "type_of_visit": "Карта 2 = 1",
+        "initila_number_of_visit": "8",
+        "price": "40",
+        "payed": "True",
+        "is_valid": "True",
+        "visits": "0",
+        "name": "Рони",
+        "valid": "True"
+      },
+      "data_types": {
+        "cart_id": [
+          "text"
+        ],
+        "date": [
+          "date"
+        ],
+        "child_id": [
+          "number"
+        ],
+        "type_of_visit": [
+          "text"
+        ],
+        "initila_number_of_visit": [
+          "number"
+        ],
+        "price": [
+          "number"
+        ],
+        "payed": [
+          "number"
+        ],
+        "is_valid": [
+          "number"
+        ],
+        "visits": [
+          "number"
+        ],
+        "name": [
+          "text"
+        ],
+        "valid": [
+          "number"
+        ]
+      },
+      "null_counts": {
+        "cart_id": 584,
+        "date": 584,
+        "child_id": 584,
+        "type_of_visit": 584,
+        "initila_number_of_visit": 584,
+        "price": 584,
+        "payed": 584,
+        "is_valid": 584,
+        "visits": 584,
+        "name": 584,
+        "valid": 584
+      },
+      "unique_values": {
+        "cart_id": [
+          "0517c358",
+          "67bf184d"
+        ],
+        "date": [
+          "2022-10-19 00:00:00"
+        ],
+        "child_id": [
+          "5",
+          "4"
+        ],
+        "type_of_visit": [
+          "Карта 2 = 1"
+        ],
+        "initila_number_of_visit": [
+          "8"
+        ],
+        "price": [
+          "40"
+        ],
+        "payed": [
+          "True"
+        ],
+        "is_valid": [
+          "True"
+        ],
+        "visits": [
+          "0"
+        ],
+        "name": [
+          "Рони"
+        ],
+        "valid": [
+          "True"
+        ]
+      },
+      "relationships": [
+        {
+          "column": "cart_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "0517c358",
+            "67bf184d"
+          ]
+        },
+        {
+          "column": "child_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "4",
+            "5"
+          ]
+        },
+        {
+          "column": "is_valid",
+          "type": "potential_reference",
+          "sample_values": [
+            "True",
+            "True"
+          ]
+        },
+        {
+          "column": "name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Рони",
+            "Рони"
+          ]
+        },
+        {
+          "column": "valid",
+          "type": "potential_reference",
+          "sample_values": [
+            "True",
+            "True"
+          ]
+        }
+      ]
+    },
+    "Каса": {
+      "name": "Каса",
+      "rows": 2779,
+      "columns": 8,
+      "column_names": [
+        "operation_id",
+        "date",
+        "type",
+        "description",
+        "amaunt",
+        "balance",
+        "Column_7",
+        "Column_8"
+      ],
+      "sample_data": {
+        "operation_id": "3b960b44",
+        "date": "2022-10-15 00:00:00",
+        "type": "Разход",
+        "description": "Спортно катерене – купа „НСА“ – трудност и скорост- деца  1-7 гр. – София",
+        "amaunt": "120"
+      },
+      "data_types": {
+        "operation_id": [
+          "text"
+        ],
+        "date": [
+          "date"
+        ],
+        "type": [
+          "text"
+        ],
+        "description": [
+          "text"
+        ],
+        "amaunt": [
+          "number"
+        ],
+        "balance": [
+          "unknown"
+        ],
+        "Column_7": [
+          "unknown"
+        ],
+        "Column_8": [
+          "unknown"
+        ]
+      },
+      "null_counts": {
+        "operation_id": 2777,
+        "date": 2777,
+        "type": 2777,
+        "description": 2777,
+        "amaunt": 2777,
+        "balance": 2779,
+        "Column_7": 2779,
+        "Column_8": 2779
+      },
+      "unique_values": {
+        "operation_id": [
+          "3b960b55",
+          "3b960b44"
+        ],
+        "date": [
+          "2022-10-15 00:00:00",
+          "2022-10-08 00:00:00"
+        ],
+        "type": [
+          "Разход"
+        ],
+        "description": [
+          "Спортно катерене – купа „НСА“ – трудност и скорост- деца  1-7 гр. – София",
+          "Спортно катерене – купа „Варна“ – скорост ю/д 4-7 гр. – Варна"
+        ],
+        "amaunt": [
+          "120",
+          "100"
+        ],
+        "balance": [],
+        "Column_7": [],
+        "Column_8": []
+      },
+      "relationships": [
+        {
+          "column": "operation_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "3b960b44",
+            "3b960b55"
+          ]
+        }
+      ]
+    },
+    "Тренировки": {
+      "name": "Тренировки",
+      "rows": 5621,
+      "columns": 25,
+      "column_names": [
+        "train_id",
+        "training_session_id",
+        "child_id",
+        "date",
+        "type_of_visit",
+        "Karta",
+        "Price_of_visit",
+        "number_of_visit_with_the_card",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " ",
+        " "
+      ],
+      "sample_data": {
+        "train_id": "77B7E9",
+        "training_session_id": "E2B3F3",
+        "child_id": "1",
+        "date": "2022-10-12 00:00:00",
+        "type_of_visit": "Единичнa тренировка",
+        "Price_of_visit": "10"
+      },
+      "data_types": {
+        "train_id": [
+          "text"
+        ],
+        "training_session_id": [
+          "text"
+        ],
+        "child_id": [
+          "number"
+        ],
+        "date": [
+          "date"
+        ],
+        "type_of_visit": [
+          "text"
+        ],
+        "Karta": [
+          "unknown"
+        ],
+        "Price_of_visit": [
+          "number"
+        ],
+        "number_of_visit_with_the_card": [
+          "unknown"
+        ],
+        " ": [
+          "unknown"
+        ]
+      },
+      "null_counts": {
+        "train_id": 5619,
+        "training_session_id": 5619,
+        "child_id": 5619,
+        "date": 5619,
+        "type_of_visit": 5619,
+        "Karta": 5621,
+        "Price_of_visit": 5619,
+        "number_of_visit_with_the_card": 5621,
+        " ": 5621
+      },
+      "unique_values": {
+        "train_id": [
+          "77B7E9",
+          "B87C4D"
+        ],
+        "training_session_id": [
+          "E2B3F3"
+        ],
+        "child_id": [
+          "2",
+          "1"
+        ],
+        "date": [
+          "2022-10-12 00:00:00"
+        ],
+        "type_of_visit": [
+          "Единичнa тренировка"
+        ],
+        "Karta": [],
+        "Price_of_visit": [
+          "10"
+        ],
+        "number_of_visit_with_the_card": [],
+        " ": []
+      },
+      "relationships": [
+        {
+          "column": "train_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "77B7E9",
+            "B87C4D"
+          ]
+        },
+        {
+          "column": "training_session_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "E2B3F3",
+            "E2B3F3"
+          ]
+        },
+        {
+          "column": "child_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "1",
+            "2"
+          ]
+        }
+      ]
+    },
+    "Календар": {
+      "name": "Календар",
+      "rows": 1165,
+      "columns": 19,
+      "column_names": [
+        "training_session_id",
+        "date",
+        "status",
+        "trainer",
+        "second_trainer",
+        "3th_trainer",
+        "4th_trainer",
+        "duration",
+        "start-time",
+        "end-time",
+        "fees",
+        "trainer_pay",
+        "trainer_pay_status",
+        "second_trainer_pay",
+        "second_trainer_pay_status",
+        "3th_trainer_pay",
+        "3th_trainer_pay_status",
+        "4th_trainer_pay",
+        "4th_trainer_pay_status"
+      ],
+      "sample_data": {
+        "training_session_id": "E2B3F3",
+        "date": "2022-10-12 00:00:00",
+        "status": "Проведена",
+        "trainer": "544f25e3",
+        "fees": "20",
+        "trainer_pay": "20",
+        "trainer_pay_status": "YES",
+        "second_trainer_pay": "0",
+        "second_trainer_pay_status": "YES"
+      },
+      "data_types": {
+        "training_session_id": [
+          "text"
+        ],
+        "date": [
+          "date"
+        ],
+        "status": [
+          "text"
+        ],
+        "trainer": [
+          "text"
+        ],
+        "second_trainer": [
+          "unknown"
+        ],
+        "3th_trainer": [
+          "unknown"
+        ],
+        "4th_trainer": [
+          "unknown"
+        ],
+        "duration": [
+          "unknown"
+        ],
+        "start-time": [
+          "unknown"
+        ],
+        "end-time": [
+          "unknown"
+        ],
+        "fees": [
+          "number"
+        ],
+        "trainer_pay": [
+          "number"
+        ],
+        "trainer_pay_status": [
+          "text"
+        ],
+        "second_trainer_pay": [
+          "number"
+        ],
+        "second_trainer_pay_status": [
+          "text"
+        ],
+        "3th_trainer_pay": [
+          "unknown"
+        ],
+        "3th_trainer_pay_status": [
+          "unknown"
+        ],
+        "4th_trainer_pay": [
+          "unknown"
+        ],
+        "4th_trainer_pay_status": [
+          "unknown"
+        ]
+      },
+      "null_counts": {
+        "training_session_id": 1163,
+        "date": 1163,
+        "status": 1163,
+        "trainer": 1163,
+        "second_trainer": 1165,
+        "3th_trainer": 1165,
+        "4th_trainer": 1165,
+        "duration": 1165,
+        "start-time": 1165,
+        "end-time": 1165,
+        "fees": 1163,
+        "trainer_pay": 1163,
+        "trainer_pay_status": 1163,
+        "second_trainer_pay": 1163,
+        "second_trainer_pay_status": 1163,
+        "3th_trainer_pay": 1165,
+        "3th_trainer_pay_status": 1165,
+        "4th_trainer_pay": 1165,
+        "4th_trainer_pay_status": 1165
+      },
+      "unique_values": {
+        "training_session_id": [
+          "E2B3F3",
+          "98DCE8"
+        ],
+        "date": [
+          "2022-10-17 00:00:00",
+          "2022-10-12 00:00:00"
+        ],
+        "status": [
+          "Проведена"
+        ],
+        "trainer": [
+          "544f25e3"
+        ],
+        "second_trainer": [],
+        "3th_trainer": [],
+        "4th_trainer": [],
+        "duration": [],
+        "start-time": [],
+        "end-time": [],
+        "fees": [
+          "20",
+          "0"
+        ],
+        "trainer_pay": [
+          "20",
+          "0"
+        ],
+        "trainer_pay_status": [
+          "YES"
+        ],
+        "second_trainer_pay": [
+          "0"
+        ],
+        "second_trainer_pay_status": [
+          "YES"
+        ],
+        "3th_trainer_pay": [],
+        "3th_trainer_pay_status": [],
+        "4th_trainer_pay": [],
+        "4th_trainer_pay_status": []
+      },
+      "relationships": [
+        {
+          "column": "training_session_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "E2B3F3",
+            "98DCE8"
+          ]
+        },
+        {
+          "column": "trainer",
+          "type": "potential_reference",
+          "sample_values": [
+            "544f25e3",
+            "544f25e3"
+          ]
+        },
+        {
+          "column": "second_trainer",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "3th_trainer",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "4th_trainer",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "trainer_pay",
+          "type": "potential_reference",
+          "sample_values": [
+            "20",
+            "0"
+          ]
+        },
+        {
+          "column": "trainer_pay_status",
+          "type": "potential_reference",
+          "sample_values": [
+            "YES",
+            "YES"
+          ]
+        },
+        {
+          "column": "second_trainer_pay",
+          "type": "potential_reference",
+          "sample_values": [
+            "0",
+            "0"
+          ]
+        },
+        {
+          "column": "second_trainer_pay_status",
+          "type": "potential_reference",
+          "sample_values": [
+            "YES",
+            "YES"
+          ]
+        },
+        {
+          "column": "3th_trainer_pay",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "3th_trainer_pay_status",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "4th_trainer_pay",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "4th_trainer_pay_status",
+          "type": "potential_reference",
+          "sample_values": []
+        }
+      ]
+    },
+    "Деца": {
+      "name": "Деца",
+      "rows": 984,
+      "columns": 19,
+      "column_names": [
+        "Date reg.",
+        "child_id",
+        "short_name",
+        "first_name",
+        "middle_name",
+        "surname",
+        "date_of_birth",
+        "photo",
+        "phone",
+        "parent1_name",
+        "parent1_phone",
+        "email",
+        "parent2_name",
+        "parent2_phone",
+        "active",
+        "usual_train_hour",
+        "last training",
+        "last training before X days",
+        "Column_19"
+      ],
+      "sample_data": {
+        "child_id": "1",
+        "short_name": "Рони",
+        "first_name": "Вероник",
+        "middle_name": "Димитрова",
+        "surname": "Костадинова",
+        "date_of_birth": "24.06.2014",
+        "photo": "Деца_Images/1.photo.095039.jpg",
+        "phone": "878358456",
+        "parent1_name": "Биляна Божанина",
+        "parent1_phone": "888920161",
+        "active": "True",
+        "usual_train_hour": "Пн-Ср-Пт-18:00",
+        "last training": "#NAME?",
+        "last training before X days": "#NAME?"
+      },
+      "data_types": {
+        "Date reg.": [
+          "unknown"
+        ],
+        "child_id": [
+          "number"
+        ],
+        "short_name": [
+          "text"
+        ],
+        "first_name": [
+          "text"
+        ],
+        "middle_name": [
+          "text"
+        ],
+        "surname": [
+          "text"
+        ],
+        "date_of_birth": [
+          "text"
+        ],
+        "photo": [
+          "text"
+        ],
+        "phone": [
+          "number"
+        ],
+        "parent1_name": [
+          "text"
+        ],
+        "parent1_phone": [
+          "text"
+        ],
+        "email": [
+          "unknown"
+        ],
+        "parent2_name": [
+          "unknown"
+        ],
+        "parent2_phone": [
+          "unknown"
+        ],
+        "active": [
+          "number"
+        ],
+        "usual_train_hour": [
+          "text"
+        ],
+        "last training": [
+          "text"
+        ],
+        "last training before X days": [
+          "text"
+        ],
+        "Column_19": [
+          "unknown"
+        ]
+      },
+      "null_counts": {
+        "Date reg.": 984,
+        "child_id": 983,
+        "short_name": 983,
+        "first_name": 983,
+        "middle_name": 983,
+        "surname": 983,
+        "date_of_birth": 983,
+        "photo": 983,
+        "phone": 983,
+        "parent1_name": 983,
+        "parent1_phone": 983,
+        "email": 984,
+        "parent2_name": 984,
+        "parent2_phone": 984,
+        "active": 983,
+        "usual_train_hour": 983,
+        "last training": 983,
+        "last training before X days": 983,
+        "Column_19": 984
+      },
+      "unique_values": {
+        "Date reg.": [],
+        "child_id": [
+          "1"
+        ],
+        "short_name": [
+          "Рони"
+        ],
+        "first_name": [
+          "Вероник"
+        ],
+        "middle_name": [
+          "Димитрова"
+        ],
+        "surname": [
+          "Костадинова"
+        ],
+        "date_of_birth": [
+          "24.06.2014"
+        ],
+        "photo": [
+          "Деца_Images/1.photo.095039.jpg"
+        ],
+        "phone": [
+          "878358456"
+        ],
+        "parent1_name": [
+          "Биляна Божанина"
+        ],
+        "parent1_phone": [
+          "888920161"
+        ],
+        "email": [],
+        "parent2_name": [],
+        "parent2_phone": [],
+        "active": [
+          "True"
+        ],
+        "usual_train_hour": [
+          "Пн-Ср-Пт-18:00"
+        ],
+        "last training": [
+          "#NAME?"
+        ],
+        "last training before X days": [
+          "#NAME?"
+        ],
+        "Column_19": []
+      },
+      "relationships": [
+        {
+          "column": "child_id",
+          "type": "potential_reference",
+          "sample_values": [
+            "1"
+          ]
+        },
+        {
+          "column": "short_name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Рони"
+          ]
+        },
+        {
+          "column": "first_name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Вероник"
+          ]
+        },
+        {
+          "column": "middle_name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Димитрова"
+          ]
+        },
+        {
+          "column": "surname",
+          "type": "potential_reference",
+          "sample_values": [
+            "Костадинова"
+          ]
+        },
+        {
+          "column": "parent1_name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Биляна Божанина"
+          ]
+        },
+        {
+          "column": "parent1_phone",
+          "type": "potential_reference",
+          "sample_values": [
+            "888920161"
+          ]
+        },
+        {
+          "column": "parent2_name",
+          "type": "potential_reference",
+          "sample_values": []
+        },
+        {
+          "column": "parent2_phone",
+          "type": "potential_reference",
+          "sample_values": []
+        }
+      ]
+    },
+    "Цени": {
+      "name": "Цени",
+      "rows": 13,
+      "columns": 3,
+      "column_names": [
+        "type_of_visit",
+        "price",
+        "price  up to 31.10.2025"
+      ],
+      "sample_data": {
+        "type_of_visit": "Карта - 8 тренировки",
+        "price": "110",
+        "price  up to 31.10.2025": "90"
+      },
+      "data_types": {
+        "type_of_visit": [
+          "text"
+        ],
+        "price": [
+          "number"
+        ],
+        "price  up to 31.10.2025": [
+          "number"
+        ]
+      },
+      "null_counts": {
+        "type_of_visit": 10,
+        "price": 10,
+        "price  up to 31.10.2025": 10
+      },
+      "unique_values": {
+        "type_of_visit": [
+          "Карта - 8 тренировки + зала",
+          "Карта - членове - 8 тренировки + зала",
+          "Карта - 8 тренировки"
+        ],
+        "price": [
+          "120",
+          "144",
+          "110"
+        ],
+        "price  up to 31.10.2025": [
+          "120",
+          "100",
+          "90"
+        ]
+      },
+      "relationships": []
+    },
+    "Треньори": {
+      "name": "Треньори",
+      "rows": 29,
+      "columns": 6,
+      "column_names": [
+        "ид",
+        "short_name",
+        "full_name",
+        "photo",
+        "phone",
+        "email"
+      ],
+      "sample_data": {
+        "ид": "544f25e3",
+        "short_name": "Стамбо"
+      },
+      "data_types": {
+        "ид": [
+          "text"
+        ],
+        "short_name": [
+          "text"
+        ],
+        "full_name": [
+          "unknown"
+        ],
+        "photo": [
+          "unknown"
+        ],
+        "phone": [
+          "unknown"
+        ],
+        "email": [
+          "unknown"
+        ]
+      },
+      "null_counts": {
+        "ид": 27,
+        "short_name": 27,
+        "full_name": 29,
+        "photo": 29,
+        "phone": 29,
+        "email": 29
+      },
+      "unique_values": {
+        "ид": [
+          "b4486e67",
+          "544f25e3"
+        ],
+        "short_name": [
+          "Стефи",
+          "Стамбо"
+        ],
+        "full_name": [],
+        "photo": [],
+        "phone": [],
+        "email": []
+      },
+      "relationships": [
+        {
+          "column": "short_name",
+          "type": "potential_reference",
+          "sample_values": [
+            "Стамбо",
+            "Стефи"
+          ]
+        },
+        {
+          "column": "full_name",
+          "type": "potential_reference",
+          "sample_values": []
+        }
+      ]
+    }
+  },
+  "analysis_date": "2025-11-21T14:21:57.023771"
+}

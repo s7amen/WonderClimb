@@ -1,0 +1,14 @@
+# Source files (if publishing, exclude these)
+specs/
+tests/
+*.test.js
+*.spec.js
+*.md
+.git/
+.gitignore
+.eslintrc*
+.prettierrc*
+jest.config.js
+.vscode/
+.idea/
+
