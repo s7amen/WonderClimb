@@ -33,7 +33,6 @@ const Header = () => {
     const items = [
       { name: 'Начало', href: '/' },
       { name: 'График', href: '/sessions' },
-      { name: 'График 1', href: '/sessions-1' },
       { name: 'Календар', href: '/calendar' },
     ];
     
@@ -156,9 +155,6 @@ const Header = () => {
     }
     if (path === '/sessions') {
       return location.pathname === '/sessions' || location.pathname.startsWith('/sessions');
-    }
-    if (path === '/sessions-1') {
-      return location.pathname === '/sessions-1' || location.pathname.startsWith('/sessions-1');
     }
     if (path === '/admin/sessions') {
       return location.pathname === '/admin/sessions' || location.pathname.startsWith('/admin/sessions');

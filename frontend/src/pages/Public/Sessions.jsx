@@ -374,8 +374,11 @@ const Sessions = () => {
           }));
         }
         if (failed && failed.length > 0) {
-          const failedNames = failed.map(f => f.climberName).join(', ');
-          showToast(`Грешка при резервиране за: ${failedNames}`, 'error');
+          // Show individual error messages for each failed booking
+          failed.forEach(f => {
+            const reason = f.reason || f.error || 'Грешка при резервиране';
+            showToast(`${f.climberName}: ${reason}`, 'error');
+          });
         }
       } else {
         showToast('Сесията е резервирана успешно', 'success');
@@ -657,14 +660,15 @@ const Sessions = () => {
       }
 
       if (results.failed.length > 0) {
-        const failedDetails = results.failed.map(item => {
+        // Show individual error messages for each failed booking
+        results.failed.forEach(item => {
           const climber = (hasClimberRole || hasAdminRole) && children.length > 0
             ? children.find(c => c._id === item.climberId)
             : null;
           const climberName = climber ? `${climber.firstName} ${climber.lastName}` : (user?.firstName + ' ' + user?.lastName);
-          return `${climberName}: ${item.reason || 'Грешка'}`;
-        }).join(', ');
-        showToast(`Неуспешни резервации: ${failedDetails}`, 'error');
+          const reason = item.reason || item.error || 'Грешка при резервиране';
+          showToast(`${climberName}: ${reason}`, 'error');
+        });
       }
 
       // Optimistically update sessions booked counts

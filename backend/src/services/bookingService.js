@@ -177,7 +177,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     });
 
     if (existingBooking) {
-      const error = new Error('Climber is already booked for this session');
+      const error = new Error('Вече е регистриран за тази тренировка');
       error.statusCode = 409;
       throw error;
     }

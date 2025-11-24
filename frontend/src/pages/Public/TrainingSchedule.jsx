@@ -374,8 +374,11 @@ const Sessions = () => {
           }));
         }
         if (failed && failed.length > 0) {
-          const failedNames = failed.map(f => f.climberName).join(', ');
-          showToast(`Грешка при резервиране за: ${failedNames}`, 'error');
+          // Show individual error messages for each failed booking
+          failed.forEach(f => {
+            const reason = f.reason || f.error || 'Грешка при резервиране';
+            showToast(`${f.climberName}: ${reason}`, 'error');
+          });
         }
       } else {
         showToast('Сесията е резервирана успешно', 'success');
