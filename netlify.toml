@@ -3,8 +3,8 @@
   base = "frontend"
   # Build command
   command = "npm install && npm run build"
-  # Directory to publish (where the built files are)
-  publish = "frontend/dist"
+  # Directory to publish (relative to base directory)
+  publish = "dist"
 
 # Headers for proper MIME types - JavaScript modules
 [[headers]]
