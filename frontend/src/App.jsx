@@ -25,7 +25,6 @@ const CompetitionDetail = lazy(() => import('./pages/Admin/CompetitionDetail'));
 const PublicCompetition = lazy(() => import('./pages/Public/Competition'));
 const PublicCompetitionDetail = lazy(() => import('./pages/Public/CompetitionDetail'));
 const PublicSessions = lazy(() => import('./pages/Public/Sessions'));
-const TrainingSchedule = lazy(() => import('./pages/Public/TrainingSchedule'));
 const TermsOfService = lazy(() => import('./pages/Public/TermsOfService'));
 const CoachDashboard = lazy(() => import('./pages/Coach/Dashboard'));
 const CoachAttendance = lazy(() => import('./pages/Coach/Attendance'));
@@ -99,7 +98,6 @@ function App() {
 
           {/* Public routes - accessible without authentication */}
           <Route path="/sessions" element={<PublicSessions />} />
-          <Route path="/training-schedule" element={<TrainingSchedule />} />
           <Route path="/competitions" element={<PublicCompetition />} />
           <Route path="/competitions/:id" element={<PublicCompetitionDetail />} />
 

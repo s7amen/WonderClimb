@@ -9,11 +9,11 @@ import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/UI/LoginModal';
-import TrainingScheduleFilters from '../../components/TrainingSchedule/TrainingScheduleFilters';
-import TrainingScheduleList from '../../components/TrainingSchedule/TrainingScheduleList';
+import SessionFilters from '../../components/Sessions/SessionFilters';
+import SessionList from '../../components/Sessions/SessionList';
 import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
 
-const TrainingSchedule = () => {
+const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -967,7 +967,7 @@ const TrainingSchedule = () => {
       <div className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-2 lg:mb-4">
-          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График 1</h1>
+          <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График</h1>
         </div>
 
         <ToastComponent />
@@ -1123,7 +1123,7 @@ const TrainingSchedule = () => {
               className={`${isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? 'lg:sticky' : (isAuthenticated ? 'lg:sticky lg:top-[114px]' : 'lg:sticky lg:top-[70px]')} lg:z-30`}
               style={isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? { top: filtersTopOffset } : undefined}
             >
-              <TrainingScheduleFilters
+              <SessionFilters
                 sticky={true}
                 selectedDays={selectedDays}
                 selectedTimes={selectedTimes}
@@ -1196,7 +1196,7 @@ const TrainingSchedule = () => {
             )}
 
             {/* Sessions List */}
-            <TrainingScheduleList
+            <SessionList
               sessions={sessions}
               getFilteredSessions={getFilteredSessions}
               hasActiveFilters={hasActiveFilters}
@@ -2068,4 +2068,4 @@ const TrainingSchedule = () => {
   );
 };
 
-export default TrainingSchedule;
+export default Sessions;
