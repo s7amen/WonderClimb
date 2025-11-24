@@ -1,0 +1,52 @@
+[build]
+  # Base directory for the build (where package.json is located)
+  base = "frontend"
+  # Build command
+  command = "npm install && npm run build"
+  # Directory to publish (where the built files are)
+  publish = "frontend/dist"
+
+# Headers for proper MIME types - JavaScript modules
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/*.mjs"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript; charset=utf-8"
+    X-Content-Type-Options = "nosniff"
+
+# Headers for SVG files (favicon)
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Content-Type = "image/svg+xml"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers for CSS files
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Content-Type = "text/css; charset=utf-8"
+
+# Headers for HTML files
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Content-Type = "text/html; charset=utf-8"
+
+# SPA routing - redirect all routes to index.html (must be last)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
