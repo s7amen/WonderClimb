@@ -3,6 +3,7 @@ import { climberPhotosAPI } from '../services/api';
 import { useToast } from './UI/Toast';
 import AuthImage from './AuthImage';
 import PhotoUpload from './PhotoUpload';
+import ConfirmDialog from './UI/ConfirmDialog';
 
 const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
   const [deleting, setDeleting] = useState(null);
@@ -32,24 +33,39 @@ const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
     }
   };
 
-  const handleDelete = async (filename) => {
-    if (!window.confirm('Сигурни ли сте, че искате да изтриете тази снимка?')) {
-      return;
-    }
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteFilename, setDeleteFilename] = useState(null);
 
-    setDeleting(filename);
+  const handleDelete = (filename) => {
+    setDeleteFilename(filename);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteFilename) return;
+
+    setDeleting(deleteFilename);
     try {
-      const response = await climberPhotosAPI.delete(climberId, filename);
+      const response = await climberPhotosAPI.delete(climberId, deleteFilename);
       showToast('Снимката е изтрита успешно', 'success');
       if (onUpdate) {
         onUpdate(response.data.photos);
       }
+      setShowDeleteDialog(false);
+      setDeleteFilename(null);
     } catch (error) {
       const errorMessage = error.response?.data?.error?.message || 'Грешка при изтриване на снимката';
       showToast(errorMessage, 'error');
+      setShowDeleteDialog(false);
+      setDeleteFilename(null);
     } finally {
       setDeleting(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteDialog(false);
+    setDeleteFilename(null);
   };
 
   const handleUploadSuccess = (updatedPhotos) => {
@@ -162,6 +178,16 @@ const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
         )}
       </div>
       <ToastComponent />
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Изтриване на снимка"
+        message="Сигурни ли сте, че искате да изтриете тази снимка?"
+        confirmText="Изтрий"
+        cancelText="Отказ"
+        variant="danger"
+      />
     </>
   );
 };

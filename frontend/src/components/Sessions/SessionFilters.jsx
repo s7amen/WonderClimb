@@ -82,7 +82,12 @@ const SessionFilters = ({
           {/* Title - Hide on mobile */}
           {!isMobile && (
             <div className={`${compact ? 'pt-[12px] px-[16px] pb-0' : 'pt-[16px] px-[24px] pb-0'}`}>
-              <h2 className={`text-[#cbd5e1] ${compact ? 'text-sm leading-5' : 'text-lg leading-7'} font-semibold uppercase`}>ФИЛТРИ</h2>
+              <h2 className={`text-[#cbd5e1] ${compact ? 'text-sm leading-5' : 'text-lg leading-7'} font-normal uppercase flex items-center gap-2`}>
+                <svg className={`${compact ? 'w-3 h-3' : 'w-4 h-4'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                ФИЛТРИ
+              </h2>
             </div>
           )}
 
@@ -101,9 +106,9 @@ const SessionFilters = ({
               <label className={`text-[#94a3b8] ${compact ? 'hidden' : 'text-base leading-6 whitespace-nowrap md:hidden shrink-0'}`}>Подходящо за:</label>
               <div className="flex gap-[6px] flex-wrap">
                 {[
-                  { value: 'beginner', label: 'Начинаещи' },
-                  { value: 'experienced', label: 'Деца с опит' },
-                  { value: 'advanced', label: 'Напреднали' },
+                  { value: 'beginner', label: 'Начинаещи', color: '#4ade80' }, // green-400 - нюанс на bg-green-100
+                  { value: 'experienced', label: 'Деца с опит', color: '#60a5fa' }, // blue-400 - нюанс на bg-blue-100
+                  { value: 'advanced', label: 'Напреднали', color: '#f87171' }, // red-400 - нюанс на bg-red-100
                 ].map((group) => {
                   const isSelected = selectedTargetGroups?.includes(group.value) || false;
                   return (
@@ -111,11 +116,12 @@ const SessionFilters = ({
                       key={group.value}
                       type="button"
                       onClick={() => toggleFilter('targetGroup', group.value)}
-                      className={`${compact ? 'h-[32px] px-[12px] py-[6px] text-xs leading-4 rounded-[8px]' : 'h-[42px] px-[17px] py-[7px] text-base leading-6 rounded-[10px]'} font-normal transition-all duration-200 ${
+                      className={`${compact ? 'h-[32px] px-[12px] py-[6px] text-xs leading-4 rounded-[8px]' : 'h-[42px] px-[17px] py-[7px] text-base leading-6 rounded-[10px]'} font-normal transition-all duration-200 relative ${
                         isSelected
                           ? 'bg-[#ff6900] border border-[#ff6900] text-white hover:bg-[#f54900]'
                           : 'bg-white border border-[#cad5e2] text-[#314158] hover:bg-gray-50 hover:border-[#ff6900] hover:text-[#ff6900]'
                       }`}
+                      style={!isSelected ? { borderBottom: `3px solid ${group.color}` } : {}}
                     >
                       {group.label}
                     </button>

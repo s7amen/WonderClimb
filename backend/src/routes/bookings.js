@@ -245,7 +245,8 @@ router.post('/recurring', async (req, res, next) => {
 router.delete('/:bookingId', async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const userRoles = req.user.roles || [];
+    // Normalize roles to ensure it's always an array
+    const userRoles = Array.isArray(req.user.roles) ? req.user.roles : (req.user.roles ? [req.user.roles] : []);
     const booking = await cancelBooking(req.params.bookingId, userId, userRoles);
     res.json({ booking, message: 'Booking cancelled successfully' });
   } catch (error) {

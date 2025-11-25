@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { bookingsAPI } from '../../services/api';
-import { format, addDays, startOfDay, isBefore } from 'date-fns';
+import { format, addDays, startOfDay, isBefore, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Loading from '../../components/UI/Loading';
@@ -11,6 +12,7 @@ const MySessions = () => {
   const [myBookings, setMyBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [daysToShow] = useState(30);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const { showToast, ToastComponent } = useToast();
 
   // Cancel booking modal state
@@ -19,6 +21,10 @@ const MySessions = () => {
   const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
   const [selectedCancelBookingIds, setSelectedCancelBookingIds] = useState([]);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // Session details modal state
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [showSessionModal, setShowSessionModal] = useState(false);
 
 
   useEffect(() => {
@@ -115,6 +121,221 @@ const MySessions = () => {
     return sessionBookings.length;
   };
 
+  // Get sessions for a specific date (for calendar)
+  const getSessionsForDate = (date) => {
+    return sessions.filter((session) => {
+      const sessionDate = new Date(session.date);
+      return isSameDay(sessionDate, date);
+    });
+  };
+
+  // Get reservations for a specific session
+  const getReservationsForSession = (sessionId) => {
+    if (!myBookings || myBookings.length === 0) return [];
+    
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
+      ? sessionId.toString() 
+      : String(sessionId);
+    
+    return myBookings.filter(b => {
+      if (!b || b.status !== 'booked') return false;
+      
+      const bookingSessionId = b.sessionId 
+        ? (typeof b.sessionId === 'object' && b.sessionId._id 
+            ? String(b.sessionId._id) 
+            : String(b.sessionId))
+        : null;
+      
+      const sessionObjId = b.session 
+        ? (b.session._id ? String(b.session._id) : String(b.session))
+        : null;
+      
+      return bookingSessionId === normalizedSessionId || sessionObjId === normalizedSessionId;
+    }).map(booking => {
+      const climber = booking.climber || booking.climberId;
+      let climberName = 'Неизвестен';
+      
+      if (climber) {
+        if (typeof climber === 'object' && climber.firstName && climber.lastName) {
+          climberName = `${climber.firstName} ${climber.lastName}`;
+        } else if (typeof climber === 'object' && climber.name) {
+          climberName = climber.name;
+        }
+      }
+      
+      return {
+        climberName,
+        bookingId: booking._id || booking.id,
+        climberId: typeof climber === 'object' && climber._id ? climber._id : climber,
+      };
+    });
+  };
+
+  // Handle session click
+  const handleSessionClick = (session) => {
+    setSelectedSession(session);
+    setShowSessionModal(true);
+  };
+
+  // Get session color based on targetGroups (similar to Calendar component)
+  const getSessionColor = (session) => {
+    if (session.status !== 'active') {
+      return { backgroundColor: '#99a1af', color: 'white' };
+    }
+    
+    const targetGroups = session.targetGroups || [];
+    
+    const groupColors = {
+      beginner: '#DCFCE7',      // green-100
+      experienced: '#FFEDD5',   // orange-100
+      advanced: '#FEE2E2',      // red-100
+    };
+    
+    const textColors = {
+      beginner: '#15803D',    // green-700
+      experienced: '#C2410C', // orange-700
+      advanced: '#B91C1C',    // red-700
+    };
+    
+    let primaryGroup = null;
+    if (targetGroups.includes('beginner')) {
+      primaryGroup = 'beginner';
+    } else if (targetGroups.includes('experienced')) {
+      primaryGroup = 'experienced';
+    } else if (targetGroups.includes('advanced')) {
+      primaryGroup = 'advanced';
+    }
+    
+    if (!primaryGroup) {
+      return { backgroundColor: '#FFEDD5', color: '#C2410C' };
+    }
+    
+    return { backgroundColor: groupColors[primaryGroup], color: textColors[primaryGroup] };
+  };
+
+  // Render calendar month view
+  const renderCalendarMonthView = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+    return (
+      <>
+        {/* Mobile Calendar Grid View - Full Width */}
+        <div className="md:hidden grid grid-cols-7 gap-0.5 w-full">
+          {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day) => (
+            <div key={day} className="p-1 text-center text-[11px] font-semibold text-gray-700">
+              {day}
+            </div>
+          ))}
+          {days.map((day) => {
+            const daySessions = getSessionsForDate(day);
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isToday = isSameDay(day, new Date());
+
+            return (
+              <div
+                key={day.toISOString()}
+                className={`
+                  min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[6px]
+                  ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
+                  ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
+                `}
+              >
+                <div className={`text-xs font-medium mb-1 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-0.5">
+                  {daySessions.slice(0, 1).map((session) => {
+                    const colorStyle = getSessionColor(session);
+                    return (
+                      <div
+                        key={session._id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSessionClick(session);
+                        }}
+                        className="text-[9px] px-0.5 py-0.5 rounded-[4px] truncate text-white text-center font-medium cursor-pointer hover:opacity-80 transition-opacity"
+                        style={colorStyle}
+                        title={`${format(new Date(session.date), 'HH:mm')} - ${session.title}`}
+                      >
+                        {format(new Date(session.date), 'HH:mm')}
+                      </div>
+                    );
+                  })}
+                  {daySessions.length > 1 && (
+                    <div className="text-[9px] text-[#4a5565] text-center font-medium">+{daySessions.length - 1}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Desktop Grid View - Smaller/Compact */}
+        <div className="hidden md:grid md:grid-cols-7 gap-1">
+          {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
+            <div key={day} className="p-1.5 text-center text-xs font-semibold text-gray-700">
+              {day}
+            </div>
+          ))}
+          {days.map((day) => {
+            const daySessions = getSessionsForDate(day);
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isToday = isSameDay(day, new Date());
+
+            return (
+              <div
+                key={day.toISOString()}
+                className={`
+                  min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[8px]
+                  ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
+                  ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
+                `}
+              >
+                <div className={`text-xs font-medium mb-1 ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-0.5">
+                  {daySessions.slice(0, 2).map((session) => {
+                    const colorStyle = getSessionColor(session);
+                    return (
+                      <div
+                        key={session._id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSessionClick(session);
+                        }}
+                        className="text-[10px] p-0.5 rounded-[6px] truncate text-white cursor-pointer hover:opacity-80 transition-opacity"
+                        style={colorStyle}
+                        title={session.title}
+                      >
+                        {format(new Date(session.date), 'HH:mm')}
+                      </div>
+                    );
+                  })}
+                  {daySessions.length > 2 && (
+                    <div className="text-[10px] text-[#4a5565]">+{daySessions.length - 2}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+  };
+
+  const navigateDate = (direction) => {
+    setCurrentDate(direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   if (loading) {
     return <Loading text="Зареждане на моят график..." />;
   }
@@ -128,7 +349,87 @@ const MySessions = () => {
       <ToastComponent />
 
       <div className="bg-gray-50 min-h-screen">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Mobile Calendar Section - Full Width (100vw) */}
+        {sessions.length > 0 && (
+          <div className="md:hidden mb-6">
+            <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
+              <div className="flex flex-col justify-between items-center gap-4 mb-4 px-4 pt-4">
+                <div className="flex items-center gap-2 w-full justify-between">
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => navigateDate('prev')}
+                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                  >
+                    ←
+                  </Button>
+                  <div className="flex flex-col items-center gap-2">
+                    <h2 className="text-base font-medium text-neutral-950 text-center">
+                      {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                    </h2>
+                    <Button 
+                      variant="secondary" 
+                      onClick={goToToday}
+                      className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
+                    >
+                      Днес
+                    </Button>
+                  </div>
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => navigateDate('next')}
+                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                  >
+                    →
+                  </Button>
+                </div>
+              </div>
+              <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
+                {renderCalendarMonthView()}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
+
+        {/* Desktop Calendar Section */}
+        {sessions.length > 0 && (
+          <div className="hidden md:block mb-6">
+            <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
+              <div className="flex flex-row justify-between items-center gap-4 mb-4 px-6 pt-6">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => navigateDate('prev')}
+                  className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                >
+                  ← Предишен
+                </Button>
+                <div className="flex flex-row items-center gap-2">
+                  <h2 className="text-base font-medium text-neutral-950 text-center">
+                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                  </h2>
+                  <Button 
+                    variant="secondary" 
+                    onClick={goToToday}
+                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
+                  >
+                    Днес
+                  </Button>
+                </div>
+                <Button 
+                  variant="secondary" 
+                  onClick={() => navigateDate('next')}
+                  className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                >
+                  Следващ →
+                </Button>
+              </div>
+              <div className="px-6 pb-6">
+                {renderCalendarMonthView()}
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* Sessions List */}
         <SessionList
@@ -164,7 +465,17 @@ const MySessions = () => {
 
         {/* Cancel Booking Confirmation Modal - Модерен дизайн */}
         {showCancelBookingModal && cancelBookingSessionId && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isCancelling) {
+                setShowCancelBookingModal(false);
+                setCancelBookingSessionId(null);
+                setCancelBookingBookings([]);
+                setSelectedCancelBookingIds([]);
+              }
+            }}
+          >
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
               <div className="px-6 py-5 border-b border-gray-100">
                 <div className="flex justify-between items-center">
@@ -276,48 +587,58 @@ const MySessions = () => {
                       }
 
                       setIsCancelling(true);
+                      const results = {
+                        successful: [],
+                        failed: []
+                      };
+
                       try {
                         // Отменя всички избрани резервации
                         for (const bookingId of selectedCancelBookingIds) {
-                          await bookingsAPI.cancel(bookingId);
+                          try {
+                            await bookingsAPI.cancel(bookingId);
+                            results.successful.push(bookingId);
+                          } catch (error) {
+                            results.failed.push({
+                              bookingId,
+                              reason: error.response?.data?.error?.message || 'Грешка при отмяна'
+                            });
+                          }
                         }
                         
-                        // Optimistically update sessions booked counts
-                        const cancelledBookings = cancelBookingBookings.filter(b => 
-                          selectedCancelBookingIds.includes(b.bookingId)
-                        );
-                        cancelledBookings.forEach(booking => {
-                          setSessions(prev => prev.map(s => {
-                            if (s._id === cancelBookingSessionId) {
-                              return {
-                                ...s,
-                                bookedCount: Math.max(0, (s.bookedCount || 0) - 1)
-                              };
-                            }
-                            return s;
-                          }));
-                        });
-                        
-                        // Refresh bookings to update UI
-                        await fetchBookings();
-                        
-                        showToast(
-                          selectedCancelBookingIds.length === 1
-                            ? 'Резервацията е отменена успешно'
-                            : `${selectedCancelBookingIds.length} резервации са отменени успешно`,
-                          'success'
-                        );
-                        
-                        setShowCancelBookingModal(false);
-                        setCancelBookingSessionId(null);
-                        setCancelBookingBookings([]);
-                        setSelectedCancelBookingIds([]);
+                        // Update local state for successful cancellations instead of full page reload
+                        if (results.successful.length > 0) {
+                          setMyBookings(prev => prev.map(booking => 
+                            results.successful.includes(booking._id)
+                              ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+                              : booking
+                          ));
+                          
+                          showToast(
+                            results.successful.length === 1
+                              ? 'Резервацията е отменена успешно'
+                              : `${results.successful.length} резервации са отменени успешно`,
+                            'success'
+                          );
+                        }
+
+                        if (results.failed.length > 0) {
+                          showToast(
+                            `Неуспешна отмяна на ${results.failed.length} резервации`,
+                            'error'
+                          );
+                        }
                       } catch (error) {
                         showToast(
                           error.response?.data?.error?.message || 'Грешка при отменяне на резервация',
                           'error'
                         );
                       } finally {
+                        // Always close modal and clear state
+                        setShowCancelBookingModal(false);
+                        setCancelBookingSessionId(null);
+                        setCancelBookingBookings([]);
+                        setSelectedCancelBookingIds([]);
                         setIsCancelling(false);
                       }
                     }}
@@ -328,6 +649,139 @@ const MySessions = () => {
                     {isCancelling ? 'Отменяне...' : 'Отмени'}
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Session Details Modal */}
+        {showSessionModal && selectedSession && (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowSessionModal(false);
+                setSelectedSession(null);
+              }
+            }}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-[#0f172b]">Детайли за тренировка</h2>
+                  <button
+                    onClick={() => {
+                      setShowSessionModal(false);
+                      setSelectedSession(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                {/* Session Info */}
+                <div className="mb-6 space-y-3">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#0f172b] mb-2">{selectedSession.title || 'Тренировка'}</h3>
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-[#64748b]">Дата и час:</span>
+                      <span className="text-[#0f172b]">
+                        {format(new Date(selectedSession.date), 'EEEE, d MMMM yyyy', { locale: bg })}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-[#64748b]">Час:</span>
+                      <span className="text-[#0f172b]">
+                        {formatTime(selectedSession.date)} - {getEndTime(selectedSession.date, selectedSession.durationMinutes)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-[#64748b]">Продължителност:</span>
+                      <span className="text-[#0f172b]">{selectedSession.durationMinutes} минути</span>
+                    </div>
+                    
+                    {selectedSession.targetGroups && selectedSession.targetGroups.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {selectedSession.targetGroups.map((group) => {
+                          const groupLabels = {
+                            beginner: 'Начинаещи',
+                            experienced: 'Деца с опит',
+                            advanced: 'Напреднали',
+                          };
+                          const groupColors = {
+                            beginner: 'bg-green-100 text-green-700',
+                            experienced: 'bg-blue-100 text-blue-700',
+                            advanced: 'bg-red-100 text-red-700',
+                          };
+                          return (
+                            <span
+                              key={group}
+                              className={`px-2 py-1 rounded-md text-xs font-medium ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
+                            >
+                              {groupLabels[group] || group}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {selectedSession.description && (
+                      <div className="flex items-start gap-2">
+                        <span className="font-medium text-[#64748b] shrink-0">Описание:</span>
+                        <span className="text-[#0f172b]">{selectedSession.description}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Reservations Info */}
+                {(() => {
+                  const reservations = getReservationsForSession(selectedSession._id);
+                  return (
+                    <div className="border-t border-gray-100 pt-4">
+                      {reservations.length > 0 ? (
+                        <div className="space-y-2">
+                          {reservations.map((reservation) => (
+                            <div
+                              key={reservation.bookingId}
+                              className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-[#0f172b]">
+                                  {reservation.climberName}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="px-6 py-4 border-t border-gray-100">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowSessionModal(false);
+                    setSelectedSession(null);
+                  }}
+                  className="w-full"
+                >
+                  Затвори
+                </Button>
               </div>
             </div>
           </div>

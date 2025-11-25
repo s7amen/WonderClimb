@@ -466,7 +466,14 @@ const Schedule = () => {
         }
       }
 
+      // Update local state for successful cancellations instead of full page reload
       if (results.successful.length > 0) {
+        setMyBookings(prev => prev.map(booking => 
+          results.successful.includes(booking._id)
+            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+            : booking
+        ));
+        
         const cancelledCount = results.successful.length;
         showToast(
           `Успешно отменени ${cancelledCount} резервации`,
@@ -480,17 +487,15 @@ const Schedule = () => {
           'error'
         );
       }
-
-      // Close modal and refresh data
-      setShowCancelModal(false);
-      setSessionToCancel(null);
-      setBookingsToCancel([]);
-      setSelectedBookingIds([]);
-      fetchData();
     } catch (error) {
       showToast('Грешка при отмяна на резервации', 'error');
       console.error('Cancel booking error:', error);
     } finally {
+      // Always close modal and clear state
+      setShowCancelModal(false);
+      setSessionToCancel(null);
+      setBookingsToCancel([]);
+      setSelectedBookingIds([]);
       setIsCancelling(false);
     }
   };
@@ -1489,11 +1494,14 @@ const Schedule = () => {
                     })}
                     <Link
                       to="/parent/profile"
-                      className="text-sm underline ml-2"
+                      className="text-sm underline ml-2 flex items-center gap-1"
                       style={{ color: '#4a5565' }}
                       onMouseEnter={(e) => { e.currentTarget.style.color = '#35383d'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.color = '#4a5565'; }}
                     >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
                       добави дете
                     </Link>
                   </div>
@@ -1509,9 +1517,9 @@ const Schedule = () => {
                     onClick={handleBulkBook}
                     disabled={isBulkBooking}
                     variant="primary"
-                    className="w-full md:w-auto text-xs md:text-sm"
+                    className="w-full md:w-auto text-sm md:text-base py-3 md:py-2 md:fixed md:bottom-4 md:right-4 md:z-50 md:shadow-lg"
                   >
-                    {isBulkBooking ? 'Резервиране...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
+                    {isBulkBooking ? 'Резервиране...' : 'Запази всички маркирани'}
                   </Button>
                 )}
                 <div className="flex flex-row gap-2 items-center">

@@ -1,5 +1,9 @@
 import { User } from '../models/user.js';
 import { ParentClimberLink } from '../models/parentClimberLink.js';
+import { Booking } from '../models/booking.js';
+import { AttendanceRecord } from '../models/attendanceRecord.js';
+import { ParentInfo } from '../models/parentInfo.js';
+import { Session } from '../models/session.js';
 import { createLink, removeLink } from './parentClimberLinkService.js';
 import logger from '../middleware/logging.js';
 
@@ -258,8 +262,116 @@ export const deactivateClimberForParent = async (parentId, climberId) => {
 };
 
 /**
+ * Check for related data before deleting a climber
+ * Returns counts of bookings, attendance records, and parentInfo
+ */
+export const checkClimberRelatedData = async (climberId) => {
+  try {
+    const now = new Date();
+
+    // Get all bookings for this climber
+    const allBookings = await Booking.find({ climberId }).populate('sessionId', 'date').lean();
+    
+    // Separate future and past bookings
+    const futureBookings = allBookings.filter(booking => {
+      const sessionDate = booking.sessionId?.date;
+      return sessionDate && new Date(sessionDate) > now;
+    });
+    
+    const pastBookings = allBookings.filter(booking => {
+      const sessionDate = booking.sessionId?.date;
+      return !sessionDate || new Date(sessionDate) <= now;
+    });
+
+    // Count active bookings (status: 'booked')
+    const activeBookings = allBookings.filter(b => b.status === 'booked');
+    const activeFutureBookings = futureBookings.filter(b => b.status === 'booked');
+    const activePastBookings = pastBookings.filter(b => b.status === 'booked');
+
+    // Count attendance records
+    const attendanceCount = await AttendanceRecord.countDocuments({ climberId });
+
+    // Count parentInfo records
+    const parentInfoCount = await ParentInfo.countDocuments({ climberId });
+
+    return {
+      bookings: {
+        total: allBookings.length,
+        active: activeBookings.length,
+        future: {
+          total: futureBookings.length,
+          active: activeFutureBookings.length,
+        },
+        past: {
+          total: pastBookings.length,
+          active: activePastBookings.length,
+        },
+      },
+      attendanceRecords: attendanceCount,
+      parentInfoRecords: parentInfoCount,
+      hasRelatedData: allBookings.length > 0 || attendanceCount > 0 || parentInfoCount > 0,
+    };
+  } catch (error) {
+    logger.error({ error, climberId }, 'Error checking climber related data');
+    throw error;
+  }
+};
+
+/**
+ * Delete related data for a climber (future bookings, attendance, parentInfo)
+ * Keeps past bookings for historical records
+ */
+export const deleteClimberRelatedData = async (climberId) => {
+  try {
+    const now = new Date();
+    const deletionResults = {
+      futureBookingsDeleted: 0,
+      attendanceRecordsDeleted: 0,
+      parentInfoRecordsDeleted: 0,
+    };
+
+    // Get all bookings and find future ones
+    const allBookings = await Booking.find({ climberId }).populate('sessionId', 'date').lean();
+    
+    const futureBookingIds = allBookings
+      .filter(booking => {
+        const sessionDate = booking.sessionId?.date;
+        return sessionDate && new Date(sessionDate) > now;
+      })
+      .map(booking => booking._id);
+
+    // Delete future bookings
+    if (futureBookingIds.length > 0) {
+      const result = await Booking.deleteMany({ _id: { $in: futureBookingIds } });
+      deletionResults.futureBookingsDeleted = result.deletedCount;
+      logger.info({ climberId, deletedCount: result.deletedCount }, 'Future bookings deleted');
+    }
+
+    // Delete all attendance records
+    const attendanceResult = await AttendanceRecord.deleteMany({ climberId });
+    deletionResults.attendanceRecordsDeleted = attendanceResult.deletedCount;
+    if (attendanceResult.deletedCount > 0) {
+      logger.info({ climberId, deletedCount: attendanceResult.deletedCount }, 'Attendance records deleted');
+    }
+
+    // Delete all parentInfo records
+    const parentInfoResult = await ParentInfo.deleteMany({ climberId });
+    deletionResults.parentInfoRecordsDeleted = parentInfoResult.deletedCount;
+    if (parentInfoResult.deletedCount > 0) {
+      logger.info({ climberId, deletedCount: parentInfoResult.deletedCount }, 'ParentInfo records deleted');
+    }
+
+    return deletionResults;
+  } catch (error) {
+    logger.error({ error, climberId }, 'Error deleting climber related data');
+    throw error;
+  }
+};
+
+/**
  * Delete a child User and remove parent-climber link
  * Only deletes if child is linked to parent and has no email (inactive child account)
+ * Deletes future bookings and related records, keeps past bookings for history
  */
 export const deleteClimberForParent = async (parentId, climberId) => {
   try {
@@ -286,20 +398,34 @@ export const deleteClimberForParent = async (parentId, climberId) => {
       throw error;
     }
 
+    // Delete related data (future bookings, attendance, parentInfo)
+    const deletionResults = await deleteClimberRelatedData(climberId);
+
     // Remove parent-climber link
     await removeLink(parentId, climberId);
 
     // Delete the child User
     await User.findByIdAndDelete(climberId);
 
-    logger.info({ parentId, climberId }, 'Child deleted');
-    return { message: 'Child deleted successfully' };
+    logger.info({ 
+      parentId, 
+      climberId, 
+      deletionResults 
+    }, 'Child deleted with related data cleanup');
+
+    return { 
+      message: 'Child deleted successfully',
+      deletionResults,
+    };
   } catch (error) {
     logger.error({ error, parentId, climberId }, 'Error deleting child');
     throw error;
   }
 };
 
+/**
+ * Get all children (climbers) for a parent
+ */
 /**
  * Get all children (climbers) for a parent
  */

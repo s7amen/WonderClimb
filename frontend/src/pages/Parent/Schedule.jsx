@@ -8,6 +8,7 @@ import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { useAuth } from '../../context/AuthContext';
 import { getUserFullName } from '../../utils/userUtils';
+import ConfirmDialog from '../../components/UI/ConfirmDialog';
 
 const Schedule = () => {
   const { user } = useAuth();
@@ -499,7 +500,14 @@ const Schedule = () => {
         }
       }
 
+      // Update local state for successful cancellations instead of full page reload
       if (results.successful.length > 0) {
+        setMyBookings(prev => prev.map(booking => 
+          results.successful.includes(booking._id)
+            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+            : booking
+        ));
+        
         const cancelledCount = results.successful.length;
         showToast(
           `Успешно отменени ${cancelledCount} резервации`,
@@ -513,17 +521,15 @@ const Schedule = () => {
           'error'
         );
       }
-
-      // Close modal and refresh data
-      setShowCancelModal(false);
-      setSessionToCancel(null);
-      setBookingsToCancel([]);
-      setSelectedBookingIds([]);
-      fetchData();
     } catch (error) {
       showToast('Грешка при отмяна на резервации', 'error');
       console.error('Cancel booking error:', error);
     } finally {
+      // Always close modal and clear state
+      setShowCancelModal(false);
+      setSessionToCancel(null);
+      setBookingsToCancel([]);
+      setSelectedBookingIds([]);
       setIsCancelling(false);
     }
   };
@@ -941,103 +947,82 @@ const Schedule = () => {
 
 
       {/* Cancel Booking Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Отмяна на резервация</h2>
-            
-            {sessionToCancel && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
-                {(() => {
-                  const session = availableSessions.find(s => s._id === sessionToCancel);
-                  if (!session) return null;
-                  return (
-                    <div className="p-2 bg-gray-50 rounded">
-                      <div className="font-medium">{session.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {bookingsToCancel.length > 1 ? (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Изберете за кои катерачи да се отмени резервацията:</h3>
-                <div className="space-y-2">
-                  {bookingsToCancel.map((booking) => {
-                    const climber = booking.climber;
-                    const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-                    const isSelected = selectedBookingIds.includes(booking._id);
-                    return (
-                      <label
-                        key={booking._id}
-                        className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedBookingIds([...selectedBookingIds, booking._id]);
-                            } else {
-                              setSelectedBookingIds(selectedBookingIds.filter(id => id !== booking._id));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{climberName}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : bookingsToCancel.length === 1 ? (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
-                {bookingsToCancel[0]?.climber && (
-                  <div className="text-sm text-gray-700">
-                    {bookingsToCancel[0].climber.firstName} {bookingsToCancel[0].climber.lastName}
+      <ConfirmDialog
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setSessionToCancel(null);
+          setBookingsToCancel([]);
+          setSelectedBookingIds([]);
+        }}
+        onConfirm={confirmCancelBooking}
+        title="Отмяна на резервация"
+        message={bookingsToCancel.length === 1 ? 'Сигурни ли сте, че искате да отмените резервацията?' : null}
+        confirmText={isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
+        cancelText="Отказ"
+        variant="danger"
+        disabled={isCancelling || selectedBookingIds.length === 0}
+      >
+        {sessionToCancel && (
+          <div className="mb-4">
+            <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-2">Тренировка:</h3>
+            {(() => {
+              const session = availableSessions.find(s => s._id === sessionToCancel);
+              if (!session) return null;
+              return (
+                <div className="p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)]">
+                  <div className="text-sm sm:text-[16px] font-medium text-neutral-950">{session.title}</div>
+                  <div className="text-sm text-[#4a5565] mt-1">
+                    {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
                   </div>
-                )}
-              </div>
-            ) : null}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
-            <div className="mb-4 p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Сигурни ли сте, че искате да отмените резервацията?
-              </p>
+        {bookingsToCancel.length > 1 && (
+          <div className="mb-4">
+            <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-3">Изберете за кои катерачи да се отмени резервацията:</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {bookingsToCancel.map((booking) => {
+                const climber = booking.climber;
+                const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+                const isSelected = selectedBookingIds.includes(booking._id);
+                return (
+                  <label
+                    key={booking._id}
+                    className="flex items-center gap-3 p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)] cursor-pointer hover:bg-[#e8e8ea] transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedBookingIds([...selectedBookingIds, booking._id]);
+                        } else {
+                          setSelectedBookingIds(selectedBookingIds.filter(id => id !== booking._id));
+                        }
+                      }}
+                      className="w-4 h-4 text-orange-brand border-gray-300 rounded focus:ring-orange-brand"
+                    />
+                    <span className="text-sm sm:text-[16px] text-neutral-950">{climberName}</span>
+                  </label>
+                );
+              })}
             </div>
+          </div>
+        )}
 
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setShowCancelModal(false);
-                  setSessionToCancel(null);
-                  setBookingsToCancel([]);
-                  setSelectedBookingIds([]);
-                }}
-                disabled={isCancelling}
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmCancelBooking}
-                disabled={isCancelling || selectedBookingIds.length === 0}
-              >
-                {isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
-              </Button>
+        {bookingsToCancel.length === 1 && bookingsToCancel[0]?.climber && (
+          <div className="mb-4">
+            <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-2">Катерач:</h3>
+            <div className="text-sm sm:text-[16px] text-[#4a5565]">
+              {bookingsToCancel[0].climber.firstName} {bookingsToCancel[0].climber.lastName}
             </div>
-          </Card>
-        </div>
-      )}
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Bulk Booking Confirmation Modal */}
       {showBulkConfirmation && (
@@ -1265,16 +1250,16 @@ const Schedule = () => {
                 )}
               </div>
 
-              {/* Bulk action button - right side */}
-              <div className="flex flex-col items-end md:items-end gap-2 w-full md:w-auto">
+              {/* Bulk action button - centered */}
+              <div className="flex flex-col items-center md:items-center gap-2 w-full md:w-auto">
                 {selectedSessionIds.length > 0 && (
                   <Button
                     onClick={handleBulkBook}
                     disabled={isBulkBooking || bulkBookingClimberIds.length === 0}
                     variant="primary"
-                    className="w-full md:w-auto text-xs md:text-sm"
+                    className="w-full md:w-auto text-sm md:text-base py-3 md:py-2 md:fixed md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:z-50 md:shadow-lg"
                   >
-                    {isBulkBooking ? 'Резервиране...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
+                    {isBulkBooking ? 'Резервиране...' : 'Запази всички маркирани'}
                   </Button>
                 )}
                 <div className="flex flex-row gap-2 items-center">

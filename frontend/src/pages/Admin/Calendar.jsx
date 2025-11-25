@@ -27,6 +27,12 @@ const Calendar = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [userBookings, setUserBookings] = useState([]);
+  const [selectedFilters, setSelectedFilters] = useState(() => {
+    const defaultFilters = ['beginner', 'experienced', 'advanced', 'competition'];
+    // Add 'reserved' only if user is authenticated (will be updated in useEffect)
+    return new Set(defaultFilters);
+  });
 
   useEffect(() => {
     fetchSessions();
@@ -35,13 +41,30 @@ const Calendar = () => {
   useEffect(() => {
     if (isAuthenticated && user && (user.roles?.includes('climber') || user.roles?.includes('admin'))) {
       fetchChildren();
+      fetchUserBookings();
+      // Add 'reserved' to filters if not already present
+      setSelectedFilters(prev => {
+        if (!prev.has('reserved')) {
+          const newFilters = new Set(prev);
+          newFilters.add('reserved');
+          return newFilters;
+        }
+        return prev;
+      });
     } else {
       // Clear children when logged out
       setChildren([]);
       setSelfClimber(null);
       setSelectedClimberIds([]);
+      setUserBookings([]);
+      // Remove 'reserved' from filters when logged out
+      setSelectedFilters(prev => {
+        const newFilters = new Set(prev);
+        newFilters.delete('reserved');
+        return newFilters.size > 0 ? newFilters : new Set(['beginner', 'experienced', 'advanced', 'competition']);
+      });
     }
-  }, [user, isAuthenticated]);
+  }, [user, isAuthenticated, currentDate, view]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -189,11 +212,178 @@ const Calendar = () => {
     }
   };
 
+  const fetchUserBookings = async () => {
+    try {
+      let startDate, endDate;
+
+      if (view === 'month') {
+        startDate = startOfMonth(currentDate);
+        endDate = endOfMonth(currentDate);
+      } else if (view === 'week') {
+        startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
+        endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
+      } else {
+        startDate = startOfDay(currentDate);
+        endDate = startOfDay(currentDate);
+        endDate.setHours(23, 59, 59);
+      }
+
+      const bookingsRes = await bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } }));
+      const allBookings = bookingsRes.data.bookings || [];
+      
+      // Filter bookings to only include those in the current view date range
+      const filteredBookings = allBookings.filter(booking => {
+        if (!booking.session || !booking.session.date) return false;
+        const bookingDate = new Date(booking.session.date);
+        return bookingDate >= startDate && bookingDate <= endDate && booking.status === 'booked';
+      });
+      
+      setUserBookings(filteredBookings);
+    } catch (error) {
+      console.error('Error fetching user bookings:', error);
+      setUserBookings([]);
+    }
+  };
+
   const getSessionsForDate = (date) => {
     return sessions.filter((session) => {
       const sessionDate = new Date(session.date);
-      return isSameDay(sessionDate, date);
+      if (!isSameDay(sessionDate, date)) {
+        return false;
+      }
+
+      // Apply filters
+      if (selectedFilters.size === 0) {
+        return false; // If no filters selected, show nothing
+      }
+
+      // Check if session matches any selected filter
+      let matchesFilter = false;
+      
+      // Check competition filter
+      if (session.type === 'competition') {
+        matchesFilter = selectedFilters.has('competition');
+      } else {
+        // For regular sessions, check targetGroups
+        if (session.status === 'active') {
+          const targetGroups = session.targetGroups || [];
+          if (targetGroups.includes('beginner') && selectedFilters.has('beginner')) {
+            matchesFilter = true;
+          }
+          if (targetGroups.includes('experienced') && selectedFilters.has('experienced')) {
+            matchesFilter = true;
+          }
+          if (targetGroups.includes('advanced') && selectedFilters.has('advanced')) {
+            matchesFilter = true;
+          }
+        }
+      }
+
+      // If "reserved" filter is selected, session must have a booking
+      if (selectedFilters.has('reserved')) {
+        const hasReservation = hasBooking(session._id);
+        if (!hasReservation) {
+          return false;
+        }
+        // If only "reserved" is selected, show all reserved sessions
+        if (selectedFilters.size === 1) {
+          return true;
+        }
+        // If other filters are also selected, session must match both reserved AND other filters
+        return matchesFilter;
+      }
+
+      // If "reserved" is not selected, show sessions based on other filters (regardless of booking status)
+      return matchesFilter;
     });
+  };
+
+  const toggleFilter = (filterType) => {
+    setSelectedFilters(prev => {
+      // Get available filter types based on authentication
+      const baseFilterTypes = ['beginner', 'experienced', 'advanced', 'competition'];
+      const allFilterTypes = isAuthenticated 
+        ? [...baseFilterTypes, 'reserved']
+        : baseFilterTypes;
+      
+      // Check if all available filters are selected
+      const allSelected = allFilterTypes.every(type => prev.has(type));
+      
+      // If all filters are active and we click one, deactivate all others and activate only the clicked one
+      if (allSelected) {
+        return new Set([filterType]);
+      }
+      
+      // Otherwise, normal toggle behavior
+      const newFilters = new Set(prev);
+      if (newFilters.has(filterType)) {
+        newFilters.delete(filterType);
+        // If no filters remain, reactivate all available filters
+        if (newFilters.size === 0) {
+          return new Set(allFilterTypes);
+        }
+      } else {
+        newFilters.add(filterType);
+      }
+      return newFilters;
+    });
+  };
+
+  // Check if a session has a booking for the current user
+  const hasBooking = (sessionId) => {
+    return userBookings.some(booking => {
+      const bookingSessionId = booking.session?._id || booking.sessionId;
+      return bookingSessionId === sessionId || bookingSessionId?.toString() === sessionId?.toString();
+    });
+  };
+
+  // Get legend items - always shows all possible types regardless of current view
+  // Returns items in specific order: beginner, experienced, advanced, reserved, competition
+  const getLegendItems = () => {
+    const items = [];
+
+    // Always show all training session types
+    items.push({
+      type: 'beginner',
+      label: 'Начинаещи',
+      backgroundColor: '#DCFCE7',
+      color: '#15803D',
+    });
+
+    items.push({
+      type: 'experienced',
+      label: 'Деца с опит',
+      backgroundColor: '#FFEDD5',
+      color: '#C2410C',
+    });
+
+    items.push({
+      type: 'advanced',
+      label: 'Напреднали',
+      backgroundColor: '#FEE2E2',
+      color: '#B91C1C',
+    });
+
+    // Add reserved indicator if user is authenticated
+    if (isAuthenticated) {
+      items.push({
+        type: 'reserved',
+        label: 'Резервирано',
+        backgroundColor: 'transparent',
+        color: '#000000',
+        isReserved: true,
+      });
+    }
+
+    // Always show competition type
+    items.push({
+      type: 'competition',
+      label: 'Състезания',
+      backgroundColor: '#3b82f6',
+      color: 'white',
+    });
+
+    return items;
   };
 
   // Hash function for consistent color generation
@@ -328,6 +518,9 @@ const Calendar = () => {
         return s;
       }));
       
+      // Refresh bookings to show the new booking
+      await fetchUserBookings();
+      
       setShowBookingConfirmation(false);
       setSelectedSession(null);
       setSelectedClimberIds([]);
@@ -380,14 +573,16 @@ const Calendar = () => {
               <div className="space-y-2">
                 {daySessions.map((event) => {
                   const colorStyle = getSessionColor(event);
+                  const isBooked = hasBooking(event._id);
                   return (
                   <div
                     key={event._id}
                     onClick={() => setSelectedSession(event)}
-                    className="p-3 rounded-[10px] cursor-pointer text-white"
+                    className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
                     style={colorStyle}
                   >
                     <div className="font-medium text-sm">
+                      {isBooked && '✓ '}
                       {event.type === 'competition' && '🏆 '}
                       {event.type === 'competition' 
                         ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
@@ -450,14 +645,16 @@ const Calendar = () => {
                 <div className="mt-1 space-y-1">
                   {daySessions.slice(0, 3).map((event) => {
                     const colorStyle = getSessionColor(event);
+                    const isBooked = hasBooking(event._id);
                     return (
                     <div
                       key={event._id}
                       onClick={() => setSelectedSession(event)}
-                      className="text-xs p-1 rounded-[10px] cursor-pointer truncate text-white"
+                      className={`text-xs p-1 rounded-[10px] cursor-pointer truncate text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
                       style={colorStyle}
                       title={event.title}
                     >
+                      {isBooked && '✓ '}
                       {event.type === 'competition' && '🏆 '}
                       {event.type === 'competition' 
                         ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
@@ -502,14 +699,16 @@ const Calendar = () => {
                 ) : (
                   daySessions.map((event) => {
                     const colorStyle = getSessionColor(event);
+                    const isBooked = hasBooking(event._id);
                     return (
                     <div
                       key={event._id}
                       onClick={() => setSelectedSession(event)}
-                      className="p-3 rounded-[10px] cursor-pointer text-white"
+                      className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
                       style={colorStyle}
                     >
                       <div className="font-medium text-sm">
+                        {isBooked && '✓ '}
                         {event.type === 'competition' && '🏆 '}
                         {event.type === 'competition' 
                           ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
@@ -556,14 +755,16 @@ const Calendar = () => {
                 <div className="space-y-2">
                   {daySessions.map((event) => {
                     const colorStyle = getSessionColor(event);
+                    const isBooked = hasBooking(event._id);
                     return (
                     <div
                       key={event._id}
                       onClick={() => setSelectedSession(event)}
-                      className="p-2 rounded-[10px] cursor-pointer text-sm text-white"
+                      className={`p-2 rounded-[10px] cursor-pointer text-sm text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
                       style={colorStyle}
                     >
                       <div className="font-medium">
+                        {isBooked && '✓ '}
                         {event.type === 'competition' && '🏆 '}
                         {event.type === 'competition' 
                           ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''}`
@@ -599,15 +800,22 @@ const Calendar = () => {
           <div className="space-y-3">
             {daySessions
               .sort((a, b) => new Date(a.date) - new Date(b.date))
-              .map((session) => (
-                <Card key={session._id}>
+              .map((session) => {
+                const isBooked = hasBooking(session._id);
+                return (
+                <Card key={session._id} className={isBooked ? 'ring-2 ring-black' : ''}>
                   <div
                     onClick={() => setSelectedSession(session)}
                     className="cursor-pointer"
                   >
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-lg font-semibold">{session.title}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold">
+                            {isBooked && '✓ '}
+                            {session.title}
+                          </h3>
+                        </div>
                         <p className="text-sm text-gray-600 mt-1">
                           {format(new Date(session.date), 'h:mm a')} -{' '}
                           {format(
@@ -629,7 +837,7 @@ const Calendar = () => {
                     </div>
                   </div>
                 </Card>
-              ))}
+              )})}
           </div>
         )}
       </div>
@@ -722,6 +930,52 @@ const Calendar = () => {
         {view === 'month' && renderMonthView()}
         {view === 'week' && renderWeekView()}
         {view === 'day' && renderDayView()}
+
+        {/* Legend - inside the same Card container */}
+        <div className="mt-0 pt-4 border-t border-[rgba(0,0,0,0.1)]">
+          <div className="flex flex-wrap gap-4">
+            {getLegendItems().map((item) => {
+              const isFilterable = item.isFilterable !== false;
+              const isSelected = selectedFilters.has(item.type);
+              const isClickable = isFilterable;
+              
+              return (
+                <div 
+                  key={item.type} 
+                  className={`flex items-center gap-2 ${isClickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                  onClick={() => isClickable && toggleFilter(item.type)}
+                  title={isClickable ? (isSelected ? 'Кликнете за премахване от филтъра' : 'Кликнете за добавяне към филтъра') : ''}
+                >
+                  {item.isReserved ? (
+                    <div
+                      className={`w-6 h-6 rounded-[6px] border-2 bg-white flex items-center justify-center transition-all ${
+                        isFilterable && !isSelected ? 'opacity-40 border-gray-400' : 'border-black'
+                      }`}
+                    >
+                      <span className={`text-xs ${isFilterable && !isSelected ? 'text-gray-400' : 'text-black'}`}>✓</span>
+                    </div>
+                  ) : (
+                    <div
+                      className={`w-6 h-6 rounded-[6px] flex items-center justify-center text-xs font-medium transition-all ${
+                        isFilterable && !isSelected ? 'opacity-40' : ''
+                      }`}
+                      style={{ backgroundColor: item.backgroundColor, color: item.color }}
+                    >
+                      {item.type === 'competition' && '🏆'}
+                    </div>
+                  )}
+                  <span 
+                    className={`text-sm text-neutral-950 ${
+                      isFilterable && !isSelected ? 'opacity-40' : ''
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </Card>
 
       {selectedSession && (
@@ -845,8 +1099,11 @@ const Calendar = () => {
                       onClick={() => {
                         window.location.href = '/parent/profile';
                       }}
-                      className="w-full bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px]"
+                      className="w-full bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px] flex items-center justify-center gap-2"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
                       Добави дете
                     </Button>
                   </div>

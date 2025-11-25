@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
+import { formatDate } from '../../utils/dateUtils';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Loading from '../../components/UI/Loading';
@@ -128,35 +129,17 @@ const Sessions = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isAuthenticated, user, children]);
 
-  // Track scroll position for sticky bulk booking button (mobile only)
+  // Mobile sticky button is always sticky - no scroll tracking needed
   useEffect(() => {
-    const handleScroll = () => {
-      // Only apply sticky on mobile (screen width < 768px)
-      if (window.innerWidth < 768) {
-        const scrollY = window.scrollY || window.pageYOffset;
-        // Set sticky when scrolled down, remove when back at top
-        setIsSticky(scrollY > 50);
-      } else {
-        setIsSticky(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    // Check on mount and resize
-    handleScroll();
-    
+    // Set sticky to true for mobile, false for desktop
     const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsSticky(false);
-      } else {
-        handleScroll();
-      }
+      setIsSticky(window.innerWidth < 768);
     };
     
+    handleResize(); // Check on mount
     window.addEventListener('resize', handleResize);
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
   }, []);
@@ -986,7 +969,7 @@ const Sessions = () => {
                 <div className="overflow-hidden">
                   {/* Title */}
                   <div className="pt-[12px] px-[16px] pb-0">
-                    <h2 className="text-[#cbd5e1] text-sm leading-5 font-semibold uppercase">РЕЗЕРВАЦИЯ ЗА:</h2>
+                    <h2 className="text-[#cbd5e1] text-sm leading-5 font-normal uppercase">РЕЗЕРВИРАЙ ЗА:</h2>
                   </div>
 
                   {/* Header with divider */}
@@ -1027,7 +1010,7 @@ const Sessions = () => {
                       >
                         {/* Avatar */}
                         <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
-                          <span className="text-white text-xs font-medium">
+                          <span className="text-white text-xs font-normal">
                             {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
                           </span>
                         </div>
@@ -1076,7 +1059,7 @@ const Sessions = () => {
                         >
                           {/* Avatar */}
                           <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
-                            <span className="text-white text-xs font-medium">
+                            <span className="text-white text-xs font-normal">
                               {firstLetter}
                             </span>
                           </div>
@@ -1113,7 +1096,7 @@ const Sessions = () => {
                     )}
                     </div>
                     {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
-                      <p className="text-[10px] text-blue-600 font-medium mt-2">
+                      <p className="text-[10px] text-blue-600 font-normal mt-2">
                         Моля, изберете поне един катерач преди резервиране на тренировки
                       </p>
                     )}
@@ -1147,31 +1130,52 @@ const Sessions = () => {
           {/* Main Content - Schedule */}
           <div className="flex-1 min-w-0">
             {/* Bulk Actions */}
-            {isAuthenticated && (
+            {isAuthenticated && selectedSessionIds.length > 0 && (
               <>
-                {/* Bulk booking button */}
-                <div className={`flex-shrink-0 w-full sm:w-auto md:static mb-2 lg:mb-4 ${
-                  isSticky && selectedSessionIds.length > 0 
-                    ? 'fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-2 mx-[-8px]' 
-                    : ''
-                }`}>
-                  {selectedSessionIds.length > 0 ? (
+                {/* Mobile sticky button - always visible at bottom */}
+                <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
                   <Button
                     onClick={handleBulkBook}
-                      disabled={isBulkBooking}
+                    disabled={isBulkBooking}
                     variant="primary"
-                      className="w-full sm:w-auto text-xs md:text-sm"
+                    className="w-full text-sm py-3 flex items-center justify-center gap-2"
                   >
-                      {isBulkBooking ? 'Запазване...' : `Запази място във всички маркирани тренировки (${selectedSessionIds.length})`}
+                    {isBulkBooking ? (
+                      'Запазване...'
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Запази всички маркирани
+                      </>
+                    )}
                   </Button>
-                  ) : null}
                 </div>
+                {/* Desktop fixed button - centered */}
+                <Button
+                  onClick={handleBulkBook}
+                  disabled={isBulkBooking}
+                  variant="primary"
+                  className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
+                >
+                  {isBulkBooking ? (
+                    'Запазване...'
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      Запази всички маркирани
+                    </>
+                  )}
+                </Button>
               </>
             )}
 
             {/* Spacer for sticky button on mobile (at bottom) */}
-            {isSticky && selectedSessionIds.length > 0 && (
-              <div className="h-[60px] md:hidden" />
+            {selectedSessionIds.length > 0 && (
+              <div className="h-[80px] md:hidden" />
             )}
 
             {/* Маркирай всички бутон - точно над графика в дясно */}
@@ -1355,17 +1359,29 @@ const Sessions = () => {
                     setSelectedSessionId(null);
                     setSelectedClimberIds([]);
                   }}
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Отказ
                 </Button>
                 <Button
                   type="submit"
                   variant="primary"
                   disabled={selectedClimberIds.length === 0 || bookingLoading}
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
-                  {bookingLoading ? 'Запазване...' : 'Запази'}
+                  {bookingLoading ? (
+                    'Запазване...'
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Запази
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
@@ -1466,8 +1482,11 @@ const Sessions = () => {
                           setPendingBookingClimberIds(null);
                         }}
                         disabled={bookingLoading}
-                        className="flex-1"
+                        className="flex-1 flex items-center justify-center gap-2"
                       >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                         Отказ
                       </Button>
                       <Button
@@ -1475,9 +1494,18 @@ const Sessions = () => {
                         variant="primary"
                         onClick={confirmSingleBooking}
                         disabled={bookingLoading}
-                        className="flex-1"
+                        className="flex-1 flex items-center justify-center gap-2"
                       >
-                        {bookingLoading ? 'Резервиране...' : 'Потвърди'}
+                        {bookingLoading ? (
+                          'Резервиране...'
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Потвърди
+                          </>
+                        )}
                       </Button>
                     </div>
                   </>
@@ -1595,8 +1623,11 @@ const Sessions = () => {
                     setShowBulkBookingModal(false);
                     setBulkBookingClimberIds([]);
                   }}
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Отказ
                 </Button>
                 <Button
@@ -1620,8 +1651,11 @@ const Sessions = () => {
                     setShowBulkBookingModal(false);
                     setShowBulkConfirmation(true);
                   }}
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                   Продължи
                 </Button>
               </div>
@@ -1737,7 +1771,11 @@ const Sessions = () => {
                 variant="secondary"
                 onClick={() => setShowBulkConfirmation(false)}
                 disabled={isBulkBooking}
+                className="flex items-center gap-2"
               >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
                 Отказ
               </Button>
               <Button
@@ -1745,8 +1783,18 @@ const Sessions = () => {
                 variant="primary"
                 onClick={confirmBulkBooking}
                 disabled={isBulkBooking}
+                className="flex items-center gap-2"
               >
-                {isBulkBooking ? 'Резервиране...' : 'Потвърди'}
+                {isBulkBooking ? (
+                  'Резервиране...'
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Потвърди
+                  </>
+                )}
               </Button>
             </div>
           </Card>
@@ -1788,7 +1836,7 @@ const Sessions = () => {
                     <div className="text-sm text-gray-700">
                       <p><strong>Име:</strong> {foundExistingProfile.firstName} {foundExistingProfile.lastName}</p>
                       {foundExistingProfile.dateOfBirth && (
-                        <p><strong>Дата на раждане:</strong> {format(new Date(foundExistingProfile.dateOfBirth), 'dd/MM/yyyy')}</p>
+                        <p><strong>Дата на раждане:</strong> {formatDate(foundExistingProfile.dateOfBirth)}</p>
                       )}
                       {foundExistingProfile.email && (
                         <p><strong>Имейл:</strong> {foundExistingProfile.email}</p>
@@ -1811,8 +1859,11 @@ const Sessions = () => {
                         setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
                       }}
                       disabled={addChildLoading}
-                      className="flex-1"
+                      className="flex-1 flex items-center justify-center gap-2"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                       Отказ
                     </Button>
                     <Button
@@ -1820,9 +1871,18 @@ const Sessions = () => {
                       variant="primary"
                       onClick={handleLinkExistingChild}
                       disabled={addChildLoading}
-                      className="flex-1"
+                      className="flex-1 flex items-center justify-center gap-2"
                     >
-                      {addChildLoading ? 'Свързване...' : 'Свържи профил'}
+                      {addChildLoading ? (
+                        'Свързване...'
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          Свържи профил
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1859,7 +1919,7 @@ const Sessions = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Дата на раждане
+                        Дата на раждане (dd/mm/yyyy)
                       </label>
                       <input
                         type="date"
@@ -1867,6 +1927,7 @@ const Sessions = () => {
                         onChange={(e) => setAddChildFormData({ ...addChildFormData, dateOfBirth: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6900] focus:border-[#ff6900] outline-none"
                         disabled={addChildLoading}
+                        placeholder="dd/mm/yyyy"
                       />
                     </div>
                   </div>
@@ -1881,17 +1942,29 @@ const Sessions = () => {
                         setFoundExistingProfile(null);
                       }}
                       disabled={addChildLoading}
-                      className="flex-1"
+                      className="flex-1 flex items-center justify-center gap-2"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                       Отказ
                     </Button>
                     <Button
                       type="submit"
                       variant="primary"
                       disabled={addChildLoading}
-                      className="flex-1"
+                      className="flex-1 flex items-center justify-center gap-2"
                     >
-                      {addChildLoading ? 'Добавяне...' : 'Добави дете'}
+                      {addChildLoading ? (
+                        'Добавяне...'
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Добави дете
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -2002,8 +2075,11 @@ const Sessions = () => {
                     setSelectedCancelBookingIds([]);
                   }}
                   disabled={isCancelling}
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
               >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
                 Отказ
               </Button>
               <Button
@@ -2015,51 +2091,86 @@ const Sessions = () => {
                     }
 
                     setIsCancelling(true);
+                    const results = {
+                      successful: [],
+                      failed: []
+                    };
+
                     try {
                       // Отменя всички избрани резервации
                       for (const bookingId of selectedCancelBookingIds) {
-                        await bookingsAPI.cancel(bookingId);
+                        try {
+                          await bookingsAPI.cancel(bookingId);
+                          results.successful.push(bookingId);
+                        } catch (error) {
+                          results.failed.push({
+                            bookingId,
+                            reason: error.response?.data?.error?.message || 'Грешка при отмяна'
+                          });
+                        }
                       }
                       
-                      // Optimistically update session booked counts
-                      const cancelledCount = selectedCancelBookingIds.length;
-                      setSessions(prev => prev.map(s => {
-                        if (s._id === cancelBookingSessionId) {
-                          return {
-                            ...s,
-                            bookedCount: Math.max(0, (s.bookedCount || 0) - cancelledCount)
-                          };
-                        }
-                        return s;
-                      }));
-                      
-                      await fetchUserBookings();
-                      
-                      showToast(
-                        selectedCancelBookingIds.length === 1
-                          ? 'Резервацията е отменена успешно'
-                          : `${selectedCancelBookingIds.length} резервации са отменени успешно`,
-                        'success'
-                      );
-                      
-                      setShowCancelBookingModal(false);
-                      setCancelBookingSessionId(null);
-                      setCancelBookingBookings([]);
-                      setSelectedCancelBookingIds([]);
+                      // Update local state for successful cancellations instead of full page reload
+                      if (results.successful.length > 0) {
+                        setUserBookings(prev => prev.map(booking => 
+                          results.successful.includes(booking._id)
+                            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+                            : booking
+                        ));
+                        
+                        // Optimistically update session booked counts
+                        setSessions(prev => prev.map(s => {
+                          if (s._id === cancelBookingSessionId) {
+                            return {
+                              ...s,
+                              bookedCount: Math.max(0, (s.bookedCount || 0) - results.successful.length)
+                            };
+                          }
+                          return s;
+                        }));
+                        
+                        showToast(
+                          results.successful.length === 1
+                            ? 'Резервацията е отменена успешно'
+                            : `${results.successful.length} резервации са отменени успешно`,
+                          'success'
+                        );
+                      }
+
+                      if (results.failed.length > 0) {
+                        showToast(
+                          `Неуспешна отмяна на ${results.failed.length} резервации`,
+                          'error'
+                        );
+                      }
                     } catch (error) {
                       showToast(
                         error.response?.data?.error?.message || 'Грешка при отменяне на резервация',
                         'error'
                       );
                     } finally {
+                      // Always close modal and clear state
+                      setShowCancelBookingModal(false);
+                      setCancelBookingSessionId(null);
+                      setCancelBookingBookings([]);
+                      setSelectedCancelBookingIds([]);
                       setIsCancelling(false);
                     }
                   }}
                   disabled={isCancelling || selectedCancelBookingIds.length === 0}
                   variant="danger"
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                 >
-                  {isCancelling ? 'Отменяне...' : 'Отмени'}
+                  {isCancelling ? (
+                    'Отменяне...'
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Отмени
+                    </>
+                  )}
               </Button>
             </div>
             </div>

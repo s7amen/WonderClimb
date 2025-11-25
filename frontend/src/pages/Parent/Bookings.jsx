@@ -7,6 +7,7 @@ import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
+import ConfirmDialog from '../../components/UI/ConfirmDialog';
 
 const Bookings = () => {
   const [availableSessions, setAvailableSessions] = useState([]);
@@ -19,6 +20,8 @@ const Bookings = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const { showToast, ToastComponent } = useToast();
   const [isFetching, setIsFetching] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelBookingId, setCancelBookingId] = useState(null);
 
   const [bookingData, setBookingData] = useState({
     climberId: '',
@@ -156,16 +159,35 @@ const Bookings = () => {
     }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Сигурни ли сте, че искате да отмените тази резервация?')) return;
+  const handleCancelBooking = (bookingId) => {
+    setCancelBookingId(bookingId);
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!cancelBookingId) return;
 
     try {
-      await bookingsAPI.cancel(bookingId);
+      await bookingsAPI.cancel(cancelBookingId);
       showToast('Резервацията е отменена успешно', 'success');
-      fetchData();
+      // Update local state instead of full page reload
+      setMyBookings(prev => prev.map(booking => 
+        booking._id === cancelBookingId 
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+      setShowCancelDialog(false);
+      setCancelBookingId(null);
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при отменяне на резервация', 'error');
+      setShowCancelDialog(false);
+      setCancelBookingId(null);
     }
+  };
+
+  const cancelCancelBooking = () => {
+    setShowCancelDialog(false);
+    setCancelBookingId(null);
   };
 
   const toggleDayOfWeek = (day) => {
@@ -267,6 +289,16 @@ const Bookings = () => {
       </div>
 
       <ToastComponent />
+      <ConfirmDialog
+        isOpen={showCancelDialog}
+        onClose={cancelCancelBooking}
+        onConfirm={confirmCancelBooking}
+        title="Отмяна на резервация"
+        message="Сигурни ли сте, че искате да отмените тази резервация?"
+        confirmText="Отмени"
+        cancelText="Отказ"
+        variant="danger"
+      />
 
       {showBookingForm && (
         <Card title="Резервирай сесия">
@@ -278,9 +310,12 @@ const Bookings = () => {
                 </label>
                 <Link
                   to="/parent/profile"
-                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline flex items-center gap-1"
                 >
-                  + Добави дете
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Добави дете
                 </Link>
               </div>
               {children.length === 0 ? (
@@ -289,7 +324,10 @@ const Bookings = () => {
                     Няма добавени деца. Моля, добавете дете преди да направите резервация.
                   </p>
                   <Link to="/parent/profile">
-                    <Button variant="primary" className="w-full sm:w-auto">
+                    <Button variant="primary" className="w-full sm:w-auto flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
                       Добави дете
                     </Button>
                   </Link>
@@ -375,9 +413,12 @@ const Bookings = () => {
                 </label>
                 <Link
                   to="/parent/profile"
-                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                  className="text-sm text-blue-600 hover:text-blue-700 underline flex items-center gap-1"
                 >
-                  + Добави дете
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Добави дете
                 </Link>
               </div>
               {children.length === 0 ? (
@@ -386,7 +427,10 @@ const Bookings = () => {
                     Няма добавени деца. Моля, добавете дете преди да направите резервация.
                   </p>
                   <Link to="/parent/profile">
-                    <Button variant="primary" className="w-full sm:w-auto">
+                    <Button variant="primary" className="w-full sm:w-auto flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
                       Добави дете
                     </Button>
                   </Link>

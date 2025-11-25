@@ -1,5 +1,6 @@
 import { Session } from '../models/session.js';
 import { Booking } from '../models/booking.js';
+import { AttendanceRecord } from '../models/attendanceRecord.js';
 import { isWithinBookingHorizon } from './configService.js';
 import logger from '../middleware/logging.js';
 
@@ -329,6 +330,89 @@ export const createBulkSessions = async (sessionData) => {
     };
   } catch (error) {
     logger.error({ error: error.message, sessionData }, 'Error creating bulk sessions');
+    throw error;
+  }
+};
+
+/**
+ * Check for related data before deleting a session
+ * Returns counts of bookings and attendance records
+ */
+export const checkSessionRelatedData = async (sessionId) => {
+  try {
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      const error = new Error('Session not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Count bookings for this session
+    const bookingCount = await Booking.countDocuments({ sessionId });
+    const activeBookingCount = await Booking.countDocuments({ 
+      sessionId, 
+      status: 'booked' 
+    });
+
+    // Count attendance records for this session
+    const attendanceCount = await AttendanceRecord.countDocuments({ sessionId });
+
+    return {
+      bookings: {
+        total: bookingCount,
+        active: activeBookingCount,
+      },
+      attendanceRecords: attendanceCount,
+      hasRelatedData: bookingCount > 0 || attendanceCount > 0,
+    };
+  } catch (error) {
+    logger.error({ error: error.message, sessionId }, 'Error checking session related data');
+    throw error;
+  }
+};
+
+/**
+ * Delete a session and its related data (bookings, attendance records)
+ */
+export const deleteSession = async (sessionId) => {
+  try {
+    const session = await Session.findById(sessionId);
+    if (!session) {
+      const error = new Error('Session not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const deletionResults = {
+      bookingsDeleted: 0,
+      attendanceRecordsDeleted: 0,
+    };
+
+    // Delete all bookings for this session
+    const bookingResult = await Booking.deleteMany({ sessionId });
+    deletionResults.bookingsDeleted = bookingResult.deletedCount;
+    if (bookingResult.deletedCount > 0) {
+      logger.info({ sessionId, deletedCount: bookingResult.deletedCount }, 'Session bookings deleted');
+    }
+
+    // Delete all attendance records for this session
+    const attendanceResult = await AttendanceRecord.deleteMany({ sessionId });
+    deletionResults.attendanceRecordsDeleted = attendanceResult.deletedCount;
+    if (attendanceResult.deletedCount > 0) {
+      logger.info({ sessionId, deletedCount: attendanceResult.deletedCount }, 'Session attendance records deleted');
+    }
+
+    // Delete the session
+    await Session.findByIdAndDelete(sessionId);
+
+    logger.info({ sessionId, deletionResults }, 'Session deleted with related data cleanup');
+
+    return {
+      message: 'Session deleted successfully',
+      deletionResults,
+    };
+  } catch (error) {
+    logger.error({ error: error.message, sessionId }, 'Error deleting session');
     throw error;
   }
 };

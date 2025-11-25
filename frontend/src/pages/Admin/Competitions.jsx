@@ -7,6 +7,7 @@ import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
+import ConfirmDialog from '../../components/UI/ConfirmDialog';
 
 const Competitions = () => {
   const navigate = useNavigate();
@@ -315,18 +316,26 @@ const Competitions = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Сигурни ли сте, че искате да изтриете това състезание?')) {
-      return;
-    }
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteCompetitionId, setDeleteCompetitionId] = useState(null);
+
+  const handleDelete = (id) => {
+    setDeleteCompetitionId(id);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteCompetitionId) return;
 
     try {
-      await competitionsAPI.deleteCompetition(id);
+      await competitionsAPI.deleteCompetition(deleteCompetitionId);
       
       // Премахваме състезанието от масива
-      setCompetitions(prev => prev.filter(c => c._id !== id));
+      setCompetitions(prev => prev.filter(c => c._id !== deleteCompetitionId));
       
       showToast('Състезанието е изтрито успешно', 'success');
+      setShowDeleteDialog(false);
+      setDeleteCompetitionId(null);
     } catch (error) {
       console.error('Error deleting competition:', error);
       showToast(
@@ -1191,6 +1200,16 @@ const Competitions = () => {
       )}
 
         <ToastComponent />
+        <ConfirmDialog
+          isOpen={showDeleteDialog}
+          onClose={cancelDelete}
+          onConfirm={confirmDelete}
+          title="Изтриване на състезание"
+          message="Сигурни ли сте, че искате да изтриете това състезание?"
+          confirmText="Изтрий"
+          cancelText="Отказ"
+          variant="danger"
+        />
       </div>
     </div>
   );

@@ -145,6 +145,7 @@ export const parentClimbersAPI = {
   update: (id, data) => api.put(`/parents/me/climbers/${id}`, data),
   deactivate: (id) => api.delete(`/parents/me/climbers/${id}`),
   linkExisting: (childId) => api.post(`/parents/me/climbers/${childId}/link-existing`),
+  checkDeletion: (id) => api.get(`/parents/me/climbers/${id}/check-deletion`),
 };
 
 // My Climber API (self-managed climber)

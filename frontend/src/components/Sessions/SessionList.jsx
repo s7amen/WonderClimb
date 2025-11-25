@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import Card from '../UI/Card';
 import SessionCard from './SessionCard';
 import { CalendarIcon } from './SessionIcons';
+import { useSynchronizedWidths } from '../../hooks/useSynchronizedWidths';
 
 const SessionList = ({
   sessions,
@@ -162,6 +163,110 @@ const SessionList = ({
     };
   };
 
+  // Helper function to calculate label rows needed for a session
+  // Returns 1, 2, or 3 based on estimated space needed
+  // Target: Use 1 row if labels don't overlap, otherwise use 2 or 3 rows
+  const calculateLabelRows = (session) => {
+    // Estimate label widths (in pixels, approximate)
+    // Each label has padding (px-2 = 8px each side = 16px) + text width
+    // Using realistic estimates - labels are compact with text-xs font
+    const labelWidths = {
+      'Начинаещи': 75,    // ~59px text + 16px padding (text-xs is smaller)
+      'Деца с опит': 95,  // ~79px text + 16px padding  
+      'Напреднали': 85,   // ~69px text + 16px padding
+    };
+    
+    // Calculate width for target groups
+    let totalTargetGroupWidth = 0;
+    if (session.targetGroups && session.targetGroups.length > 0) {
+      session.targetGroups.forEach(group => {
+        const groupConfig = {
+          beginner: 'Начинаещи',
+          experienced: 'Деца с опит',
+          advanced: 'Напреднали',
+        }[group] || group;
+        totalTargetGroupWidth += labelWidths[groupConfig] || 85;
+      });
+      // Add gap between labels (gap-2 = 8px per gap)
+      totalTargetGroupWidth += (session.targetGroups.length - 1) * 8;
+    }
+    
+    // Calculate width for reservations if they are shown
+    // Reservations are shown when showReservationsInfo is true
+    let totalReservationWidth = 0;
+    if (showReservationsInfo) {
+      const reservations = getReservationsForSession(session._id);
+      if (reservations.length > 0) {
+        // "За:" label is ~25px
+        totalReservationWidth += 25;
+        // Each reservation badge: estimate ~80-120px depending on name length
+        // Using average of ~100px per reservation
+        reservations.forEach(() => {
+          totalReservationWidth += 100; // Average width per reservation badge
+        });
+        // Add gaps between reservations (gap-2 = 8px per gap)
+        totalReservationWidth += (reservations.length - 1) * 8;
+        // Gap between reservations section and target groups (if both exist)
+        if (totalTargetGroupWidth > 0) {
+          totalReservationWidth += 16; // gap-4 = 16px
+        }
+      }
+    }
+    
+    // Total width for all labels (reservations + target groups)
+    const totalLabelWidth = totalReservationWidth + totalTargetGroupWidth;
+    
+    // Capacity section width - conservative estimate
+    // Icon: 16px, Text (e.g., "10/10"): ~45px, Progress bar: 80px, Gaps: ~21px
+    const capacityWidth = 170;
+    const gapBetween = 16; // gap-4 = 16px
+    
+    // Estimate available width - use very generous estimate for wide screens
+    // Desktop cards: max-w-[1600px] container, minus padding
+    // For wide screens (1900px+), cards can be up to 1600px wide
+    // Card internal padding: px-4 = 16px each side = 32px
+    // The labels section is in a flex container that can use most of this width
+    const availableWidth = 1400; // Generous estimate for wide screens (1900px+)
+    
+    // If no labels at all, only capacity - fits on one row
+    if (totalLabelWidth === 0) {
+      return 1;
+    }
+    
+    // Check if all labels + capacity fit on one row WITHOUT overlap
+    const totalNeeded = totalLabelWidth + capacityWidth + gapBetween;
+    if (totalNeeded <= availableWidth) {
+      return 1; // Everything fits on one row without overlap
+    }
+    
+    // Labels + capacity don't fit on one row, check if labels alone fit
+    if (totalLabelWidth <= availableWidth) {
+      return 2; // Labels on row 1, capacity on row 2
+    }
+    
+    // Labels themselves need to wrap to multiple rows
+    // This should be rare - only with many reservations + target groups
+    return 3; // Labels wrap to 2 rows, capacity on row 3
+  };
+
+  // Helper function to get max label rows for all sessions in a day
+  const getMaxLabelRowsForDay = (sessions) => {
+    if (!sessions || sessions.length === 0) return 1;
+    
+    let maxRows = 1;
+    sessions.forEach(session => {
+      const rows = calculateLabelRows(session);
+      if (rows > maxRows) {
+        maxRows = rows;
+      }
+    });
+    
+    return maxRows;
+  };
+
+  // Synchronized widths for card elements
+  const { widths, handleMeasurement } = useSynchronizedWidths(filteredSessions);
+
   return (
     <div className="space-y-6">
       {sortedDays.map((dayKey) => {
@@ -187,71 +292,82 @@ const SessionList = ({
 
             {/* Sessions for this day */}
             <div className="space-y-3">
-              {dayData.sessions.map((session) => {
-                const bookedCount = getBookedCount ? getBookedCount(session._id) : (session.bookedCount || 0);
-                const isFull = bookedCount >= session.capacity;
-                // Normalize session ID for comparison
-                const sessionId = session._id || session.id;
-                const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-                  ? sessionId.toString() 
-                  : String(sessionId);
-                const isSelected = selectedSessionIds.some(id => {
-                  const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                  return normalizedId === normalizedSessionId;
-                });
+              {(() => {
+                // Calculate max label rows for all sessions in this day
+                const maxLabelRows = getMaxLabelRowsForDay(dayData.sessions);
                 
-                // Get selected climber ID - use session._id directly as key
-                const selectedClimberId = mode === 'admin' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || '') : null;
-                
-                // Normalize viewingRoster comparison
-                let isViewingRoster = false;
-                if (viewingRoster && session._id) {
-                  const normalizedViewingRoster = typeof viewingRoster === 'object' && viewingRoster?.toString 
-                    ? viewingRoster.toString() 
-                    : String(viewingRoster);
-                  const normalizedSessionId = typeof session._id === 'object' && session._id?.toString 
-                    ? session._id.toString() 
-                    : String(session._id);
-                  isViewingRoster = normalizedViewingRoster === normalizedSessionId;
-                }
-                
-                const sessionRoster = mode === 'admin' && isViewingRoster ? roster : null;
-                const reservationInfo = getReservationInfo(session._id);
+                return dayData.sessions.map((session, index) => {
+                  const bookedCount = getBookedCount ? getBookedCount(session._id) : (session.bookedCount || 0);
+                  const isFull = bookedCount >= session.capacity;
+                  // Normalize session ID for comparison
+                  const sessionId = session._id || session.id;
+                  const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
+                    ? sessionId.toString() 
+                    : String(sessionId);
+                  const isSelected = selectedSessionIds.some(id => {
+                    const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                    return normalizedId === normalizedSessionId;
+                  });
+                  
+                  // Get selected climber ID - use session._id directly as key
+                  const selectedClimberId = mode === 'admin' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || '') : null;
+                  
+                  // Normalize viewingRoster comparison
+                  let isViewingRoster = false;
+                  if (viewingRoster && session._id) {
+                    const normalizedViewingRoster = typeof viewingRoster === 'object' && viewingRoster?.toString 
+                      ? viewingRoster.toString() 
+                      : String(viewingRoster);
+                    const normalizedSessionId = typeof session._id === 'object' && session._id?.toString 
+                      ? session._id.toString() 
+                      : String(session._id);
+                    isViewingRoster = normalizedViewingRoster === normalizedSessionId;
+                  }
+                  
+                  const sessionRoster = mode === 'admin' && isViewingRoster ? roster : null;
+                  const reservationInfo = getReservationInfo(session._id);
 
-                return (
-                  <SessionCard
-                    key={session._id}
-                    session={session}
-                    bookedCount={bookedCount}
-                    mode={mode}
-                    onReserve={onReserve}
-                    onSelect={onSelect}
-                    isSelected={isSelected}
-                    isFull={isFull}
-                    user={user}
-                    children={children}
-                    selectedClimberForSession={mode === 'public' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || null) : null}
-                    selectedClimberId={selectedClimberId}
-                    defaultSelectedClimberIds={mode === 'public' ? defaultSelectedClimberIds : null}
-                    onClimberSelect={onClimberSelect}
-                    coaches={coaches}
-                    allClimbers={allClimbers}
-                    onViewRoster={onViewRoster}
-                    viewingRoster={isViewingRoster}
-                    roster={sessionRoster}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    showToast={showToast}
-                    getBulgarianDayName={getBulgarianDayName}
-                    formatTime={formatTime}
-                    getEndTime={getEndTime}
-                    reservationInfo={reservationInfo}
-                    onCancelBooking={onCancelBooking}
-                    allReservations={getReservationsForSession(session._id)}
-                    showReservationsInfo={showReservationsInfo}
-                  />
-                );
-              })}
+                  // Create unique key for this session
+                  const sessionKey = `${dayKey}-${session._id}-${index}`;
+
+                  return (
+                    <SessionCard
+                      key={session._id}
+                      session={session}
+                      bookedCount={bookedCount}
+                      mode={mode}
+                      onReserve={onReserve}
+                      onSelect={onSelect}
+                      isSelected={isSelected}
+                      isFull={isFull}
+                      user={user}
+                      children={children}
+                      selectedClimberForSession={mode === 'public' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || null) : null}
+                      selectedClimberId={selectedClimberId}
+                      defaultSelectedClimberIds={mode === 'public' ? defaultSelectedClimberIds : null}
+                      onClimberSelect={onClimberSelect}
+                      coaches={coaches}
+                      allClimbers={allClimbers}
+                      onViewRoster={onViewRoster}
+                      viewingRoster={isViewingRoster}
+                      roster={sessionRoster}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      showToast={showToast}
+                      getBulgarianDayName={getBulgarianDayName}
+                      formatTime={formatTime}
+                      getEndTime={getEndTime}
+                      reservationInfo={reservationInfo}
+                      onCancelBooking={onCancelBooking}
+                      allReservations={getReservationsForSession(session._id)}
+                      showReservationsInfo={showReservationsInfo}
+                      labelRows={maxLabelRows}
+                      synchronizedWidths={widths}
+                      onMeasure={handleMeasurement}
+                    />
+                  );
+                });
+              })()}
             </div>
           </div>
         );

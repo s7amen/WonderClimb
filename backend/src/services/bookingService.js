@@ -237,8 +237,13 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
       throw error;
     }
 
-    // Check ownership
-    if (!userRoles.includes('admin') && booking.bookedById.toString() !== userId) {
+    // Check ownership - normalize both IDs to strings for reliable comparison
+    const normalizedUserId = String(userId);
+    const normalizedBookedById = String(booking.bookedById);
+    const normalizedRoles = Array.isArray(userRoles) ? userRoles : (userRoles ? [userRoles] : []);
+    
+    // Admins and coaches can cancel any booking, others can only cancel their own
+    if (!normalizedRoles.includes('admin') && !normalizedRoles.includes('coach') && normalizedBookedById !== normalizedUserId) {
       const error = new Error('You can only cancel your own bookings');
       error.statusCode = 403;
       throw error;

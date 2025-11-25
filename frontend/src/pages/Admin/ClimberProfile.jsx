@@ -9,6 +9,7 @@ import PhotoGallery from '../../components/PhotoGallery';
 import AuthImage from '../../components/AuthImage';
 import ImageLightbox from '../../components/ImageLightbox';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/dateUtils';
 
 const ClimberProfile = () => {
   const { id } = useParams();
@@ -83,15 +84,6 @@ const ClimberProfile = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('bg-BG', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
 
   const formatDateTime = (dateString) => {
     if (!dateString) return '-';

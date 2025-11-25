@@ -8,6 +8,7 @@ import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { getUserFullName } from '../../utils/userUtils';
+import { formatDate, formatDateForInput } from '../../utils/dateUtils';
 
 const Climbers = () => {
   const { user: currentUser } = useAuth();
@@ -223,7 +224,7 @@ const Climbers = () => {
       lastName: user.lastName || '',
       email: user.email || '',
       phone: user.phone || '',
-      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+      dateOfBirth: user.dateOfBirth ? formatDateForInput(user.dateOfBirth) : '',
       notes: user.notes || '',
       accountStatus: user.accountStatus || 'active',
       isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
@@ -307,15 +308,6 @@ const Climbers = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('bg-BG', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
 
   const getRoleLabel = (role) => {
     const roleObj = availableRoles.find((r) => r.value === role);
@@ -855,13 +847,14 @@ const Climbers = () => {
 
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
-                      Дата на раждане
+                      Дата на раждане (dd/mm/yyyy)
                     </label>
                     <input
                       type="date"
                       value={editForm.dateOfBirth}
                       onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                      placeholder="dd/mm/yyyy"
                     />
                   </div>
                 </div>

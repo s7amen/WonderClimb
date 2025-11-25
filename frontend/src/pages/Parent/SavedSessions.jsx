@@ -5,6 +5,7 @@ import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
+import ConfirmDialog from '../../components/UI/ConfirmDialog';
 
 const SavedSessions = () => {
   const [myBookings, setMyBookings] = useState([]);
@@ -31,18 +32,40 @@ const SavedSessions = () => {
     }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm('Сигурни ли сте, че искате да отмените тази резервация?')) return;
+  const [cancelSingleBookingId, setCancelSingleBookingId] = useState(null);
+  const [showCancelSingleDialog, setShowCancelSingleDialog] = useState(false);
+
+  const handleCancelBooking = (bookingId) => {
+    setCancelSingleBookingId(bookingId);
+    setShowCancelSingleDialog(true);
+  };
+
+  const confirmCancelSingleBooking = async () => {
+    if (!cancelSingleBookingId) return;
 
     try {
-      await bookingsAPI.cancel(bookingId);
+      await bookingsAPI.cancel(cancelSingleBookingId);
       showToast('Резервацията е отменена успешно', 'success');
-      fetchBookings();
+      // Update local state instead of full page reload
+      setMyBookings(prev => prev.map(booking => 
+        booking._id === cancelSingleBookingId 
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
       // Remove from selection if it was selected
-      setSelectedBookingIds(prev => prev.filter(id => id !== bookingId));
+      setSelectedBookingIds(prev => prev.filter(id => id !== cancelSingleBookingId));
+      setShowCancelSingleDialog(false);
+      setCancelSingleBookingId(null);
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при отменяне на резервация', 'error');
+      setShowCancelSingleDialog(false);
+      setCancelSingleBookingId(null);
     }
+  };
+
+  const cancelCancelSingleBooking = () => {
+    setShowCancelSingleDialog(false);
+    setCancelSingleBookingId(null);
   };
 
   const handleBulkCancel = () => {
@@ -78,7 +101,14 @@ const SavedSessions = () => {
         }
       }
 
+      // Update local state for successful cancellations instead of full page reload
       if (results.successful.length > 0) {
+        setMyBookings(prev => prev.map(booking => 
+          results.successful.includes(booking._id)
+            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+            : booking
+        ));
+        
         const cancelledCount = results.successful.length;
         showToast(
           `Успешно отменени ${cancelledCount} резервации`,
@@ -92,15 +122,13 @@ const SavedSessions = () => {
           'error'
         );
       }
-
-      // Close modal and refresh data
-      setShowCancelModal(false);
-      setSelectedBookingIds([]);
-      fetchBookings();
     } catch (error) {
       showToast('Грешка при отмяна на резервации', 'error');
       console.error('Cancel booking error:', error);
     } finally {
+      // Always close modal and clear selection
+      setShowCancelModal(false);
+      setSelectedBookingIds([]);
       setIsCancelling(false);
     }
   };
@@ -217,6 +245,16 @@ const SavedSessions = () => {
       </div>
 
       <ToastComponent />
+      <ConfirmDialog
+        isOpen={showCancelSingleDialog}
+        onClose={cancelCancelSingleBooking}
+        onConfirm={confirmCancelSingleBooking}
+        title="Отмяна на резервация"
+        message="Сигурни ли сте, че искате да отмените тази резервация?"
+        confirmText="Отмени"
+        cancelText="Отказ"
+        variant="danger"
+      />
 
       {/* Bulk Actions */}
       {upcomingBookings.length > 0 && (
@@ -253,68 +291,19 @@ const SavedSessions = () => {
         </div>
       )}
 
-      {/* Cancel Booking Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Отмяна на резервации</h2>
-            
-            <div className="mb-4">
-              <h3 className="font-semibold text-gray-700 mb-2">
-                Избрани резервации за отмяна ({selectedBookingIds.length}):
-              </h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedBookingIds.map(bookingId => {
-                  const booking = upcomingBookings.find(b => b._id === bookingId);
-                  if (!booking) return null;
-                  const session = booking.session;
-                  const climber = booking.climber;
-                  return (
-                    <div key={bookingId} className="p-2 bg-gray-50 rounded">
-                      <div className="font-medium">{session.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        Катерач: {climber?.firstName} {climber?.lastName}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mb-4 p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Сигурни ли сте, че искате да отмените всички избрани резервации?
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setShowCancelModal(false);
-                }}
-                disabled={isCancelling}
-                className="w-full sm:w-auto"
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmBulkCancel}
-                disabled={isCancelling || selectedBookingIds.length === 0}
-                className="w-full sm:w-auto"
-              >
-                {isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* Bulk Cancel Booking Modal */}
+      <ConfirmDialog
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+        }}
+        onConfirm={confirmBulkCancel}
+        title="Отмяна на резервации"
+        message={`Сигурни ли сте, че искате да отмените всички избрани резервации (${selectedBookingIds.length})?`}
+        confirmText={isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
+        cancelText="Отказ"
+        variant="danger"
+      />
 
       {/* Schedule View */}
       <div>

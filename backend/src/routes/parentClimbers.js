@@ -10,6 +10,7 @@ import {
   deleteClimberForParent,
   getClimbersForParent,
   linkExistingChildToParent,
+  checkClimberRelatedData,
 } from '../services/parentClimberService.js';
 import { activateClimberProfile } from '../services/climberActivationService.js';
 import { isClimberLinkedToParent, removeLink } from '../services/parentClimberLinkService.js';
@@ -161,6 +162,39 @@ router.put('/me/climbers/:climberId', validateUpdateClimber, async (req, res, ne
     const climber = await updateClimberForParent(parentId, climberId, req.body);
     res.json({ climber });
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/parents/me/climbers/:climberId/check-deletion
+ * Check for related data before deletion (bookings, attendance, etc.)
+ */
+router.get('/me/climbers/:climberId/check-deletion', async (req, res, next) => {
+  try {
+    const parentId = req.user.id;
+    const { climberId } = req.params;
+
+    // Verify ownership
+    const isLinked = await isClimberLinkedToParent(parentId, climberId);
+    if (!isLinked) {
+      return res.status(404).json({
+        error: {
+          message: 'Climber not found or not linked to this parent',
+        },
+      });
+    }
+
+    const relatedData = await checkClimberRelatedData(climberId);
+    res.json(relatedData);
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: {
+          message: error.message,
+        },
+      });
+    }
     next(error);
   }
 });

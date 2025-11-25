@@ -8,6 +8,7 @@ import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
+import ConfirmDialog from '../../components/UI/ConfirmDialog';
 
 const Sessions = () => {
   const [sessions, setSessions] = useState([]);
@@ -1191,113 +1192,77 @@ const Sessions = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg sm:text-xl font-bold mb-4">Потвърждение на изтриване</h2>
-            
-            {sessionToDelete && (() => {
-              const session = sessions.find(s => s._id === sessionToDelete);
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSessionToDelete(null);
+        }}
+        onConfirm={confirmDeleteSession}
+        title="Изтриване на тренировка"
+        message="Сигурни ли сте, че искате да изтриете тази тренировка?"
+        confirmText={isDeleting ? 'Изтриване...' : 'Потвърди изтриване'}
+        cancelText="Отказ"
+        variant="danger"
+        disabled={isDeleting}
+      >
+        {sessionToDelete && (() => {
+          const session = sessions.find(s => s._id === sessionToDelete);
+          if (!session) return null;
+          const formatTime = (date) => format(new Date(date), 'HH:mm');
+          const getEndTime = (startDate, durationMinutes) => {
+            const end = new Date(new Date(startDate).getTime() + durationMinutes * 60000);
+            return format(end, 'HH:mm');
+          };
+          return (
+            <div className="mb-4">
+              <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-2">Тренировка:</h3>
+              <div className="p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)]">
+                <div className="text-sm sm:text-[16px] font-medium text-neutral-950">{session.title}</div>
+                <div className="text-sm text-[#4a5565] mt-1">
+                  {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </ConfirmDialog>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={confirmBulkDelete}
+        title="Масово изтриване на тренировки"
+        message={`Сигурни ли сте, че искате да изтриете ${selectedSessionIds.length} тренировки?`}
+        confirmText={isDeleting ? 'Изтриване...' : `Потвърди изтриване (${selectedSessionIds.length})`}
+        cancelText="Отказ"
+        variant="danger"
+        disabled={isDeleting}
+      >
+        <div className="mb-4">
+          <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-3">Избрани тренировки за изтриване:</h3>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {selectedSessionIds.map(sessionId => {
+              const session = sessions.find(s => s._id === sessionId);
               if (!session) return null;
+              const formatTime = (date) => format(new Date(date), 'HH:mm');
+              const getEndTime = (startDate, durationMinutes) => {
+                const end = new Date(new Date(startDate).getTime() + durationMinutes * 60000);
+                return format(end, 'HH:mm');
+              };
               return (
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
-                  <div className="p-2 bg-gray-50 rounded">
-                    <div className="font-medium">{session.title}</div>
-                    <div className="text-sm text-gray-600">
-                      {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                    </div>
+                <div key={sessionId} className="p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)]">
+                  <div className="text-sm sm:text-[16px] font-medium text-neutral-950">{session.title}</div>
+                  <div className="text-sm text-[#4a5565] mt-1">
+                    {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
                   </div>
                 </div>
               );
-            })()}
-
-            <div className="mb-4 p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Сигурни ли сте, че искате да изтриете тази тренировка?
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSessionToDelete(null);
-                }}
-                disabled={isDeleting}
-                className="w-full sm:w-auto"
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmDeleteSession}
-                disabled={isDeleting}
-                className="w-full sm:w-auto"
-              >
-                {isDeleting ? 'Изтриване...' : 'Потвърди изтриване'}
-              </Button>
-            </div>
-          </Card>
+            })}
+          </div>
         </div>
-      )}
-
-      {/* Bulk Delete Confirmation Modal */}
-      {showBulkDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg sm:text-xl font-bold mb-4">Потвърждение на масово изтриване</h2>
-            
-            <div className="mb-4">
-              <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки за изтриване:</h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedSessionIds.map(sessionId => {
-                  const session = sessions.find(s => s._id === sessionId);
-                  if (!session) return null;
-                  return (
-                    <div key={sessionId} className="p-2 bg-gray-50 rounded">
-                      <div className="font-medium">{session.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mb-4 p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Сигурни ли сте, че искате да изтриете {selectedSessionIds.length} тренировки?
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowBulkDeleteModal(false)}
-                disabled={isDeleting}
-                className="w-full sm:w-auto"
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmBulkDelete}
-                disabled={isDeleting}
-                className="w-full sm:w-auto"
-              >
-                {isDeleting ? 'Изтриване...' : `Потвърди изтриване (${selectedSessionIds.length})`}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      </ConfirmDialog>
 
       {/* Edit Session Modal */}
       {showEditModal && editingSession && (
