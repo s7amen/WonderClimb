@@ -4,7 +4,7 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const { install, isInstalled, canInstall } = usePWAInstall();
+  const { install, isInstalled, error, debugInfo, deferredPrompt } = usePWAInstall();
 
   return (
     <footer 
@@ -66,28 +66,72 @@ const Footer = () => {
               © СК „Чудните скали" Варна®
             </p>
             
-            {/* PWA Install Button */}
-            {canInstall && !isInstalled && (
-              <button
-                onClick={install}
-                className="flex items-center gap-2 px-4 py-2 bg-[#EA7A24] hover:bg-[#d8691a] text-white text-sm font-medium rounded-md transition-colors"
-                aria-label="Инсталирай приложението"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            {/* PWA Install Button - Always visible for debugging */}
+            {!isInstalled && (
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={install}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#EA7A24] hover:bg-[#d8691a] text-white text-sm font-medium rounded-md transition-colors"
+                  aria-label="Инсталирай приложението"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                <span>Инсталирай приложението</span>
-              </button>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  <span>Инсталирай приложението</span>
+                </button>
+                
+                {/* Debug Info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-[#99a1af] text-center max-w-md space-y-1">
+                    <div className="font-semibold mb-2">PWA Diagnostics:</div>
+                    <div>Deferred: {deferredPrompt ? '✅ Yes' : '❌ No'}</div>
+                    <div>Protocol: {debugInfo.protocol || 'N/A'}</div>
+                    <div>Hostname: {debugInfo.hostname || 'N/A'}</div>
+                    <div>Service Worker: {debugInfo.hasServiceWorker ? '✅' : '❌'}</div>
+                    <div>SW Registered: {debugInfo.serviceWorkerRegistered ? '✅' : '❌'}</div>
+                    <div>Manifest: {debugInfo.manifestExists ? '✅' : '❌'}</div>
+                    <div>Manifest Valid: {debugInfo.manifestValid ? '✅' : '❌'}</div>
+                    <div>Icon 192: {debugInfo.iconsExist?.icon192 ? '✅' : '❌'}</div>
+                    <div>Icon 512: {debugInfo.iconsExist?.icon512 ? '✅' : '❌'}</div>
+                    
+                    {/* Show all issues */}
+                    {((debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) ||
+                      (debugInfo.iconErrors && debugInfo.iconErrors.length > 0) ||
+                      (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0)) && (
+                      <div className="mt-2 p-2 bg-yellow-900/50 border border-yellow-500 rounded text-left">
+                        <div className="font-semibold mb-1">Issues:</div>
+                        {debugInfo.manifestErrors?.map((err, i) => (
+                          <div key={`manifest-${i}`} className="text-yellow-200">• {err}</div>
+                        ))}
+                        {debugInfo.iconErrors?.map((err, i) => (
+                          <div key={`icon-${i}`} className="text-yellow-200">• {err}</div>
+                        ))}
+                        {debugInfo.serviceWorkerErrors?.map((err, i) => (
+                          <div key={`sw-${i}`} className="text-yellow-200">• {err}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Error Display */}
+                {error && (
+                  <div className="mt-2 p-2 bg-red-900/50 border border-red-500 rounded text-xs text-red-200 max-w-md">
+                    <div className="font-semibold mb-1">Грешка:</div>
+                    <div className="whitespace-pre-wrap">{error}</div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

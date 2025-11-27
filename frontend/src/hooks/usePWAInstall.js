@@ -4,82 +4,268 @@ export const usePWAInstall = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
+  const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState({});
 
   useEffect(() => {
-    // Check if app is already installed
-    const checkInstalled = () => {
-      // Check if running as standalone (installed)
-      if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Comprehensive PWA diagnostics
+    const checkPWARequirements = async () => {
+      const diagnostics = {
+        // Basic checks
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+        isIOSStandalone: 'standalone' in window.navigator && window.navigator.standalone === true,
+        localStorageInstalled: localStorage.getItem('pwa-installed') === 'true',
+        userAgent: navigator.userAgent,
+        protocol: window.location.protocol,
+        hostname: window.location.hostname,
+        origin: window.location.origin,
+        
+        // Browser support
+        hasServiceWorker: 'serviceWorker' in navigator,
+        hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
+        hasDeferredPrompt: !!deferredPrompt,
+        
+        // Manifest checks
+        manifestExists: false,
+        manifestValid: false,
+        manifestErrors: [],
+        
+        // Icon checks
+        iconsExist: {
+          icon192: false,
+          icon512: false,
+        },
+        iconErrors: [],
+        
+        // Service worker checks
+        serviceWorkerRegistered: false,
+        serviceWorkerErrors: [],
+      };
+
+      // Check if installed
+      if (diagnostics.isStandalone || diagnostics.isIOSStandalone || diagnostics.localStorageInstalled) {
         setIsInstalled(true);
-        return;
+      }
+
+      // Check manifest
+      try {
+        const manifestResponse = await fetch('/manifest.json');
+        diagnostics.manifestExists = manifestResponse.ok;
+        
+        if (manifestResponse.ok) {
+          const manifest = await manifestResponse.json();
+          diagnostics.manifestValid = true;
+          
+          // Validate required fields
+          const requiredFields = ['name', 'short_name', 'icons', 'start_url', 'display'];
+          const missingFields = requiredFields.filter(field => !manifest[field]);
+          
+          if (missingFields.length > 0) {
+            diagnostics.manifestValid = false;
+            diagnostics.manifestErrors.push(`Missing required fields: ${missingFields.join(', ')}`);
+          }
+          
+          // Check icons in manifest
+          if (manifest.icons && Array.isArray(manifest.icons)) {
+            const icon192 = manifest.icons.find(icon => icon.sizes === '192x192');
+            const icon512 = manifest.icons.find(icon => icon.sizes === '512x512');
+            
+            if (icon192) {
+              try {
+                const iconResponse = await fetch(icon192.src);
+                diagnostics.iconsExist.icon192 = iconResponse.ok;
+                if (!iconResponse.ok) {
+                  diagnostics.iconErrors.push(`Icon 192x192 not found: ${icon192.src}`);
+                }
+              } catch (e) {
+                diagnostics.iconErrors.push(`Error checking icon 192x192: ${e.message}`);
+              }
+            } else {
+              diagnostics.iconErrors.push('Icon 192x192 missing in manifest');
+            }
+            
+            if (icon512) {
+              try {
+                const iconResponse = await fetch(icon512.src);
+                diagnostics.iconsExist.icon512 = iconResponse.ok;
+                if (!iconResponse.ok) {
+                  diagnostics.iconErrors.push(`Icon 512x512 not found: ${icon512.src}`);
+                }
+              } catch (e) {
+                diagnostics.iconErrors.push(`Error checking icon 512x512: ${e.message}`);
+              }
+            } else {
+              diagnostics.iconErrors.push('Icon 512x512 missing in manifest');
+            }
+          } else {
+            diagnostics.manifestErrors.push('Icons array missing or invalid in manifest');
+          }
+        } else {
+          diagnostics.manifestErrors.push(`Manifest not found (${manifestResponse.status})`);
+        }
+      } catch (e) {
+        diagnostics.manifestErrors.push(`Error fetching manifest: ${e.message}`);
+      }
+
+      // Check service worker
+      if (diagnostics.hasServiceWorker) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          diagnostics.serviceWorkerRegistered = registrations.length > 0;
+          
+          if (registrations.length === 0) {
+            diagnostics.serviceWorkerErrors.push('No service worker registered');
+          } else {
+            diagnostics.serviceWorkerErrors.push(`Service worker registered: ${registrations[0].scope}`);
+          }
+        } catch (e) {
+          diagnostics.serviceWorkerErrors.push(`Error checking service worker: ${e.message}`);
+        }
+      } else {
+        diagnostics.serviceWorkerErrors.push('Service Worker API not supported');
+      }
+
+      // HTTPS/localhost check
+      const isSecure = diagnostics.protocol === 'https:' || 
+                       diagnostics.hostname === 'localhost' || 
+                       diagnostics.hostname === '127.0.0.1';
+      
+      if (!isSecure) {
+        diagnostics.manifestErrors.push(`PWA requires HTTPS or localhost. Current: ${diagnostics.protocol}//${diagnostics.hostname}`);
+      }
+
+      // Browser support check
+      const isIOS = /iphone|ipad|ipod/i.test(diagnostics.userAgent);
+      const isAndroid = /android/i.test(diagnostics.userAgent);
+      const isChrome = /chrome/i.test(diagnostics.userAgent) && !/edge/i.test(diagnostics.userAgent);
+      const isSafari = /safari/i.test(diagnostics.userAgent) && !/chrome/i.test(diagnostics.userAgent);
+      const isEdge = /edge/i.test(diagnostics.userAgent);
+      const isFirefox = /firefox/i.test(diagnostics.userAgent);
+      
+      diagnostics.browserInfo = {
+        isIOS,
+        isAndroid,
+        isChrome,
+        isSafari,
+        isEdge,
+        isFirefox,
+        supportsPWA: isIOS || isAndroid || isChrome || isEdge,
+      };
+
+      setDebugInfo(diagnostics);
+      
+      // Log all issues
+      const allIssues = [
+        ...diagnostics.manifestErrors,
+        ...diagnostics.iconErrors,
+        ...diagnostics.serviceWorkerErrors,
+      ];
+      
+      if (allIssues.length > 0) {
+        console.warn('[PWA Install] Issues found:', allIssues);
+      } else {
+        console.log('[PWA Install] All checks passed');
       }
       
-      // Check if running in standalone mode on iOS
-      if ('standalone' in window.navigator && window.navigator.standalone === true) {
-        setIsInstalled(true);
-        return;
-      }
-
-      // Check localStorage for installation status
-      const installed = localStorage.getItem('pwa-installed');
-      if (installed === 'true') {
-        setIsInstalled(true);
-      }
+      console.log('[PWA Install] Full diagnostics:', diagnostics);
     };
 
-    checkInstalled();
+    checkPWARequirements();
 
     // Check if iOS device
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    setIsSupported(isIOS || 'BeforeInstallPromptEvent' in window);
+    const hasBeforeInstallPrompt = 'BeforeInstallPromptEvent' in window;
+    setIsSupported(isIOS || hasBeforeInstallPrompt);
 
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
+      console.log('[PWA Install] beforeinstallprompt event received', e);
       e.preventDefault();
       setDeferredPrompt(e);
+      setError(null);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Listen for app installed event
     window.addEventListener('appinstalled', () => {
+      console.log('[PWA Install] App installed event received');
       setIsInstalled(true);
       setDeferredPrompt(null);
       localStorage.setItem('pwa-installed', 'true');
+      setError(null);
     });
+
+    // Update debug info periodically
+    const interval = setInterval(() => {
+      checkPWARequirements();
+    }, 5000);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      clearInterval(interval);
     };
-  }, []);
+  }, [deferredPrompt]);
 
   const install = async () => {
+    setError(null);
+    console.log('[PWA Install] Install button clicked', {
+      deferredPrompt: !!deferredPrompt,
+      isInstalled,
+      debugInfo,
+    });
+
     if (!deferredPrompt) {
       // For iOS, show instructions
       if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-        alert(
-          'За да инсталирате приложението:\n\n' +
+        const message = 'За да инсталирате приложението:\n\n' +
           '1. Натиснете бутона "Share" (Сподели) в долния ред\n' +
           '2. Изберете "Add to Home Screen" (Добави в началния екран)\n' +
-          '3. Натиснете "Add" (Добави)'
-        );
+          '3. Натиснете "Add" (Добави)';
+        alert(message);
         return;
       }
+      
+      // No deferred prompt and not iOS - show error
+      const errorMsg = `PWA инсталацията не е налична.\n\nDebug информация:\n` +
+        `- Protocol: ${window.location.protocol}\n` +
+        `- Hostname: ${window.location.hostname}\n` +
+        `- Has beforeinstallprompt: ${'BeforeInstallPromptEvent' in window}\n` +
+        `- Deferred prompt: ${!!deferredPrompt}\n` +
+        `- User Agent: ${navigator.userAgent}\n\n` +
+        `PWA изисква HTTPS или localhost.`;
+      
+      setError(errorMsg);
+      console.error('[PWA Install] No deferred prompt available', {
+        protocol: window.location.protocol,
+        hostname: window.location.hostname,
+        userAgent: navigator.userAgent,
+        hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
+      });
+      alert(errorMsg);
       return;
     }
 
     try {
+      console.log('[PWA Install] Calling deferredPrompt.prompt()');
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice();
+      console.log('[PWA Install] User choice:', outcome);
 
       if (outcome === 'accepted') {
         setIsInstalled(true);
         localStorage.setItem('pwa-installed', 'true');
+        setError(null);
+      } else {
+        setError(`Потребителят отказа инсталацията. Outcome: ${outcome}`);
       }
 
       setDeferredPrompt(null);
     } catch (error) {
-      console.error('Error showing install prompt:', error);
+      const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
+      console.error('[PWA Install] Error showing install prompt:', error);
+      setError(errorMsg);
+      alert(errorMsg);
       setDeferredPrompt(null);
     }
   };
@@ -89,6 +275,9 @@ export const usePWAInstall = () => {
     isInstalled,
     isSupported,
     canInstall: !!deferredPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent),
+    error,
+    debugInfo,
+    deferredPrompt: !!deferredPrompt,
   };
 };
 
