@@ -193,7 +193,6 @@ const Competitions = () => {
       }).filter(Boolean);
 
       await competitionsAPI.importCompetitions(selected);
-      showToast('Състезанията са импортирани успешно', 'success');
       setShowImportModal(false);
       setSelectedCompetitions(new Set());
       setScrapedCompetitions([]);
@@ -257,7 +256,6 @@ const Competitions = () => {
         // Обновяваме само редактираното състезание в масива
         setCompetitions(prev => prev.map(c => c._id === editingCompetition._id ? updatedCompetition : c));
         
-        showToast('Състезанието е обновено успешно', 'success');
         setShowEditModal(false);
         setEditingCompetition(null);
         setFormData({
@@ -295,7 +293,6 @@ const Competitions = () => {
           await fetchCompetitions();
         }
         
-        showToast('Състезанието е добавено успешно', 'success');
         setShowAddModal(false);
         setFormData({
           date: '',
@@ -333,7 +330,6 @@ const Competitions = () => {
       // Премахваме състезанието от масива
       setCompetitions(prev => prev.filter(c => c._id !== deleteCompetitionId));
       
-      showToast('Състезанието е изтрито успешно', 'success');
       setShowDeleteDialog(false);
       setDeleteCompetitionId(null);
     } catch (error) {

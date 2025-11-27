@@ -70,7 +70,6 @@ const Children = () => {
         // Добавяме новото дете в масива
         setChildren(prev => [...prev, newChild]);
         
-        showToast('Детето е добавено успешно', 'success');
         resetForm();
         
         // Скролваме до новото дете
@@ -110,7 +109,6 @@ const Children = () => {
       // Премахваме детето от масива
       setChildren(prev => prev.filter(c => c._id !== deleteChildId));
       
-      showToast('Детето е изтрито успешно', 'success');
       setShowDeleteDialog(false);
       setDeleteChildId(null);
     } catch (error) {

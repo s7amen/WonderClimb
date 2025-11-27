@@ -50,6 +50,7 @@ const Sessions = () => {
     capacity: 10,
     coachIds: [],
     targetGroups: [],
+    ageGroups: ['4-6', '7-12', '13+'],
   });
 
   // Calculate default dates
@@ -73,6 +74,7 @@ const Sessions = () => {
     capacity: 10,
     coachIds: [],
     targetGroups: [],
+    ageGroups: ['4-6', '7-12', '13+'],
   });
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -170,7 +172,6 @@ const Sessions = () => {
         return s;
       }));
       
-      showToast('Катерачът е резервиран успешно', 'success');
       setSelectedClimberForSession({ ...selectedClimberForSession, [sessionId]: '' });
       
       if (viewingRoster === sessionId) {
@@ -194,6 +195,7 @@ const Sessions = () => {
         capacity: parseInt(formData.capacity),
         coachIds: formData.coachIds,
         targetGroups: formData.targetGroups,
+        ageGroups: formData.ageGroups,
       };
 
       if (editingSession) {
@@ -203,7 +205,6 @@ const Sessions = () => {
         // Обновяваме само редактираната сесия в масива
         setSessions(prev => prev.map(s => s._id === editingSession._id ? updatedSession : s));
         
-        showToast('Тренировката е обновена успешно', 'success');
         resetForm();
         setShowEditModal(false);
         
@@ -223,7 +224,6 @@ const Sessions = () => {
           );
         });
         
-        showToast('Тренировката е създадена успешно', 'success');
         resetForm();
         setShowForm(false);
         
@@ -246,6 +246,7 @@ const Sessions = () => {
       capacity: session.capacity,
       coachIds: session.coachIds?.map(c => c._id || c) || [],
       targetGroups: session.targetGroups || [],
+      ageGroups: session.ageGroups || ['4-6', '7-12', '13+'],
     });
     setEditingSession(session);
     setShowEditModal(true);
@@ -266,7 +267,6 @@ const Sessions = () => {
       // Премахваме сесията от масива (филтрираме я като cancelled)
       setSessions(prev => prev.filter(s => s._id !== sessionToDelete));
       
-      showToast('Сесията е изтрита успешно', 'success');
       setShowDeleteModal(false);
       setSessionToDelete(null);
     } catch (error) {
@@ -309,9 +309,7 @@ const Sessions = () => {
         setSessions(prev => prev.filter(s => !successfulIds.includes(s._id)));
       }
 
-      if (errorCount === 0) {
-        showToast(`Успешно изтрити ${successCount} тренировки`, 'success');
-      } else {
+      if (errorCount > 0) {
         showToast(`Изтрити ${successCount} тренировки, ${errorCount} грешки`, 'warning');
       }
 
@@ -334,6 +332,7 @@ const Sessions = () => {
       capacity: 10,
       coachIds: [],
       targetGroups: [],
+      ageGroups: ['4-6', '7-12', '13+'],
     });
     setEditingSession(null);
     setShowForm(false);
@@ -353,6 +352,7 @@ const Sessions = () => {
       capacity: 10,
       coachIds: [],
       targetGroups: [],
+      ageGroups: ['4-6', '7-12', '13+'],
     });
     setShowForm(false);
     setIsBulkMode(false);
@@ -459,6 +459,7 @@ const Sessions = () => {
             capacity: parseInt(bulkFormData.capacity),
             coachIds: bulkFormData.coachIds,
             targetGroups: bulkFormData.targetGroups,
+            ageGroups: bulkFormData.ageGroups,
           };
 
           const response = await sessionsAPI.create(sessionData);
@@ -482,9 +483,7 @@ const Sessions = () => {
         });
       }
 
-      if (errorCount === 0) {
-        showToast(`Успешно създадени ${successCount} тренировки`, 'success');
-      } else {
+      if (errorCount > 0) {
         showToast(`Създадени ${successCount} тренировки, ${errorCount} грешки`, 'warning');
       }
 
@@ -523,6 +522,15 @@ const Sessions = () => {
       targetGroups: formData.targetGroups.includes(group)
         ? formData.targetGroups.filter(g => g !== group)
         : [...formData.targetGroups, group],
+    });
+  };
+
+  const toggleAgeGroup = (ageGroup) => {
+    setFormData({
+      ...formData,
+      ageGroups: formData.ageGroups.includes(ageGroup)
+        ? formData.ageGroups.filter(a => a !== ageGroup)
+        : [...formData.ageGroups, ageGroup],
     });
   };
 
@@ -778,6 +786,7 @@ const Sessions = () => {
                         capacity: 10,
                         coachIds: [],
                         targetGroups: [],
+                        ageGroups: ['4-6', '7-12', '13+'],
                       });
                     }
                   }}
@@ -804,6 +813,7 @@ const Sessions = () => {
                         capacity: 10,
                         coachIds: [],
                         targetGroups: [],
+                        ageGroups: ['4-6', '7-12', '13+'],
                       });
                     }
                   }}
@@ -962,6 +972,39 @@ const Sessions = () => {
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Години
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: '4-6', label: '4-6' },
+                      { value: '7-12', label: '7-12' },
+                      { value: '13+', label: '13+' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setBulkFormData({
+                            ...bulkFormData,
+                            ageGroups: bulkFormData.ageGroups.includes(value)
+                              ? bulkFormData.ageGroups.filter(a => a !== value)
+                              : [...bulkFormData.ageGroups, value],
+                          });
+                        }}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                          bulkFormData.ageGroups.includes(value)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Треньори
                   </label>
                   <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
@@ -1090,6 +1133,32 @@ const Sessions = () => {
                     onClick={() => toggleTargetGroup(value)}
                     className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
                       formData.targetGroups.includes(value)
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Години
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: '4-6', label: '4-6' },
+                  { value: '7-12', label: '7-12' },
+                  { value: '13+', label: '13+' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleAgeGroup(value)}
+                    className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                      formData.ageGroups.includes(value)
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
@@ -1355,6 +1424,32 @@ const Sessions = () => {
                       onClick={() => toggleTargetGroup(value)}
                       className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
                         formData.targetGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Години
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: '4-6', label: '4-6' },
+                    { value: '7-12', label: '7-12' },
+                    { value: '13+', label: '13+' },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => toggleAgeGroup(value)}
+                      className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
+                        formData.ageGroups.includes(value)
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}

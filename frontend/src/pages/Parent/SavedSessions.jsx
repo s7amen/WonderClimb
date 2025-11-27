@@ -45,7 +45,6 @@ const SavedSessions = () => {
 
     try {
       await bookingsAPI.cancel(cancelSingleBookingId);
-      showToast('Резервацията е отменена успешно', 'success');
       // Update local state instead of full page reload
       setMyBookings(prev => prev.map(booking => 
         booking._id === cancelSingleBookingId 

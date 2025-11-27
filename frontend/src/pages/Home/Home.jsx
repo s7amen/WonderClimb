@@ -1,37 +1,39 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
 import { sessionsAPI } from '../../services/api';
 import { format, addDays, startOfDay } from 'date-fns';
 import Button from '../../components/UI/Button';
+import Input from '../../components/UI/Input';
 import Card from '../../components/UI/Card';
 import Loading from '../../components/UI/Loading';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import SessionList from '../../components/Sessions/SessionList';
-import LoginModal from '../../components/UI/LoginModal';
+import BookingModal from '../../components/UI/BookingModal';
 
 const Home = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
   const sessionsSectionRef = useRef(null);
-  const backgroundRef = useRef(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm();
 
   useEffect(() => {
     fetchSessions();
   }, []);
-
-  // Close login modal when user becomes authenticated
-  useEffect(() => {
-    if (isAuthenticated && user && showLoginModal) {
-      setShowLoginModal(false);
-      // Navigate to sessions page after successful login
-      navigate('/sessions');
-    }
-  }, [isAuthenticated, user, showLoginModal, navigate]);
 
   // Intersection Observer for fade-in on scroll
   useEffect(() => {
@@ -70,22 +72,6 @@ const Home = () => {
     };
   }, [loading, sessions.length]);
 
-  // Parallax effect for background
-  useEffect(() => {
-    const handleScroll = () => {
-      if (backgroundRef.current) {
-        const scrolled = window.pageYOffset;
-        const parallaxSpeed = 0.5; // Adjust speed (0.5 = moves at half the scroll speed)
-        backgroundRef.current.style.transform = `translateY(${scrolled * parallaxSpeed}px)`;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
   const fetchSessions = async () => {
     try {
       setLoading(true);
@@ -114,6 +100,30 @@ const Home = () => {
     }
   };
 
+  const onLoginSubmit = async (data) => {
+    setLoginError('');
+    setLoginLoading(true);
+    
+    const result = await login(data.email, data.password);
+    
+    if (result.success) {
+      // Redirect based on user role
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user?.roles?.includes('admin')) {
+        navigate('/admin/dashboard');
+      } else if (user?.roles?.includes('coach')) {
+        navigate('/coach/dashboard');
+      } else if (user?.roles?.includes('climber')) {
+        navigate('/parent/profile');
+      } else {
+        navigate('/');
+      }
+    } else {
+      setLoginError(result.error || 'Влизането неуспешно');
+    }
+    
+    setLoginLoading(false);
+  };
 
   const formatTime = (date) => {
     return format(new Date(date), 'HH:mm');
@@ -150,24 +160,17 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
+    <div className="min-h-screen flex flex-col scroll-smooth">
       {/* Full-screen background section with login form */}
       <section 
-        className="relative w-full h-screen flex flex-col items-center justify-center overflow-hidden"
+        className="relative w-screen h-screen flex flex-col items-center justify-center"
+        style={{
+          backgroundImage: 'url(/images/boulder-kids-wall.webp)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
       >
-        {/* Parallax background */}
-        <div
-          ref={backgroundRef}
-          className="absolute inset-0 w-full h-[120%]"
-          style={{
-            backgroundImage: 'url(/images/boulder-kids-wall.webp)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            willChange: 'transform',
-          }}
-        ></div>
-        
         {/* Header positioned at top */}
         <div className="absolute top-0 left-0 right-0 z-20">
           <Header />
@@ -180,32 +183,79 @@ const Home = () => {
         <div className="relative z-10 w-full max-w-md px-4 flex flex-col items-center justify-center">
           {/* Title section - moved up */}
           <div className="text-center mb-6 -mt-20">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 leading-tight md:whitespace-nowrap">
+            <h1 className="text-4xl md:text-5xl font-rubik font-bold text-white mb-3 leading-tight whitespace-nowrap">
               Тренировки по катерене
             </h1>
-            <p className="text-lg md:text-xl text-white/90 font-normal">
+            <p className="text-lg md:text-xl text-white/90 font-rubik font-normal">
               СК "Чудните скали" Варна
             </p>
           </div>
 
-          {/* Book button - shows login modal if not authenticated */}
-          <div className="w-full max-w-md group">
-            <button
-              onClick={() => {
-                if (isAuthenticated) {
-                  navigate('/sessions');
-                } else {
-                  setShowLoginModal(true);
-                }
-              }}
-              className="w-full backdrop-blur-md group-hover:backdrop-blur-none border border-white rounded-[14px] py-6 text-3xl font-medium text-white transition-all duration-300 shadow-2xl group-hover:shadow-2xl group-hover:scale-105"
-              style={{ 
-                background: 'rgba(255, 255, 255, 0)',
-              }}
-            >
-              Запази час
-            </button>
-          </div>
+          {/* Login form or Book button for logged-in users */}
+          {isAuthenticated ? (
+            <div className="w-full max-w-md">
+              <button
+                onClick={() => navigate('/sessions')}
+                className="w-full bg-white/20 backdrop-blur-md border-2 border-white rounded-[14px] py-8 text-2xl font-rubik font-medium text-white hover:bg-white/30 transition-all duration-300 shadow-lg"
+              >
+                Запази час
+              </button>
+            </div>
+          ) : (
+            <Card className="bg-white/5 backdrop-blur-md border border-white/20 rounded-[14px] p-6 shadow-2xl w-full">
+            {loginError && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-[10px] text-sm">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit(onLoginSubmit)}>
+              <Input
+                label="Имейл"
+                type="email"
+                {...register('email', {
+                  required: 'Имейлът е задължителен',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Невалиден имейл адрес',
+                  },
+                })}
+                error={errors.email?.message}
+              />
+
+              <Input
+                label="Парола"
+                type="password"
+                {...register('password', {
+                  required: 'Паролата е задължителна',
+                  minLength: {
+                    value: 6,
+                    message: 'Паролата трябва да бъде поне 6 символа',
+                  },
+                })}
+                error={errors.password?.message}
+              />
+
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loginLoading}
+                className="w-full mb-4"
+              >
+                {loginLoading ? 'Влизане...' : 'Влез'}
+              </Button>
+            </form>
+
+            <div className="text-center">
+              <p className="text-sm text-[#4a5565]">
+                Нямате профил?{' '}
+                <Link to="/register" className="text-[#ea7a24] hover:text-[#d86a1a] font-medium">
+                  Регистрирайте се
+                </Link>
+              </p>
+            </div>
+          </Card>
+          )}
         </div>
       </section>
 
@@ -213,7 +263,7 @@ const Home = () => {
       <section ref={sessionsSectionRef} className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
         <div className="sessions-content max-w-[1600px] mx-auto opacity-0">
           <div className="mb-8">
-            <h2 className="text-2xl font-medium text-neutral-950 mb-2">
+            <h2 className="text-2xl font-rubik font-medium text-neutral-950 mb-2">
               График за тренировки
             </h2>
             <p className="text-base text-[#4a5565]">
@@ -241,9 +291,16 @@ const Home = () => {
                 mode="public"
                 onReserve={(sessionId) => {
                   if (!isAuthenticated) {
-                    setShowLoginModal(true);
+                    navigate('/login');
                   } else {
-                    navigate('/sessions');
+                    const session = sessions.find(s => {
+                      const sId = typeof s._id === 'object' && s._id?.toString ? s._id.toString() : String(s._id);
+                      const targetId = typeof sessionId === 'object' && sessionId?.toString ? sessionId.toString() : String(sessionId);
+                      return sId === targetId;
+                    });
+                    setSelectedSessionId(sessionId);
+                    setSelectedSession(session || null);
+                    setShowBookingModal(true);
                   }
                 }}
                 selectedSessionIds={[]}
@@ -267,15 +324,20 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onLoginSuccess={() => {
-          // After successful login, navigate to sessions page
-          navigate('/sessions');
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={showBookingModal}
+        onClose={() => {
+          setShowBookingModal(false);
+          setSelectedSessionId(null);
+          setSelectedSession(null);
         }}
-        showRegisterLink={true}
+        sessionIds={selectedSessionId ? [selectedSessionId] : []}
+        sessions={selectedSession ? [selectedSession] : []}
+        onBookingSuccess={async () => {
+          // Refresh sessions list
+          await fetchSessions();
+        }}
       />
 
       <Footer />

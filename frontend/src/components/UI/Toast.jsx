@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 
 export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   const [visible, setVisible] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setVisible(false);
-      if (onClose) onClose();
+      setIsExiting(true);
+      setTimeout(() => {
+        setVisible(false);
+        if (onClose) onClose();
+      }, 300); // Match animation duration
     }, duration);
 
     return () => clearTimeout(timer);
@@ -21,16 +25,50 @@ export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
     warning: 'bg-yellow-100 border-yellow-400 text-yellow-700',
   };
 
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      setVisible(false);
+      if (onClose) onClose();
+    }, 300);
+  };
+
   return (
-    <div className={`fixed top-4 right-4 border-l-4 p-4 rounded shadow-lg z-50 ${types[type]}`}>
-      <div className="flex items-center">
-        <p className="font-medium">{message}</p>
+    <div 
+      className={`
+        fixed bottom-4 left-1/2 z-40
+        border-l-4 rounded shadow-lg
+        transition-all duration-300 ease-in-out
+        ${isExiting ? 'opacity-0' : 'opacity-100'}
+        ${types[type]}
+        px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4
+        max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-xl
+        w-auto
+      `}
+      style={{
+        transform: isExiting 
+          ? 'translate(-50%, calc(100% + 1rem))' 
+          : 'translate(-50%, 0)'
+      }}
+    >
+      <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
+        <p className={`
+          font-medium text-center
+          text-xs sm:text-sm md:text-base lg:text-lg
+          whitespace-nowrap overflow-hidden text-ellipsis
+          flex-1 min-w-0
+        `}>
+          {message}
+        </p>
         <button
-          onClick={() => {
-            setVisible(false);
-            if (onClose) onClose();
-          }}
-          className="ml-4 text-lg font-bold"
+          onClick={handleClose}
+          className="
+            flex-shrink-0
+            text-base sm:text-lg md:text-xl lg:text-2xl
+            font-bold hover:opacity-70 transition-opacity
+            leading-none
+          "
+          aria-label="Затвори"
         >
           ×
         </button>

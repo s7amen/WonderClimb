@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import { formatDate } from '../../utils/dateUtils';
@@ -10,6 +10,7 @@ import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/UI/LoginModal';
+import BookingModal from '../../components/UI/BookingModal';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
 import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
@@ -28,23 +29,20 @@ const Sessions = () => {
   // Booking state
   const [children, setChildren] = useState([]);
   const [selfClimber, setSelfClimber] = useState(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [selectedClimberIds, setSelectedClimberIds] = useState([]);
-  const [bookingLoading, setBookingLoading] = useState(false);
   const [selectedClimberForSession, setSelectedClimberForSession] = useState({});
   const [userBookings, setUserBookings] = useState([]);
   const [defaultSelectedClimberIds, setDefaultSelectedClimberIds] = useState([]);
-  const [showSingleBookingConfirmation, setShowSingleBookingConfirmation] = useState(false);
-  const [pendingBookingSessionId, setPendingBookingSessionId] = useState(null);
-  const [pendingBookingClimberIds, setPendingBookingClimberIds] = useState(null);
+
+  // Unified booking modal state
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingSessionIds, setBookingSessionIds] = useState([]);
+  const [bookingSessions, setBookingSessions] = useState([]);
+  const [bookingDefaultClimberIds, setBookingDefaultClimberIds] = useState([]);
 
   // Bulk booking state
   const [selectedSessionIds, setSelectedSessionIds] = useState([]);
   const [bulkBookingClimberIds, setBulkBookingClimberIds] = useState([]);
-  const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
   const [isBulkBooking, setIsBulkBooking] = useState(false);
-  const [showBulkBookingModal, setShowBulkBookingModal] = useState(false);
 
   // Cancel booking state
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
@@ -67,16 +65,12 @@ const Sessions = () => {
   // Sticky button state for mobile
   const [isSticky, setIsSticky] = useState(false);
 
-  // Sticky positioning state for sidebar sections
-  const reservationCardRef = useRef(null);
-  const [filtersTopOffset, setFiltersTopOffset] = useState('330px');
-
   // Filter states
   const [selectedDays, setSelectedDays] = useState([]);
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedTitles, setSelectedTitles] = useState([]);
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
 
   useEffect(() => {
     fetchSessions();
@@ -105,29 +99,6 @@ const Sessions = () => {
     }
   }, [isAuthenticated, user, showLoginModal]);
 
-  // Calculate filters top offset based on reservation card height
-  useEffect(() => {
-    const calculateFiltersOffset = () => {
-      if (reservationCardRef.current && isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber')))) {
-        const reservationCardHeight = reservationCardRef.current.offsetHeight;
-        const headerHeight = isAuthenticated ? 114 : 70; // 70px main header + 44px second menu if authenticated
-        const gapBetweenSections = 16; // space-y-4 = 1rem = 16px
-        const calculatedOffset = headerHeight + reservationCardHeight + gapBetweenSections;
-        setFiltersTopOffset(`${calculatedOffset}px`);
-      }
-    };
-
-    // Calculate on mount and when dependencies change
-    calculateFiltersOffset();
-
-    // Recalculate on window resize
-    const handleResize = () => {
-      calculateFiltersOffset();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isAuthenticated, user, children]);
 
   // Mobile sticky button is always sticky - no scroll tracking needed
   useEffect(() => {
@@ -228,91 +199,30 @@ const Sessions = () => {
     }
   };
 
-  const handleBookClick = async (sessionId) => {
+  const handleBookClick = (sessionId) => {
     if (!isAuthenticated) {
-      // Show login modal instead of redirecting
       setPendingSessionId(sessionId);
       setShowLoginModal(true);
       return;
     }
 
-    const userRoles = user?.roles || [];
-    const hasAdminRole = userRoles.includes('admin');
-    const hasClimberRole = userRoles.includes('climber');
-
-    // Проверява дали има избрани катерачи от defaultSelectedClimberIds
-    const hasSelf = (defaultSelectedClimberIds || []).some(id => {
-      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-      return idStr === 'self';
-    });
-    const climberIds = (defaultSelectedClimberIds || []).filter(id => {
-      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-      return idStr !== 'self';
+    // Find the session object
+    const session = sessions.find(s => {
+      const sId = typeof s._id === 'object' && s._id?.toString ? s._id.toString() : String(s._id);
+      const targetId = typeof sessionId === 'object' && sessionId?.toString ? sessionId.toString() : String(sessionId);
+      return sId === targetId;
     });
 
-    // If user has climber/admin role and has children
-    if ((hasClimberRole || hasAdminRole) && children.length > 0) {
-      // Ако има избрани катерачи от defaultSelectedClimberIds, показва потвърждение
-      if (climberIds.length > 0 || hasSelf) {
-      setPendingBookingSessionId(sessionId);
-        setPendingBookingClimberIds(climberIds.length > 0 ? climberIds : null);
-        setShowSingleBookingConfirmation(true);
-      return;
-    }
-
-      // Проверява дали има избран катерач за тази сесия
-      const selectedClimberId = selectedClimberForSession[sessionId];
-      if (selectedClimberId) {
-        // Child already selected, show confirmation
-        setPendingBookingSessionId(sessionId);
-        setPendingBookingClimberIds([selectedClimberId]);
-        setShowSingleBookingConfirmation(true);
-        return;
-      } else {
-        // No child selected, show selection modal
-      setSelectedSessionId(sessionId);
-      // Pre-populate with defaultSelectedClimberIds if available
-      setSelectedClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
-      setShowBookingModal(true);
-      return;
-      }
-    }
-
-    // If user only has climber role (with no children)
-    if (hasClimberRole) {
-      // Ако има избран 'self' от defaultSelectedClimberIds или няма избрани катерачи, показва потвърждение
-      if (hasSelf || defaultSelectedClimberIds.length === 0) {
-        setPendingBookingSessionId(sessionId);
-        setPendingBookingClimberIds(null);
-        setShowSingleBookingConfirmation(true);
-        return;
-      }
-      // Ако има избрани деца (но не 'self'), показва modal
-      if (climberIds.length > 0) {
-      setSelectedSessionId(sessionId);
-        setSelectedClimberIds(climberIds);
-      setShowBookingModal(true);
-        return;
-      }
-      // Fallback - показва потвърждение
-      setPendingBookingSessionId(sessionId);
-      setPendingBookingClimberIds(null);
-      setShowSingleBookingConfirmation(true);
-      return;
-    }
-
-    // Fallback: if no role matches, show error
-    showToast('Нямате права за резервиране на сесии', 'error');
+    // Set up booking modal with single session
+    setBookingSessionIds([sessionId]);
+    setBookingSessions(session ? [session] : []);
+    setBookingDefaultClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
+    setShowBookingModal(true);
   };
 
-  const confirmSingleBooking = async () => {
-    if (!pendingBookingSessionId) return;
-    await bookSession(pendingBookingSessionId, pendingBookingClimberIds);
-    setShowSingleBookingConfirmation(false);
-    setPendingBookingSessionId(null);
-    setPendingBookingClimberIds(null);
-  };
+  // OLD FUNCTIONS REMOVED - Now using unified BookingModal
 
+  // Keep bookSession for backward compatibility if needed elsewhere, but it's not used for booking modals anymore
   const bookSession = async (sessionId, climberIds = null) => {
     try {
       setBookingLoading(true);
@@ -492,199 +402,24 @@ const Sessions = () => {
       showToast('Моля, изберете поне една тренировка', 'error');
       return;
     }
-    const userRoles = user?.roles || [];
-    const hasAdminRole = userRoles.includes('admin');
-    const hasClimberRole = userRoles.includes('climber');
-    
-    // Ако е climber/admin с деца и няма избрани катерачи, показва popup за избор
-    if ((hasClimberRole || hasAdminRole) && children.length > 0) {
-      if (bulkBookingClimberIds.length === 0 && defaultSelectedClimberIds.length === 0) {
-        setShowBulkBookingModal(true);
-        return;
-      }
-      // Използва defaultSelectedClimberIds ако има, иначе bulkBookingClimberIds
-      const climbersToUse = defaultSelectedClimberIds.length > 0 ? defaultSelectedClimberIds : bulkBookingClimberIds;
-      if (climbersToUse.length === 0) {
-        setShowBulkBookingModal(true);
-        return;
-      }
-      setShowBulkConfirmation(true);
-    } else if (hasClimberRole) {
-      // Climber booking for themselves - проверява дали има избрани катерачи
-      if (defaultSelectedClimberIds.length === 0) {
-        setShowBulkBookingModal(true);
-        return;
-      }
-      setShowBulkConfirmation(true);
-    } else {
-      showToast('Нямате права за резервиране на сесии', 'error');
-    }
+
+    // Find session objects for selected IDs
+    const selectedSessions = sessions.filter(s => {
+      const sId = typeof s._id === 'object' && s._id?.toString ? s._id.toString() : String(s._id);
+      return selectedSessionIds.some(id => {
+        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+        return sId === idStr;
+      });
+    });
+
+    // Set up booking modal with multiple sessions
+    setBookingSessionIds(selectedSessionIds);
+    setBookingSessions(selectedSessions);
+    setBookingDefaultClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : (bulkBookingClimberIds.length > 0 ? [...bulkBookingClimberIds] : []));
+    setShowBookingModal(true);
   };
 
-  const confirmBulkBooking = async () => {
-    setIsBulkBooking(true);
-    const results = {
-      successful: [],
-      failed: []
-    };
-
-    try {
-      const userRoles = user?.roles || [];
-      const hasAdminRole = userRoles.includes('admin');
-      const hasClimberRole = userRoles.includes('climber');
-      
-      // Използва defaultSelectedClimberIds ако има, иначе bulkBookingClimberIds
-      const climbersToUse = defaultSelectedClimberIds.length > 0 
-        ? defaultSelectedClimberIds 
-        : bulkBookingClimberIds;
-      
-      // Ако все още няма избрани катерачи, използва defaultSelectedClimberIds
-      const finalClimbersToUse = climbersToUse.length > 0 ? climbersToUse : defaultSelectedClimberIds;
-      
-      // Проверява дали има 'self' в избраните катерачи
-      const hasSelf = finalClimbersToUse.some(id => {
-        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-        return idStr === 'self';
-      });
-      
-      // Филтрира 'self' от climber IDs
-      const climberIds = finalClimbersToUse.filter(id => {
-        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-        return idStr !== 'self';
-      });
-      
-      // Book each selected session
-      for (const sessionId of selectedSessionIds) {
-        try {
-          // Book for children if any selected
-          if (climberIds.length > 0) {
-            const bookingData = {
-              sessionId,
-              climberIds: climberIds,
-            };
-            const response = await bookingsAPI.create(bookingData);
-            
-            if (response.data?.summary) {
-              const { successful, failed } = response.data.summary;
-              if (successful && successful.length > 0) {
-                results.successful.push(...successful.map(item => ({
-                  ...item,
-                  sessionId
-                })));
-              }
-              if (failed && failed.length > 0) {
-                results.failed.push(...failed.map(item => ({
-                  ...item,
-                  sessionId
-                })));
-              }
-            }
-          }
-          
-          // Book for self if selected
-          if (hasSelf) {
-            const bookingData = {
-              sessionId,
-            };
-            const response = await bookingsAPI.create(bookingData);
-            
-            if (response.data?.summary) {
-              const { successful, failed } = response.data.summary;
-              if (successful && successful.length > 0) {
-                results.successful.push(...successful.map(item => ({
-                  ...item,
-                  sessionId
-                })));
-              }
-              if (failed && failed.length > 0) {
-                results.failed.push(...failed.map(item => ({
-                  ...item,
-                  sessionId
-                })));
-              }
-            }
-          }
-        } catch (error) {
-          // Session booking failed
-          const climberIds = (hasClimberRole || hasAdminRole) && bulkBookingClimberIds.length > 0 
-            ? bulkBookingClimberIds 
-            : [user?._id];
-          climberIds.forEach(climberId => {
-            results.failed.push({
-              climberId,
-              sessionId,
-              reason: error.response?.data?.error?.message || 'Грешка при резервиране'
-            });
-          });
-        }
-      }
-
-      // Build success message
-      if (results.successful.length > 0) {
-        const sessionDetails = {};
-        results.successful.forEach(item => {
-          if (!sessionDetails[item.sessionId]) {
-            const session = sessions.find(s => s._id === item.sessionId);
-            sessionDetails[item.sessionId] = {
-              title: session?.title || 'Тренировка',
-              date: session ? format(new Date(session.date), 'PPpp') : '',
-              time: session ? formatTime(session.date) : ''
-            };
-          }
-        });
-
-        const sessionList = Object.keys(sessionDetails).map(sessionId => {
-          const detail = sessionDetails[sessionId];
-          return `${detail.title} - ${detail.date} ${detail.time}`;
-        }).join(', ');
-
-        const climberNames = [...new Set(results.successful.map(s => s.climberName))].join(', ');
-        showToast(`Успешно резервирано за ${climberNames}: ${sessionList}`, 'success');
-      }
-
-      if (results.failed.length > 0) {
-        // Show individual error messages for each failed booking
-        results.failed.forEach(item => {
-          const climber = (hasClimberRole || hasAdminRole) && children.length > 0
-            ? children.find(c => c._id === item.climberId)
-            : null;
-          const climberName = climber ? `${climber.firstName} ${climber.lastName}` : (user?.firstName + ' ' + user?.lastName);
-          const reason = item.reason || item.error || 'Грешка при резервиране';
-          showToast(`${climberName}: ${reason}`, 'error');
-        });
-      }
-
-      // Optimistically update sessions booked counts
-      results.successful.forEach(item => {
-        setSessions(prev => prev.map(s => {
-          if (s._id === item.sessionId) {
-            return {
-              ...s,
-              bookedCount: (s.bookedCount || 0) + 1
-            };
-          }
-          return s;
-        }));
-      });
-      
-      // Refresh user bookings to show reservation info
-      if (isAuthenticated) {
-        await fetchUserBookings();
-      }
-      
-      // Clear selections
-      setSelectedSessionIds([]);
-      setBulkBookingClimberIds([]);
-      setShowBulkConfirmation(false);
-    } catch (error) {
-      showToast(
-        error.response?.data?.error?.message || 'Грешка при масово резервиране',
-        'error'
-      );
-    } finally {
-      setIsBulkBooking(false);
-    }
-  };
+  // OLD confirmBulkBooking REMOVED - Now using unified BookingModal
 
   const handleAddChild = async (e) => {
     e.preventDefault();
@@ -838,6 +573,20 @@ const Sessions = () => {
         }
       }
 
+      // Apply age groups filter
+      if (selectedAgeGroups.length > 0) {
+        if (!session.ageGroups || session.ageGroups.length === 0) {
+          return false;
+        }
+        // Check if session has at least one of the selected age groups
+        const hasMatchingAgeGroup = selectedAgeGroups.some(ageGroup => 
+          session.ageGroups.includes(ageGroup)
+        );
+        if (!hasMatchingAgeGroup) {
+          return false;
+        }
+      }
+
       return true;
     });
   };
@@ -902,6 +651,12 @@ const Sessions = () => {
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
+    } else if (filterType === 'ageGroup') {
+      setSelectedAgeGroups(prev => 
+        prev.includes(value) 
+          ? prev.filter(a => a !== value)
+          : [...prev, value]
+      );
     }
   };
 
@@ -910,10 +665,11 @@ const Sessions = () => {
     setSelectedTimes([]);
     setSelectedTitles([]);
     setSelectedTargetGroups([]);
+    setSelectedAgeGroups([]);
   };
 
   const hasActiveFilters = () => {
-    return selectedDays.length > 0 || selectedTimes.length > 0 || selectedTitles.length > 0 || selectedTargetGroups.length > 0;
+    return selectedDays.length > 0 || selectedTimes.length > 0 || selectedTitles.length > 0 || selectedTargetGroups.length > 0 || selectedAgeGroups.length > 0;
   };
 
   const getBulgarianDayName = (date) => {
@@ -959,176 +715,35 @@ const Sessions = () => {
 
         <ToastComponent />
 
-        {/* Layout with Sidebar and Main Content */}
-        <div className={`flex flex-col lg:flex-row ${filtersCollapsed ? 'lg:gap-8' : 'gap-y-2 lg:gap-6'}`}>
-          {/* Left Sidebar - Reservation and Filters */}
-          <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-2 lg:space-y-4">
-            {/* Default Climber Selection - In Sidebar */}
-            {isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) && (
-              <Card ref={reservationCardRef} className="bg-white/80 border border-slate-200 rounded-[16px]">
-                <div className="overflow-hidden">
-                  {/* Title */}
-                  <div className="pt-[12px] px-[16px] pb-0">
-                    <h2 className="text-[#cbd5e1] text-sm leading-5 font-normal uppercase">РЕЗЕРВИРАЙ ЗА:</h2>
-                  </div>
+        {/* Filters and Reservation Container */}
+        <div className="mb-4">
+          <SessionFilters
+            selectedDays={selectedDays}
+            selectedTimes={selectedTimes}
+            selectedTitles={selectedTitles}
+            selectedTargetGroups={selectedTargetGroups}
+            selectedAgeGroups={selectedAgeGroups}
+            getUniqueTimes={getUniqueTimes}
+            getUniqueTitles={getUniqueTitles}
+            toggleFilter={toggleFilter}
+            clearAllFilters={clearAllFilters}
+            hasActiveFilters={hasActiveFilters}
+            showReservation={isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber')))}
+            user={user}
+            children={children}
+            defaultSelectedClimberIds={defaultSelectedClimberIds}
+            setDefaultSelectedClimberIds={setDefaultSelectedClimberIds}
+            getUserDisplayName={getUserDisplayName}
+            onAddChild={() => {
+              setShowAddChildModal(true);
+              setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
+              setFoundExistingProfile(null);
+            }}
+          />
+        </div>
 
-                  {/* Header with divider */}
-                  <div className="flex justify-end items-center pb-px pt-[12px] px-[16px] border-b border-slate-200">
-                  </div>
-
-                  {/* Content */}
-                  <div className="px-[16px] pt-[12px] pb-[12px]">
-                    <div className="flex flex-col gap-2">
-                    {/* Self profile option for climbers */}
-                    {user?.roles?.includes('climber') && (
-                      <button
-                        key="self"
-                        type="button"
-                        onClick={() => {
-                          const selfId = 'self';
-                          const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                            typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                          );
-                          const isSelected = selectedIds.includes(selfId);
-                          if (isSelected) {
-                            setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                              const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                              return idStr !== selfId;
-                            }));
-                          } else {
-                            setDefaultSelectedClimberIds(prev => [...prev, selfId]);
-                          }
-                        }}
-                        className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                          (defaultSelectedClimberIds || []).some(id => {
-                            const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                            return idStr === 'self';
-                          })
-                            ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
-                          <span className="text-white text-xs font-normal">
-                            {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
-                          </span>
-                        </div>
-                        {/* Name */}
-                        <div className="text-left flex-1 min-w-0">
-                          <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                            {getUserDisplayName(user) || user?.email || 'Аз'}
-                          </div>
-                        </div>
-                      </button>
-                    )}
-                    {/* Children options */}
-                    {children.map((climber) => {
-                      const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
-                      const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                        typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                      );
-                      const isSelected = selectedIds.includes(climberIdStr);
-                      
-                      // Get first letter from first name for avatar
-                      const firstLetter = climber.firstName?.[0]?.toUpperCase() || climber.lastName?.[0]?.toUpperCase() || '?';
-                      
-                      // Avatar color based on index
-                      const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
-                      const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
-                      
-                      return (
-                        <button
-                          key={climberIdStr}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                                return idStr !== climberIdStr;
-                              }));
-                            } else {
-                              setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
-                            }
-                          }}
-                          className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                            isSelected
-                              ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {/* Avatar */}
-                          <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
-                            <span className="text-white text-xs font-normal">
-                              {firstLetter}
-                            </span>
-                          </div>
-                          {/* Name */}
-                          <div className="text-left flex-1 min-w-0">
-                            <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                              {climber.firstName} {climber.lastName}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                    
-                    {/* Add Child Button */}
-                    {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAddChildModal(true);
-                          setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                          setFoundExistingProfile(null);
-                        }}
-                        className="h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 border-dashed border-gray-300 rounded-[8px] hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
-                      >
-                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </div>
-                        <div className="text-xs leading-4 font-normal whitespace-nowrap">
-                          Добави дете
-                        </div>
-                      </button>
-                    )}
-                    </div>
-                    {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
-                      <p className="text-[10px] text-blue-600 font-normal mt-2">
-                        Моля, изберете поне един катерач преди резервиране на тренировки
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Filters */}
-            <div 
-              className={`${isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? 'lg:sticky' : (isAuthenticated ? 'lg:sticky lg:top-[114px]' : 'lg:sticky lg:top-[70px]')} lg:z-30`}
-              style={isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? { top: filtersTopOffset } : undefined}
-            >
-              <SessionFilters
-                sticky={true}
-                selectedDays={selectedDays}
-                selectedTimes={selectedTimes}
-                selectedTitles={selectedTitles}
-                selectedTargetGroups={selectedTargetGroups}
-                getUniqueTimes={getUniqueTimes}
-                getUniqueTitles={getUniqueTitles}
-                toggleFilter={toggleFilter}
-                clearAllFilters={clearAllFilters}
-                hasActiveFilters={hasActiveFilters}
-                compact={true}
-                onCollapseChange={setFiltersCollapsed}
-              />
-            </div>
-          </div>
-
-          {/* Main Content - Schedule */}
-          <div className="flex-1 min-w-0">
+        {/* Main Content - Schedule */}
+        <div className="flex-1 min-w-0">
             {/* Bulk Actions */}
             {isAuthenticated && selectedSessionIds.length > 0 && (
               <>
@@ -1147,7 +762,7 @@ const Sessions = () => {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
-                        Запази всички маркирани
+                        {`Запази всички маркирани (${selectedSessionIds.length})`}
                       </>
                     )}
                   </Button>
@@ -1166,7 +781,7 @@ const Sessions = () => {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
-                      Запази всички маркирани
+                      {`Запази всички маркирани (${selectedSessionIds.length})`}
                     </>
                   )}
                 </Button>
@@ -1253,7 +868,6 @@ const Sessions = () => {
                 </div>
               </Card>
             )}
-          </div>
         </div>
       </div>
 
@@ -1265,541 +879,59 @@ const Sessions = () => {
         showRegisterLink={true}
       />
 
-      {/* Booking Modal - Модерен дизайн */}
-      {showBookingModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">Избери катерач</h2>
-              <button
-                onClick={() => {
-                  setShowBookingModal(false);
-                  setSelectedSessionId(null);
-                  setSelectedClimberIds([]);
-                }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-              >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-              </button>
-              </div>
-            </div>
-            
-            <form onSubmit={handleBookingModalSubmit} className="p-6">
-              <div className="space-y-3 mb-6">
-                {/* Self option for climbers */}
-                {user?.roles?.includes('climber') && (
-                  <label
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      selectedClimberIds.includes('self')
-                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedClimberIds.includes('self')}
-                      onChange={() => toggleClimberSelection('self')}
-                        className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                    />
-                    </div>
-                    <span className="ml-3 text-base font-medium text-[#0f172b]">
-                      За мен ({getUserFullName(user) || user?.email || 'Аз'})
-                    </span>
-                  </label>
-                )}
-                {/* Children options */}
-                {children.map((child) => {
-                  const childIdStr = typeof child._id === 'object' && child._id?.toString ? child._id.toString() : String(child._id);
-                  const selectedIds = selectedClimberIds.map(id =>
-                    typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                  );
-                  const isSelected = selectedIds.includes(childIdStr);
-                  
-                  return (
-                    <label
-                      key={child._id}
-                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleClimberSelection(child._id)}
-                          className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                      />
-                      </div>
-                      <span className="ml-3 text-base font-medium text-[#0f172b]">
-                        {child.firstName} {child.lastName}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
+      {/* Unified Booking Modal */}
+      <BookingModal
+        isOpen={showBookingModal}
+        onClose={() => {
+          setShowBookingModal(false);
+          setBookingSessionIds([]);
+          setBookingSessions([]);
+          setBookingDefaultClimberIds([]);
+        }}
+        sessionIds={bookingSessionIds}
+        sessions={bookingSessions}
+        defaultSelectedClimberIds={bookingDefaultClimberIds}
+        onBookingSuccess={async (bookingResults) => {
+          // Optimistically update session booked counts instead of full reload
+          if (bookingResults?.successful) {
+            const sessionUpdates = {};
+            bookingResults.successful.forEach(result => {
+              const sessionId = result.sessionId;
+              if (sessionId) {
+                if (!sessionUpdates[sessionId]) {
+                  sessionUpdates[sessionId] = 0;
+                }
+                sessionUpdates[sessionId]++;
+              }
+            });
 
-              {children.length === 0 && !user?.roles?.includes('climber') && (
-                <p className="text-sm text-[#64748b] mb-6 text-center py-4">
-                  Няма налични катерачи за резервиране.
-                </p>
-              )}
+            // Update sessions state optimistically
+            setSessions(prev => prev.map(session => {
+              const sessionId = typeof session._id === 'object' && session._id?.toString 
+                ? session._id.toString() 
+                : String(session._id);
+              if (sessionUpdates[sessionId]) {
+                return {
+                  ...session,
+                  bookedCount: (session.bookedCount || 0) + sessionUpdates[sessionId]
+                };
+              }
+              return session;
+            }));
+          }
 
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setShowBookingModal(false);
-                    setSelectedSessionId(null);
-                    setSelectedClimberIds([]);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Отказ
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={selectedClimberIds.length === 0 || bookingLoading}
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  {bookingLoading ? (
-                    'Запазване...'
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Запази
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          // Refresh user bookings to show reservation info (lightweight update)
+          if (isAuthenticated) {
+            await fetchUserBookings();
+          }
+          
+          // Clear selected sessions for bulk booking
+          setSelectedSessionIds([]);
+          setBulkBookingClimberIds([]);
+        }}
+      />
 
-      {/* Single Booking Confirmation Modal */}
-      {showSingleBookingConfirmation && pendingBookingSessionId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">Потвърждение на резервация</h2>
-                <button
-                  onClick={() => {
-                    setShowSingleBookingConfirmation(false);
-                    setPendingBookingSessionId(null);
-                    setPendingBookingClimberIds(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                  disabled={bookingLoading}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {(() => {
-                const session = sessions.find(s => s._id === pendingBookingSessionId);
-                if (!session) return null;
-
-                const userRoles = user?.roles || [];
-                const hasAdminRole = userRoles.includes('admin');
-                const hasClimberRole = userRoles.includes('climber');
-
-                return (
-                  <>
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <div className="font-medium text-gray-900 mb-1">{session.title || 'Тренировка'}</div>
-                        <div className="text-sm text-gray-600">
-                          {getBulgarianDayName ? getBulgarianDayName(new Date(session.date)) : format(new Date(session.date), 'EEEE')}, {format(new Date(session.date), 'dd/MM/yyyy')}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {formatTime ? formatTime(session.date) : format(new Date(session.date), 'HH:mm')} - {getEndTime ? getEndTime(session.date, session.durationMinutes) : format(new Date(new Date(session.date).getTime() + session.durationMinutes * 60000), 'HH:mm')}
-                        </div>
-                      </div>
-                    </div>
-
-                    {((hasClimberRole || hasAdminRole) && children.length > 0 && pendingBookingClimberIds && pendingBookingClimberIds.length > 0) && (
-                      <div className="mb-4">
-                        <h3 className="font-semibold text-gray-700 mb-2">Катерачи:</h3>
-                        <div className="space-y-1">
-                          {pendingBookingClimberIds.map(climberId => {
-                            const climber = children.find(c => {
-                              const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
-                              const idStr = typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId);
-                              return climberIdStr === idStr;
-                            });
-                            if (!climber) return null;
-                            return (
-                              <div key={typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId)} className="text-sm text-gray-700 p-2 bg-gray-50 rounded">
-                                • {climber.firstName} {climber.lastName}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {hasClimberRole && (!pendingBookingClimberIds || pendingBookingClimberIds.length === 0) && (
-                      <div className="mb-4">
-                        <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
-                        <div className="text-sm text-gray-700 p-2 bg-gray-50 rounded">
-                          • {user?.firstName} {user?.lastName}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mb-4 p-3 bg-blue-50 rounded-md">
-                      <p className="text-sm text-gray-700">
-                        Сигурни ли сте, че искате да резервирате тази тренировка?
-                      </p>
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-gray-100">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          setShowSingleBookingConfirmation(false);
-                          setPendingBookingSessionId(null);
-                          setPendingBookingClimberIds(null);
-                        }}
-                        disabled={bookingLoading}
-                        className="flex-1 flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Отказ
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        onClick={confirmSingleBooking}
-                        disabled={bookingLoading}
-                        className="flex-1 flex items-center justify-center gap-2"
-                      >
-                        {bookingLoading ? (
-                          'Резервиране...'
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Потвърди
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Booking Modal - Модерен дизайн */}
-      {showBulkBookingModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">Избери катерач</h2>
-                <button
-                  onClick={() => {
-                    setShowBulkBookingModal(false);
-                    setBulkBookingClimberIds([]);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="space-y-3 mb-6">
-                {/* Self option for climbers */}
-                {user?.roles?.includes('climber') && (
-                  <label
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      bulkBookingClimberIds.some(id => {
-                        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                        return idStr === 'self';
-                      }) || defaultSelectedClimberIds.some(id => {
-                        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                        return idStr === 'self';
-                      })
-                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={bulkBookingClimberIds.some(id => {
-                          const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                          return idStr === 'self';
-                        }) || defaultSelectedClimberIds.some(id => {
-                          const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                          return idStr === 'self';
-                        })}
-                        onChange={() => toggleBulkClimberSelection('self')}
-                        className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                      />
-                    </div>
-                    <span className="ml-3 text-base font-medium text-[#0f172b]">
-                      За мен ({getUserFullName(user) || user?.email || 'Аз'})
-                    </span>
-                  </label>
-                )}
-                {/* Children options */}
-                {children.map((child) => {
-                  const childIdStr = typeof child._id === 'object' && child._id?.toString ? child._id.toString() : String(child._id);
-                  const selectedIds = bulkBookingClimberIds.map(id =>
-                    typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                  );
-                  const defaultIds = defaultSelectedClimberIds.map(id =>
-                    typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                  );
-                  const isSelected = selectedIds.includes(childIdStr) || defaultIds.includes(childIdStr);
-                  
-                  return (
-                    <label
-                      key={child._id}
-                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleBulkClimberSelection(child._id)}
-                          className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                        />
-                      </div>
-                      <span className="ml-3 text-base font-medium text-[#0f172b]">
-                        {child.firstName} {child.lastName}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {children.length === 0 && !user?.roles?.includes('climber') && (
-                <p className="text-sm text-[#64748b] mb-6 text-center py-4">
-                  Няма налични катерачи за резервиране.
-                </p>
-              )}
-
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setShowBulkBookingModal(false);
-                    setBulkBookingClimberIds([]);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Отказ
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() => {
-                    // Проверява избраните катерачи от bulkBookingClimberIds или defaultSelectedClimberIds
-                    const hasSelected = bulkBookingClimberIds.length > 0 || defaultSelectedClimberIds.length > 0;
-                    
-                    if (!hasSelected) {
-                      showToast('Моля, изберете поне един катерач', 'error');
-                      return;
-                    }
-                    
-                    // Ако има defaultSelectedClimberIds, ги използва, иначе използва bulkBookingClimberIds
-                    if (defaultSelectedClimberIds.length > 0 && bulkBookingClimberIds.length === 0) {
-                      setBulkBookingClimberIds(defaultSelectedClimberIds);
-                    }
-                    
-                    // Затваря popup-а и показва потвърждение
-                    setShowBulkBookingModal(false);
-                    setShowBulkConfirmation(true);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                  Продължи
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Booking Confirmation Modal */}
-      {showBulkConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-neutral-950">Потвърждение на масово резервиране</h2>
-              <button
-                onClick={() => setShowBulkConfirmation(false)}
-                className="text-gray-500 hover:text-gray-700"
-                disabled={isBulkBooking}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="mb-4">
-              <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки:</h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedSessionIds.map(sessionId => {
-                  const session = sessions.find(s => s._id === sessionId);
-                  if (!session) return null;
-                  return (
-                    <div key={sessionId} className="p-2 bg-gray-50 rounded">
-                      <div className="font-medium text-gray-900">{session.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {(() => {
-              // Get the climbers to use - prefer defaultSelectedClimberIds if available, otherwise bulkBookingClimberIds
-              const climbersToUse = defaultSelectedClimberIds.length > 0 
-                ? defaultSelectedClimberIds 
-                : bulkBookingClimberIds;
-              
-              // Filter out 'self' from climber IDs for display
-              const climberIdsForDisplay = climbersToUse.filter(id => {
-                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                return idStr !== 'self';
-              });
-              
-              const hasSelf = climbersToUse.some(id => {
-                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                return idStr === 'self';
-              });
-              
-              const totalClimberCount = climberIdsForDisplay.length + (hasSelf ? 1 : 0);
-              
-              return (
-                <>
-                  {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && climberIdsForDisplay.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-gray-700 mb-2">Избрани катерачи:</h3>
-                      <div className="space-y-1">
-                        {climberIdsForDisplay.map(climberId => {
-                          const climber = children.find(c => {
-                            const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
-                            const idStr = typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId);
-                            return climberIdStr === idStr;
-                          });
-                          if (!climber) return null;
-                          return (
-                            <div key={typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId)} className="text-sm text-gray-700">
-                              • {climber.firstName} {climber.lastName}
-                            </div>
-                          );
-                        })}
-                        {hasSelf && (
-                          <div className="text-sm text-gray-700">
-                            • {user?.firstName} {user?.lastName}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {user?.roles?.includes('climber') && !user?.roles?.includes('admin') && children.length === 0 && (
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
-                      <div className="text-sm text-gray-700">
-                        • {user?.firstName} {user?.lastName}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mb-4 p-3 bg-blue-50 rounded-md">
-                    <p className="text-sm text-gray-700">
-                      Ще се направят резервации за <strong>{selectedSessionIds.length}</strong> тренировки за <strong>
-                        {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 
-                          ? totalClimberCount 
-                          : 1}</strong> катерач{(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && totalClimberCount > 1 ? 'а' : ''}.
-                    </p>
-                  </div>
-                </>
-              );
-            })()}
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowBulkConfirmation(false)}
-                disabled={isBulkBooking}
-                className="flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={confirmBulkBooking}
-                disabled={isBulkBooking}
-                className="flex items-center gap-2"
-              >
-                {isBulkBooking ? (
-                  'Резервиране...'
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Потвърди
-                  </>
-                )}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* OLD MODALS REMOVED - Now using unified BookingModal */}
 
       {/* Add Child Modal */}
       {showAddChildModal && (

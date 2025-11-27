@@ -114,15 +114,31 @@ const Bookings = () => {
         showToast('Моля, изберете сесия', 'error');
         return;
       }
-      await bookingsAPI.create({
+      const response = await bookingsAPI.create({
         sessionId: sessionIdToUse,
         climberId: bookingData.climberId,
       });
-      showToast('Сесията е резервирана успешно', 'success');
+      
+      // Optimistically update bookings list instead of full reload
+      if (response.data?.booking) {
+        setMyBookings(prev => [...prev, response.data.booking]);
+      }
+      
+      // Optimistically update session booked count
+      setAvailableSessions(prev => prev.map(session => {
+        if (session._id === sessionIdToUse) {
+          return {
+            ...session,
+            bookedCount: (session.bookedCount || 0) + 1
+          };
+        }
+        return session;
+      }));
+      
       setShowBookingForm(false);
       setSelectedSession(null);
       setBookingData({ climberId: '', sessionId: '' });
-      fetchData();
+      showToast('Резервацията е успешна', 'success');
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при резервиране на сесия', 'error');
     }
@@ -140,10 +156,40 @@ const Bookings = () => {
         durationMinutes: parseInt(recurringData.durationMinutes),
       });
       
-      showToast(
-        `Създадени ${response.data.created} повтарящи се резервации`,
-        'success'
-      );
+      // Optimistically update bookings list instead of full reload
+      if (response.data?.bookings && Array.isArray(response.data.bookings)) {
+        setMyBookings(prev => [...prev, ...response.data.bookings]);
+      } else if (response.data?.booking) {
+        setMyBookings(prev => [...prev, response.data.booking]);
+      }
+      
+      // Optimistically update session booked counts
+      if (response.data?.bookings && Array.isArray(response.data.bookings)) {
+        const sessionUpdates = {};
+        response.data.bookings.forEach(booking => {
+          const sessionId = booking.sessionId || booking.session?._id;
+          if (sessionId) {
+            if (!sessionUpdates[sessionId]) {
+              sessionUpdates[sessionId] = 0;
+            }
+            sessionUpdates[sessionId]++;
+          }
+        });
+        
+        setAvailableSessions(prev => prev.map(session => {
+          const sessionId = typeof session._id === 'object' && session._id?.toString 
+            ? session._id.toString() 
+            : String(session._id);
+          if (sessionUpdates[sessionId]) {
+            return {
+              ...session,
+              bookedCount: (session.bookedCount || 0) + sessionUpdates[sessionId]
+            };
+          }
+          return session;
+        }));
+      }
+      
       setShowRecurringForm(false);
       setRecurringData({
         climberId: '',
@@ -153,7 +199,7 @@ const Bookings = () => {
         time: '',
         durationMinutes: 60,
       });
-      fetchData();
+      showToast('Повтарящите се резервации са създадени успешно', 'success');
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при създаване на повтарящи се резервации', 'error');
     }
@@ -168,16 +214,41 @@ const Bookings = () => {
     if (!cancelBookingId) return;
 
     try {
+      // Find the booking to get session ID before cancelling
+      const bookingToCancel = myBookings.find(b => b._id === cancelBookingId);
+      const sessionId = bookingToCancel?.sessionId || bookingToCancel?.session?._id;
+      
       await bookingsAPI.cancel(cancelBookingId);
-      showToast('Резервацията е отменена успешно', 'success');
+      
       // Update local state instead of full page reload
       setMyBookings(prev => prev.map(booking => 
         booking._id === cancelBookingId 
           ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
           : booking
       ));
+      
+      // Optimistically update session booked count
+      if (sessionId) {
+        setAvailableSessions(prev => prev.map(session => {
+          const sId = typeof session._id === 'object' && session._id?.toString 
+            ? session._id.toString() 
+            : String(session._id);
+          const bSessionId = typeof sessionId === 'object' && sessionId?.toString 
+            ? sessionId.toString() 
+            : String(sessionId);
+          if (sId === bSessionId) {
+            return {
+              ...session,
+              bookedCount: Math.max(0, (session.bookedCount || 0) - 1)
+            };
+          }
+          return session;
+        }));
+      }
+      
       setShowCancelDialog(false);
       setCancelBookingId(null);
+      showToast('Резервацията е отменена успешно', 'success');
     } catch (error) {
       showToast(error.response?.data?.error?.message || 'Грешка при отменяне на резервация', 'error');
       setShowCancelDialog(false);

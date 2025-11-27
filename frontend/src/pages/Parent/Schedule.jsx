@@ -1259,7 +1259,7 @@ const Schedule = () => {
                     variant="primary"
                     className="w-full md:w-auto text-sm md:text-base py-3 md:py-2 md:fixed md:bottom-4 md:left-1/2 md:-translate-x-1/2 md:z-50 md:shadow-lg"
                   >
-                    {isBulkBooking ? 'Резервиране...' : 'Запази всички маркирани'}
+                    {isBulkBooking ? 'Резервиране...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                   </Button>
                 )}
                 <div className="flex flex-row gap-2 items-center">

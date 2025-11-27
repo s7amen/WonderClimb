@@ -110,6 +110,7 @@ export const createSession = async (sessionData) => {
       status: sessionData.status || 'active',
       coachIds: sessionData.coachIds || [],
       targetGroups: sessionData.targetGroups || [],
+      ageGroups: sessionData.ageGroups || ['4-6', '7-12', '13+'],
     });
 
     await session.save();
@@ -158,6 +159,11 @@ export const updateSession = async (sessionId, updateData) => {
     // Добавяме targetGroups само ако е предоставено
     if (updateData.targetGroups !== undefined) {
       updateFields.targetGroups = updateData.targetGroups;
+    }
+
+    // Добавяме ageGroups само ако е предоставено
+    if (updateData.ageGroups !== undefined) {
+      updateFields.ageGroups = updateData.ageGroups;
     }
 
     const session = await Session.findByIdAndUpdate(
@@ -262,6 +268,7 @@ export const createBulkSessions = async (sessionData) => {
       capacity,
       coachIds,
       targetGroups,
+      ageGroups,
       status = 'active',
     } = sessionData;
 
@@ -299,6 +306,7 @@ export const createBulkSessions = async (sessionData) => {
             status,
             coachIds: coachIds || [],
             targetGroups: targetGroups || [],
+            ageGroups: ageGroups || ['4-6', '7-12', '13+'],
           });
         }
       }

@@ -81,6 +81,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = (updatedUserData) => {
+    if (updatedUserData && user) {
+      const updatedUser = { ...user, ...updatedUserData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    }
+  };
+
   const hasRole = (role) => {
     if (!user || !user.roles) return false;
     return user.roles.includes(role);
@@ -96,6 +104,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    updateUser,
     hasRole,
     isAdmin,
     isCoach,

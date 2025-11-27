@@ -12,7 +12,7 @@ import ConfirmDialog from '../../components/UI/ConfirmDialog';
 import { formatDate, formatDateForInput } from '../../utils/dateUtils';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -121,6 +121,14 @@ const Profile = () => {
           lastName: updatedProfile.lastName || profileData.lastName,
           email: updatedProfile.email || profileData.email,
           phone: updatedProfile.phone || profileData.phone,
+        });
+        
+        // Update user in AuthContext to refresh menu and dashboard
+        updateUser({
+          firstName: updatedProfile.firstName,
+          middleName: updatedProfile.middleName,
+          lastName: updatedProfile.lastName,
+          phone: updatedProfile.phone,
         });
       }
       

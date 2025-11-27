@@ -97,9 +97,23 @@ const Header = () => {
     return items;
   };
 
+  // Get mobile second menu items - for climbers, show Табло, Моя график and Абонаменти
+  const getMobileSecondMenuItems = () => {
+    const allItems = getSecondMenuItems();
+    if (activeRole === 'climber') {
+      // For climbers, return Табло, Моя график and Абонаменти
+      return allItems.filter(item => 
+        item.name === 'Табло' || item.name === 'Моя график' || item.name === 'Абонаменти'
+      );
+    }
+    return allItems;
+  };
+
   // Get role label for second menu based on active role
   const getRoleLabelForMenu = () => {
     if (!activeRole) return '';
+    // Don't show label for climbers
+    if (activeRole === 'climber') return '';
     return getRoleLabel(activeRole);
   };
 
@@ -114,6 +128,7 @@ const Header = () => {
   };
 
   const secondMenuItems = getSecondMenuItems();
+  const mobileSecondMenuItems = getMobileSecondMenuItems();
   const roleLabel = getRoleLabelForMenu();
 
   // Close dropdown when clicking outside
@@ -181,9 +196,52 @@ const Header = () => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-[70px]">
             {/* Logo */}
-            <div className="flex items-center">
-              <Logo showText={true} size="md" />
-            </div>
+            <Link to="/" className="flex items-start gap-4">
+              {/* Logo Icon - sized to match combined text height */}
+              <div className="relative h-[3rem] w-[3rem] shrink-0">
+                <div className="absolute inset-[10%]">
+                  <img 
+                    alt="WonderClimb Logo" 
+                    src="/logo-icon.svg"
+                    className="w-full h-full"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      const fallback = e.target.nextSibling;
+                      if (fallback) fallback.style.display = 'block';
+                    }}
+                  />
+                  {/* Fallback SVG */}
+                  <svg
+                    className="w-full h-full hidden"
+                    viewBox="0 0 128 128"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect x="0" y="0" width="128" height="128" rx="16" fill="#EA7A24" />
+                    <path d="M20 100 L40 80 L60 90 L80 60 L100 70 L110 40" stroke="#35383d" strokeWidth="2" strokeDasharray="4 4" fill="none" />
+                    <path d="M40 80 L45 75 L50 80 L45 85 Z" fill="#ADB933" />
+                    <path d="M60 90 L65 85 L70 90 L65 95 Z" fill="#ADB933" />
+                    <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#ADB933" />
+                    <circle cx="20" cy="100" r="4" fill="#ADB933" />
+                    <circle cx="100" cy="70" r="4" fill="#ADB933" />
+                    <path d="M20 100 L25 95 L30 100 L25 105 Z" fill="#35383d" />
+                    <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#35383d" />
+                    <circle cx="110" cy="40" r="8" fill="#35383d" />
+                    <circle cx="110" cy="40" r="4" fill="white" />
+                  </svg>
+                </div>
+              </div>
+              {/* Text container with equal width for both texts */}
+              <div className="flex flex-col items-start min-w-[200px]">
+                <div className="font-bold text-[1.5rem] leading-tight w-full" style={{ fontFamily: 'Arial, sans-serif' }}>
+                  <span style={{ color: '#ea7a24' }}>Wonder</span>
+                  <span style={{ color: '#adb933' }}>Climb</span>
+                </div>
+                <span className="text-white text-[0.75rem] mt-1 w-full">
+                  СК „Чудните скали" Варна
+                </span>
+              </div>
+            </Link>
 
             {/* Desktop Main Navigation */}
             <nav className="hidden lg:flex items-center gap-6">
@@ -195,7 +253,7 @@ const Header = () => {
                 >
                   <span
                     className={`
-                      text-base font-normal text-white hover:text-gray-200 transition-colors
+                      text-[1.125rem] font-normal text-white hover:text-gray-200 transition-colors
                       ${isActive(item.href) ? 'text-[#ea7a24]' : ''}
                     `}
                   >
@@ -357,40 +415,61 @@ const Header = () => {
       </header>
 
       {/* Second Menu - Only for logged in users */}
-      {isAuthenticated && roleLabel && secondMenuItems.length > 0 && (
+      {isAuthenticated && secondMenuItems.length > 0 && (
         <div className="bg-[#2a2d31] border-b border-gray-700 sticky top-0 z-30">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4 h-[44px]">
-              {/* Role Label */}
-              <div className="flex items-center gap-1">
-                <svg
-                  className="w-4 h-4 text-[#ea7a24]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  />
-                </svg>
-                <span
-                  className="text-[13px] font-medium text-[#ea7a24]"
-                >
-                  {roleLabel}
-                </span>
-              </div>
+              {/* Role Label - only show if not empty */}
+              {roleLabel && (
+                <div className="flex items-center gap-1">
+                  <svg
+                    className="w-4 h-4 text-[#ea7a24]"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                  <span
+                    className="text-[13px] font-medium text-[#ea7a24]"
+                  >
+                    {roleLabel}
+                  </span>
+                </div>
+              )}
 
-              {/* Second Menu Navigation */}
+              {/* Second Menu Navigation - Desktop */}
               <nav className="hidden lg:flex items-center gap-4">
                 {secondMenuItems.map((item) => (
                   <Link
                     key={item.name}
                     to={item.href}
                     className={`
-                      text-sm font-normal transition-colors
+                      text-[1rem] font-normal transition-colors
+                      ${isActive(item.href) 
+                        ? 'text-[#ea7a24] font-medium' 
+                        : 'text-[#d1d5dc] hover:text-white'
+                      }
+                    `}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </nav>
+
+              {/* Second Menu Navigation - Mobile (outside hamburger menu) */}
+              <nav className="lg:hidden flex items-center gap-3 overflow-x-auto">
+                {mobileSecondMenuItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`
+                      text-[1rem] font-normal transition-colors whitespace-nowrap
                       ${isActive(item.href) 
                         ? 'text-[#ea7a24] font-medium' 
                         : 'text-[#d1d5dc] hover:text-white'
@@ -490,7 +569,7 @@ const Header = () => {
                     to={item.href}
                     onClick={() => setShowMobileMenu(false)}
                     className={`
-                      block px-4 py-3 text-base font-normal text-white hover:bg-[#3d4146] transition-colors
+                      block px-4 py-3 text-[1.125rem] font-normal text-white hover:bg-[#3d4146] transition-colors
                       ${isActive(item.href) ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' : ''}
                     `}
                   >
@@ -499,19 +578,21 @@ const Header = () => {
                 ))}
               </nav>
 
-              {/* Second Menu Links */}
+              {/* Second Menu Links - Full menu in hamburger */}
               {isAuthenticated && secondMenuItems.length > 0 && (
                 <nav className="flex-1 py-4 border-b border-gray-700">
-                  <div className="px-4 py-2 text-xs uppercase text-gray-400 tracking-wider">
-                    {roleLabel}
-                  </div>
+                  {roleLabel && (
+                    <div className="px-4 py-2 text-xs uppercase text-gray-400 tracking-wider">
+                      {roleLabel}
+                    </div>
+                  )}
                   {secondMenuItems.map((item) => (
                     <Link
                       key={item.name}
                       to={item.href}
                       onClick={() => setShowMobileMenu(false)}
                       className={`
-                        block px-4 py-3 text-sm font-normal transition-colors
+                        block px-4 py-3 text-[1rem] font-normal transition-colors
                         ${isActive(item.href) 
                           ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' 
                           : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
