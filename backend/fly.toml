@@ -2,6 +2,9 @@ app = "wonderclimb"
 
 primary_region = "iad"
 
+[build]
+  dockerfile = "Dockerfile"
+
 [http_service]
 auto_start_machines = true
 auto_stop_machines = true
