@@ -44,7 +44,7 @@ const InstallPrompt = () => {
     checkInstalled();
 
     // Listen for beforeinstallprompt event (Android Chrome)
-    const handleBeforeInstallPrompt = (e: Event) => {
+    const handleBeforeInstallPrompt = (e) => {
       // Prevent the mini-infobar from appearing
       e.preventDefault();
       // Save the event so it can be triggered later
