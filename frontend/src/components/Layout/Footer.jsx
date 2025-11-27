@@ -123,7 +123,9 @@ const Footer = () => {
                         ))}
                         {debugInfo.serviceWorkerErrors?.map((err, i) => (
                           <div key={`sw-${i}`} className="text-yellow-200">• {err}</div>
-                        )                    )}
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -156,16 +158,15 @@ const Footer = () => {
                 </button>
               </div>
             )}
-                
-                {/* Error Display */}
-                {error && (
-                  <div className="mt-2 p-2 bg-red-900/50 border border-red-500 rounded text-xs text-red-200 max-w-md">
-                    <div className="font-semibold mb-1">Грешка:</div>
-                    <div className="whitespace-pre-wrap">{error}</div>
-                  </div>
-                )}
+            
+            {/* Error Display */}
+            {error && (
+              <div className="mt-2 p-2 bg-red-900/50 border border-red-500 rounded text-xs text-red-200 max-w-md">
+                <div className="font-semibold mb-1">Грешка:</div>
+                <div className="whitespace-pre-wrap">{error}</div>
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
