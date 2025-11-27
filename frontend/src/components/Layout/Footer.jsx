@@ -6,10 +6,18 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { install, isInstalled, error, debugInfo, deferredPrompt } = usePWAInstall();
   
-  const handleResetInstallStatus = () => {
-    localStorage.removeItem('pwa-installed');
-    window.location.reload();
-  };
+  // Debug logging
+  console.log('[Footer] PWA Install State:', {
+    isInstalled,
+    deferredPrompt: !!deferredPrompt,
+    error,
+    debugInfo: {
+      protocol: debugInfo.protocol,
+      hostname: debugInfo.hostname,
+      isStandalone: debugInfo.isStandalone,
+      browserInfo: debugInfo.browserInfo,
+    }
+  });
 
   return (
     <footer 
@@ -66,98 +74,96 @@ const Footer = () => {
 
         {/* Copyright and Install Button */}
         <div className="border-t border-[#4a5565] pt-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4" style={{ minHeight: '60px' }}>
             <p className="text-[#99a1af] text-base text-center font-normal">
               © СК „Чудните скали" Варна®
             </p>
             
-            {/* PWA Install Button - Always visible for debugging */}
-            {!isInstalled ? (
-              <div className="flex flex-col items-center gap-2">
-                <button
-                  onClick={install}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#EA7A24] hover:bg-[#d8691a] text-white text-sm font-medium rounded-md transition-colors"
-                  aria-label="Инсталирай приложението"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  <span>Инсталирай приложението</span>
-                </button>
-                
-                {/* Debug Info */}
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="text-xs text-[#99a1af] text-center max-w-md space-y-1">
-                    <div className="font-semibold mb-2">PWA Diagnostics:</div>
-                    <div>Deferred: {deferredPrompt ? '✅ Yes' : '❌ No'}</div>
-                    <div>Protocol: {debugInfo.protocol || 'N/A'}</div>
-                    <div>Hostname: {debugInfo.hostname || 'N/A'}</div>
-                    <div>Service Worker: {debugInfo.hasServiceWorker ? '✅' : '❌'}</div>
-                    <div>SW Registered: {debugInfo.serviceWorkerRegistered ? '✅' : '❌'}</div>
-                    <div>Manifest: {debugInfo.manifestExists ? '✅' : '❌'}</div>
-                    <div>Manifest Valid: {debugInfo.manifestValid ? '✅' : '❌'}</div>
-                    <div>Icon 192: {debugInfo.iconsExist?.icon192 ? '✅' : '❌'}</div>
-                    <div>Icon 512: {debugInfo.iconsExist?.icon512 ? '✅' : '❌'}</div>
-                    
-                    {/* Show all issues */}
-                    {((debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) ||
-                      (debugInfo.iconErrors && debugInfo.iconErrors.length > 0) ||
-                      (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0)) && (
-                      <div className="mt-2 p-2 bg-yellow-900/50 border border-yellow-500 rounded text-left">
-                        <div className="font-semibold mb-1">Issues:</div>
-                        {debugInfo.manifestErrors?.map((err, i) => (
-                          <div key={`manifest-${i}`} className="text-yellow-200">• {err}</div>
-                        ))}
-                        {debugInfo.iconErrors?.map((err, i) => (
-                          <div key={`icon-${i}`} className="text-yellow-200">• {err}</div>
-                        ))}
-                        {debugInfo.serviceWorkerErrors?.map((err, i) => (
-                          <div key={`sw-${i}`} className="text-yellow-200">• {err}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Show reset button if installed but user wants to reinstall
-              <div className="flex flex-col items-center gap-2">
-                <div className="text-xs text-[#99a1af] text-center">
-                  Приложението е инсталирано
+            {/* PWA Install Button - Always visible */}
+            <div className="flex flex-col items-center gap-2 w-full md:w-auto">
+              {isInstalled && (
+                <div className="text-xs text-green-400 mb-1">
+                  ✓ Инсталирано
                 </div>
-                <button
-                  onClick={handleResetInstallStatus}
-                  className="flex items-center gap-2 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md transition-colors"
-                  aria-label="Reset install status"
-                  title="Ако сте изтрили приложението, натиснете за да покажете бутона отново"
+              )}
+              <button
+                onClick={install}
+                disabled={isInstalled}
+                className={`flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors w-full md:w-auto min-w-[200px] ${
+                  isInstalled 
+                    ? 'bg-gray-600 cursor-not-allowed opacity-60' 
+                    : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
+                }`}
+                aria-label={isInstalled ? "Приложението е инсталирано" : "Инсталирай приложението"}
+                style={{ 
+                  zIndex: 10,
+                  position: 'relative',
+                  touchAction: 'manipulation' // Better touch handling on mobile
+                }}
+              >
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
-                  <span>Reset статус</span>
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                <span className="whitespace-nowrap">
+                  {isInstalled ? 'Инсталирано' : 'Инсталирай приложението'}
+                </span>
+              </button>
+                
+                {/* Always show debug info on mobile */}
+                <div className="text-xs text-[#99a1af] text-center w-full max-w-md space-y-1">
+                  <div className="font-semibold mb-1">Status:</div>
+                  <div>Installed: {isInstalled ? '✅ Yes' : '❌ No'}</div>
+                  <div>Deferred: {deferredPrompt ? '✅ Yes' : '❌ No'}</div>
+                  <div>Protocol: {debugInfo.protocol || 'N/A'}</div>
+                  <div>Hostname: {debugInfo.hostname || 'N/A'}</div>
+                  {debugInfo.browserInfo && (
+                    <div>Browser: {debugInfo.browserInfo.isIOS ? 'iOS' : debugInfo.browserInfo.isAndroid ? 'Android' : 'Other'}</div>
+                  )}
+                
+                  {/* Detailed debug info - development only */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <>
+                      <div className="mt-2 pt-2 border-t border-[#4a5565]">
+                        <div className="font-semibold mb-1">Details:</div>
+                        <div>Service Worker: {debugInfo.hasServiceWorker ? '✅' : '❌'}</div>
+                        <div>SW Registered: {debugInfo.serviceWorkerRegistered ? '✅' : '❌'}</div>
+                        <div>Manifest: {debugInfo.manifestExists ? '✅' : '❌'}</div>
+                        <div>Manifest Valid: {debugInfo.manifestValid ? '✅' : '❌'}</div>
+                        <div>Icon 192: {debugInfo.iconsExist?.icon192 ? '✅' : '❌'}</div>
+                        <div>Icon 512: {debugInfo.iconsExist?.icon512 ? '✅' : '❌'}</div>
+                      </div>
+                      
+                      {/* Show all issues */}
+                      {((debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) ||
+                        (debugInfo.iconErrors && debugInfo.iconErrors.length > 0) ||
+                        (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0)) && (
+                        <div className="mt-2 p-2 bg-yellow-900/50 border border-yellow-500 rounded text-left">
+                          <div className="font-semibold mb-1">Issues:</div>
+                          {debugInfo.manifestErrors?.map((err, i) => (
+                            <div key={`manifest-${i}`} className="text-yellow-200 text-[10px]">• {err}</div>
+                          ))}
+                          {debugInfo.iconErrors?.map((err, i) => (
+                            <div key={`icon-${i}`} className="text-yellow-200 text-[10px]">• {err}</div>
+                          ))}
+                          {debugInfo.serviceWorkerErrors?.map((err, i) => (
+                            <div key={`sw-${i}`} className="text-yellow-200 text-[10px]">• {err}</div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-            )}
             
             {/* Error Display */}
             {error && (
