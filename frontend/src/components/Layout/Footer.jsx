@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import Logo from '../UI/Logo';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { install, isInstalled, canInstall } = usePWAInstall();
 
   return (
     <footer 
@@ -57,11 +59,37 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Copyright */}
+        {/* Copyright and Install Button */}
         <div className="border-t border-[#4a5565] pt-6">
-          <p className="text-[#99a1af] text-base text-center font-normal">
-            © СК „Чудните скали" Варна®
-          </p>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-[#99a1af] text-base text-center font-normal">
+              © СК „Чудните скали" Варна®
+            </p>
+            
+            {/* PWA Install Button */}
+            {canInstall && !isInstalled && (
+              <button
+                onClick={install}
+                className="flex items-center gap-2 px-4 py-2 bg-[#EA7A24] hover:bg-[#d8691a] text-white text-sm font-medium rounded-md transition-colors"
+                aria-label="Инсталирай приложението"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                <span>Инсталирай приложението</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </footer>

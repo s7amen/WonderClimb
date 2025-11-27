@@ -204,37 +204,53 @@ const Home = () => {
           ) : (
             <Card className="bg-white/5 backdrop-blur-md border border-white/20 rounded-[14px] p-6 shadow-2xl w-full">
             {loginError && (
-              <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-[10px] text-sm">
+              <div className="mb-4 p-3 bg-red-500/30 backdrop-blur-sm border border-red-400/50 text-white rounded-[10px] text-sm">
                 {loginError}
               </div>
             )}
 
             <form onSubmit={handleSubmit(onLoginSubmit)}>
-              <Input
-                label="Имейл"
-                type="email"
-                {...register('email', {
-                  required: 'Имейлът е задължителен',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Невалиден имейл адрес',
-                  },
-                })}
-                error={errors.email?.message}
-              />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-1">
+                  Имейл
+                </label>
+                <input
+                  type="email"
+                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
+                  placeholder="Имейл"
+                  {...register('email', {
+                    required: 'Имейлът е задължителен',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Невалиден имейл адрес',
+                    },
+                  })}
+                />
+                {errors.email?.message && (
+                  <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
+                )}
+              </div>
 
-              <Input
-                label="Парола"
-                type="password"
-                {...register('password', {
-                  required: 'Паролата е задължителна',
-                  minLength: {
-                    value: 6,
-                    message: 'Паролата трябва да бъде поне 6 символа',
-                  },
-                })}
-                error={errors.password?.message}
-              />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-white mb-1">
+                  Парола
+                </label>
+                <input
+                  type="password"
+                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
+                  placeholder="Парола"
+                  {...register('password', {
+                    required: 'Паролата е задължителна',
+                    minLength: {
+                      value: 6,
+                      message: 'Паролата трябва да бъде поне 6 символа',
+                    },
+                  })}
+                />
+                {errors.password?.message && (
+                  <p className="mt-1 text-sm text-red-300">{errors.password.message}</p>
+                )}
+              </div>
 
               <Button
                 type="submit"
@@ -247,9 +263,9 @@ const Home = () => {
             </form>
 
             <div className="text-center">
-              <p className="text-sm text-[#4a5565]">
+              <p className="text-sm text-white">
                 Нямате профил?{' '}
-                <Link to="/register" className="text-[#ea7a24] hover:text-[#d86a1a] font-medium">
+                <Link to="/register" className="text-white hover:text-white/80 font-medium underline">
                   Регистрирайте се
                 </Link>
               </p>

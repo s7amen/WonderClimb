@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 const InstallPrompt = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const { install, isInstalled, canInstall } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -14,95 +14,52 @@ const InstallPrompt = () => {
         userAgent.toLowerCase()
       );
       const isSmallScreen = window.innerWidth < 768; // md breakpoint
-      setIsMobile(isMobileDevice || isSmallScreen);
+      const mobile = isMobileDevice || isSmallScreen;
+      setIsMobile(mobile);
+      
+      // Debug logging
+      console.log('[PWA Install] Mobile check:', {
+        userAgent: userAgent,
+        isMobileDevice,
+        isSmallScreen,
+        isMobile: mobile,
+        windowWidth: window.innerWidth
+      });
     };
 
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    // Check if app is already installed
-    const checkInstalled = () => {
-      // Check if running as standalone (installed)
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        setIsInstalled(true);
-        return;
-      }
+    // Check if iOS device
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    
+    // For iOS or if canInstall, show prompt after a delay
+    if ((isIOS || canInstall) && !isInstalled) {
+      console.log('[PWA Install] Will show prompt after delay');
+      const timer = setTimeout(() => {
+        // Check if not dismissed
+        const dismissed = sessionStorage.getItem('pwa-prompt-dismissed') === 'true';
+        
+        if (!dismissed) {
+          console.log('[PWA Install] Showing prompt');
+          setShowPrompt(true);
+        }
+      }, 2000); // Show after 2 seconds
       
-      // Check if running in standalone mode on iOS
-      if ('standalone' in window.navigator && window.navigator.standalone === true) {
-        setIsInstalled(true);
-        return;
-      }
-
-      // Check localStorage for installation status
-      const installed = localStorage.getItem('pwa-installed');
-      if (installed === 'true') {
-        setIsInstalled(true);
-      }
-    };
-
-    checkInstalled();
-
-    // Listen for beforeinstallprompt event (Android Chrome)
-    const handleBeforeInstallPrompt = (e) => {
-      // Prevent the mini-infobar from appearing
-      e.preventDefault();
-      // Save the event so it can be triggered later
-      setDeferredPrompt(e);
-      setShowPrompt(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Listen for app installed event
-    window.addEventListener('appinstalled', () => {
-      setIsInstalled(true);
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-      localStorage.setItem('pwa-installed', 'true');
-    });
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', checkMobile);
+      };
+    }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('resize', checkMobile);
     };
-  }, []);
+  }, [canInstall, isInstalled]);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      // For iOS, show instructions
-      if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-        alert(
-          'За да инсталирате приложението:\n\n' +
-          '1. Натиснете бутона "Share" (Сподели) в долния ред\n' +
-          '2. Изберете "Add to Home Screen" (Добави в началния екран)\n' +
-          '3. Натиснете "Add" (Добави)'
-        );
-        setShowPrompt(false);
-        return;
-      }
-      return;
-    }
-
-    try {
-      // Show the install prompt
-      deferredPrompt.prompt();
-
-      // Wait for the user to respond to the prompt
-      const { outcome } = await deferredPrompt.userChoice();
-
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-        setShowPrompt(false);
-        localStorage.setItem('pwa-installed', 'true');
-      }
-
-      // Clear the deferredPrompt
-      setDeferredPrompt(null);
-    } catch (error) {
-      console.error('Error showing install prompt:', error);
-      setDeferredPrompt(null);
-    }
+    install();
+    setShowPrompt(false);
   };
 
   const handleDismiss = () => {
@@ -114,22 +71,20 @@ const InstallPrompt = () => {
   // Don't show if:
   // - Not mobile
   // - Already installed
-  // - No deferred prompt and not iOS
+  // - Can't install
   // - Dismissed in this session
-  if (!isMobile || isInstalled || (!deferredPrompt && !/iphone|ipad|ipod/i.test(navigator.userAgent))) {
+  // - showPrompt is false
+  if (!isMobile || isInstalled || !canInstall) {
     return null;
   }
 
-  if (sessionStorage.getItem('pwa-prompt-dismissed') === 'true' && !deferredPrompt) {
-    return null;
-  }
-
-  if (!showPrompt) {
+  const dismissed = sessionStorage.getItem('pwa-prompt-dismissed') === 'true';
+  if (dismissed || !showPrompt) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 md:hidden">
+    <div className="fixed bottom-4 right-4 z-50 md:hidden" style={{ zIndex: 9999 }}>
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-xs">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
