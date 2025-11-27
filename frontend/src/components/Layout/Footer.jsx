@@ -60,7 +60,7 @@ const Footer = () => {
         {/* Copyright */}
         <div className="border-t border-[#4a5565] pt-6">
           <p className="text-[#99a1af] text-base text-center font-normal">
-            © СК "Чудните скали" Варна®
+            © СК „Чудните скали" Варна®
           </p>
         </div>
       </div>

@@ -73,7 +73,8 @@ const Header = () => {
         { name: 'График', href: '/admin/sessions' },
         { name: 'Календар', href: '/calendar' },
         { name: 'Състезания', href: '/admin/competitions' },
-        { name: 'Катерачи', href: '/admin/climbers' }
+        { name: 'Катерачи', href: '/admin/climbers' },
+        { name: 'Настройки', href: '/admin/settings' }
       );
     } else if (activeRole === 'coach') {
       items.push(
@@ -97,13 +98,13 @@ const Header = () => {
     return items;
   };
 
-  // Get mobile second menu items - for climbers, show Табло, Моя график and Абонаменти
+  // Get mobile second menu items - for climbers, show Табло, Моя график, График and Абонаменти
   const getMobileSecondMenuItems = () => {
     const allItems = getSecondMenuItems();
     if (activeRole === 'climber') {
-      // For climbers, return Табло, Моя график and Абонаменти
+      // For climbers, return Табло, Моя график, График and Абонаменти
       return allItems.filter(item => 
-        item.name === 'Табло' || item.name === 'Моя график' || item.name === 'Абонаменти'
+        item.name === 'Табло' || item.name === 'Моя график' || item.name === 'График' || item.name === 'Абонаменти'
       );
     }
     return allItems;
@@ -185,6 +186,9 @@ const Header = () => {
     }
     if (path === '/admin/climbers') {
       return location.pathname === '/admin/climbers' || location.pathname.startsWith('/admin/climbers');
+    }
+    if (path === '/admin/settings') {
+      return location.pathname === '/admin/settings' || location.pathname.startsWith('/admin/settings');
     }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };

@@ -13,6 +13,7 @@ const SavedSessions = () => {
   const [selectedBookingIds, setSelectedBookingIds] = useState([]);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [bulkCancelError, setBulkCancelError] = useState(null);
   const [daysToShow, setDaysToShow] = useState(30);
   const { showToast, ToastComponent } = useToast();
 
@@ -34,9 +35,11 @@ const SavedSessions = () => {
 
   const [cancelSingleBookingId, setCancelSingleBookingId] = useState(null);
   const [showCancelSingleDialog, setShowCancelSingleDialog] = useState(false);
+  const [cancelSingleError, setCancelSingleError] = useState(null);
 
   const handleCancelBooking = (bookingId) => {
     setCancelSingleBookingId(bookingId);
+    setCancelSingleError(null); // Clear any previous error
     setShowCancelSingleDialog(true);
   };
 
@@ -44,6 +47,7 @@ const SavedSessions = () => {
     if (!cancelSingleBookingId) return;
 
     try {
+      setCancelSingleError(null); // Clear previous error
       await bookingsAPI.cancel(cancelSingleBookingId);
       // Update local state instead of full page reload
       setMyBookings(prev => prev.map(booking => 
@@ -55,16 +59,26 @@ const SavedSessions = () => {
       setSelectedBookingIds(prev => prev.filter(id => id !== cancelSingleBookingId));
       setShowCancelSingleDialog(false);
       setCancelSingleBookingId(null);
+      setCancelSingleError(null);
     } catch (error) {
-      showToast(error.response?.data?.error?.message || 'Грешка при отменяне на резервация', 'error');
-      setShowCancelSingleDialog(false);
-      setCancelSingleBookingId(null);
+      const errorMessage = error.response?.data?.error?.message || 'Грешка при отменяне на резервация';
+      const statusCode = error.response?.status;
+      
+      // If it's a 400 error (cancellation period expired), show in dialog
+      if (statusCode === 400) {
+        setCancelSingleError(errorMessage);
+      } else {
+        showToast(errorMessage, 'error');
+        setShowCancelSingleDialog(false);
+        setCancelSingleBookingId(null);
+      }
     }
   };
 
   const cancelCancelSingleBooking = () => {
     setShowCancelSingleDialog(false);
     setCancelSingleBookingId(null);
+    setCancelSingleError(null);
   };
 
   const handleBulkCancel = () => {
@@ -72,6 +86,7 @@ const SavedSessions = () => {
       showToast('Моля, изберете поне една резервация за отмяна', 'error');
       return;
     }
+    setBulkCancelError(null); // Clear any previous error
     setShowCancelModal(true);
   };
 
@@ -116,18 +131,64 @@ const SavedSessions = () => {
       }
 
       if (results.failed.length > 0) {
-        showToast(
-          `Неуспешна отмяна на ${results.failed.length} резервации`,
-          'error'
-        );
+        // Check if ALL failures are due to cancellation period (400 status)
+        // We check the error reason - if it's from cancellation period expired, it will be a 400 error
+        // Since we're catching errors in the loop, we need to check the reason text
+        // The backend now returns configurable messages, so we check if all errors are cancellation-related
+        const cancellationErrors = results.failed.filter(f => f.reason);
+        
+        // If all failed errors are cancellation errors (they all have the same message pattern from backend)
+        // Show them in dialog instead of toast
+        if (cancellationErrors.length === results.failed.length && cancellationErrors.length > 0) {
+          // Show error in dialog - use the actual error message from backend
+          const errorDetails = cancellationErrors.map(f => {
+            const booking = myBookings.find(b => b._id === f.bookingId);
+            if (booking && booking.climber) {
+              const climber = booking.climber;
+              const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+              return `${climberName}: ${f.reason}`;
+            }
+            return f.reason;
+          }).join('\n');
+          setBulkCancelError(errorDetails);
+          // Don't show toast, don't close modal - keep it open to show the error
+        } else {
+          // Mixed errors or other errors - show toast and close modal
+          const errorDetails = results.failed.map(f => {
+            const booking = myBookings.find(b => b._id === f.bookingId);
+            if (booking && booking.climber) {
+              const climber = booking.climber;
+              const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+              return `${climberName}: ${f.reason || 'Грешка'}`;
+            }
+            return f.reason || 'Грешка';
+          }).join(', ');
+          showToast(
+            `Неуспешна отмяна: ${errorDetails}`,
+            'error'
+          );
+          setShowCancelModal(false);
+          setSelectedBookingIds([]);
+        }
+      } else {
+        // All successful, close modal
+        setShowCancelModal(false);
+        setSelectedBookingIds([]);
+        setBulkCancelError(null);
       }
     } catch (error) {
-      showToast('Грешка при отмяна на резервации', 'error');
-      console.error('Cancel booking error:', error);
+      const errorMessage = error.response?.data?.error?.message || 'Грешка при отмяна на резервации';
+      const statusCode = error.response?.status;
+      
+      // If it's a 400 error (cancellation period expired), show in dialog
+      if (statusCode === 400) {
+        setBulkCancelError(errorMessage);
+      } else {
+        showToast(errorMessage, 'error');
+        setShowCancelModal(false);
+        setSelectedBookingIds([]);
+      }
     } finally {
-      // Always close modal and clear selection
-      setShowCancelModal(false);
-      setSelectedBookingIds([]);
       setIsCancelling(false);
     }
   };
@@ -253,7 +314,21 @@ const SavedSessions = () => {
         confirmText="Отмени"
         cancelText="Отказ"
         variant="danger"
-      />
+      >
+        {/* Error message - prominently displayed */}
+        {cancelSingleError && (
+          <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-[10px]">
+            <div className="flex items-center justify-center gap-2">
+              <svg className="w-5 h-5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm sm:text-base font-medium text-red-700 text-center">
+                {cancelSingleError}
+              </p>
+            </div>
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Bulk Actions */}
       {upcomingBookings.length > 0 && (
@@ -295,6 +370,7 @@ const SavedSessions = () => {
         isOpen={showCancelModal}
         onClose={() => {
           setShowCancelModal(false);
+          setBulkCancelError(null);
         }}
         onConfirm={confirmBulkCancel}
         title="Отмяна на резервации"
@@ -302,7 +378,21 @@ const SavedSessions = () => {
         confirmText={isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
         cancelText="Отказ"
         variant="danger"
-      />
+      >
+        {/* Error message - prominently displayed */}
+        {bulkCancelError && (
+          <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-[10px]">
+            <div className="flex items-center justify-center gap-2">
+              <svg className="w-5 h-5 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm sm:text-base font-medium text-red-700 text-center">
+                {bulkCancelError}
+              </p>
+            </div>
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Schedule View */}
       <div>

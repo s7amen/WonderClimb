@@ -179,7 +179,10 @@ const SessionFilters = ({
               
               {/* Reservation Row */}
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="text-[#94a3b8] text-xs leading-4 whitespace-nowrap">Резервирай за:</label>
+                <label className="text-[#94a3b8] text-xs leading-4 whitespace-nowrap">
+                  <span className="hidden sm:inline">Резервирай за:</span>
+                  <span className="sm:hidden">За:</span>
+                </label>
                 {/* Self profile option for climbers */}
                 {user?.roles?.includes('climber') && (
                   <button

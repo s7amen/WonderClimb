@@ -19,6 +19,7 @@ const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
 const AdminSessions = lazy(() => import('./pages/Admin/Sessions'));
 const AdminCalendar = lazy(() => import('./pages/Admin/Calendar'));
 const AdminClimbers = lazy(() => import('./pages/Admin/Climbers'));
+const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
 const ClimberProfile = lazy(() => import('./pages/Admin/ClimberProfile'));
 const Competitions = lazy(() => import('./pages/Admin/Competitions'));
 const CompetitionDetail = lazy(() => import('./pages/Admin/CompetitionDetail'));
@@ -137,6 +138,19 @@ function App() {
           >
             <Route index element={<AdminClimbers />} />
             <Route path=":id" element={<ClimberProfile />} />
+          </Route>
+
+          {/* Admin settings route - accessible by admin only */}
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute requiredRoles={['admin']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/settings/messages" replace />} />
+            <Route path="messages" element={<AdminSettings />} />
           </Route>
 
           {/* Universal routes - accessible by all authenticated users */}

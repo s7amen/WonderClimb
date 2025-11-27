@@ -160,10 +160,10 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col scroll-smooth">
+    <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
       {/* Full-screen background section with login form */}
       <section 
-        className="relative w-screen h-screen flex flex-col items-center justify-center"
+        className="relative w-full h-screen flex flex-col items-center justify-center"
         style={{
           backgroundImage: 'url(/images/boulder-kids-wall.webp)',
           backgroundSize: 'cover',
@@ -183,11 +183,11 @@ const Home = () => {
         <div className="relative z-10 w-full max-w-md px-4 flex flex-col items-center justify-center">
           {/* Title section - moved up */}
           <div className="text-center mb-6 -mt-20">
-            <h1 className="text-4xl md:text-5xl font-rubik font-bold text-white mb-3 leading-tight whitespace-nowrap">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-rubik font-bold text-white mb-3 leading-tight">
               Тренировки по катерене
             </h1>
             <p className="text-lg md:text-xl text-white/90 font-rubik font-normal">
-              СК "Чудните скали" Варна
+              СК „Чудните скали" Варна
             </p>
           </div>
 
@@ -196,7 +196,7 @@ const Home = () => {
             <div className="w-full max-w-md">
               <button
                 onClick={() => navigate('/sessions')}
-                className="w-full bg-white/20 backdrop-blur-md border-2 border-white rounded-[14px] py-8 text-2xl font-rubik font-medium text-white hover:bg-white/30 transition-all duration-300 shadow-lg"
+                className="w-full bg-white/20 backdrop-blur-md border-2 border-white rounded-[14px] py-4 sm:py-6 md:py-8 text-xl sm:text-2xl font-rubik font-medium text-white hover:bg-white/30 transition-all duration-300 shadow-lg"
               >
                 Запази час
               </button>

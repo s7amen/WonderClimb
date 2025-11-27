@@ -9,6 +9,7 @@ import { useToast } from '../../components/UI/Toast';
 import { useAuth } from '../../context/AuthContext';
 import { getUserFullName } from '../../utils/userUtils';
 import ConfirmDialog from '../../components/UI/ConfirmDialog';
+import InstallPrompt from '../../components/UI/InstallPrompt';
 
 const Schedule = () => {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ const Schedule = () => {
   const [bulkBookingClimberIds, setBulkBookingClimberIds] = useState([]);
   const [showBulkConfirmation, setShowBulkConfirmation] = useState(false);
   const [isBulkBooking, setIsBulkBooking] = useState(false);
+  const [bulkBookingError, setBulkBookingError] = useState(null);
 
   // Cancel booking states
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -41,6 +43,7 @@ const Schedule = () => {
   const [bookingsToCancel, setBookingsToCancel] = useState([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState([]);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
 
   const [bookingData, setBookingData] = useState({
     selectedClimberIds: [],
@@ -156,6 +159,7 @@ const Schedule = () => {
   const handleBookSession = async (e) => {
     e.preventDefault();
     try {
+      setBookingError(null); // Clear previous error
       const sessionIdToUse = selectedSession || bookingData.sessionId;
       if (!sessionIdToUse) {
         showToast('Моля, изберете сесия', 'error');
@@ -188,6 +192,8 @@ const Schedule = () => {
       if (response.data?.summary) {
         const { successful, failed } = response.data.summary;
         let message = '';
+        let hasRegistrationError = false;
+        let registrationErrorDetails = [];
         
         if (successful && successful.length > 0) {
           const successDetails = successful.map(item => {
@@ -199,28 +205,61 @@ const Schedule = () => {
         }
         
         if (failed && failed.length > 0) {
-          const failedDetails = failed.map(item => {
-            const climber = allClimbers.find(c => c._id === item.climberId);
-            const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-            return `${climberName}: ${item.reason || 'Грешка'}`;
-          }).join(', ');
-          message += failed.length > 0 ? `\nНеуспешни: ${failedDetails}` : '';
+          // Check for "already registered" errors
+          failed.forEach(item => {
+            if (item.reason && (item.reason.includes('Вече е регистриран') || item.reason.includes('регистриран за тази тренировка'))) {
+              hasRegistrationError = true;
+              const climber = allClimbers.find(c => c._id === item.climberId);
+              const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+              registrationErrorDetails.push(`${climberName}: ${item.reason}`);
+            }
+          });
+          
+          // Only add failed details to message if NOT registration errors
+          if (!hasRegistrationError) {
+            const failedDetails = failed.map(item => {
+              const climber = allClimbers.find(c => c._id === item.climberId);
+              const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+              return `${climberName}: ${item.reason || 'Грешка'}`;
+            }).join(', ');
+            message += failed.length > 0 ? `\nНеуспешни: ${failedDetails}` : '';
+          }
         }
         
-        if (message) {
-          showToast(message, successful && successful.length > 0 ? 'success' : 'error');
+        // Show registration errors in the form instead of toast
+        if (hasRegistrationError) {
+          setBookingError(registrationErrorDetails.join('\n'));
+          // Only show success toast if there are successful bookings
+          if (successful && successful.length > 0) {
+            const successDetails = successful.map(item => {
+              const climber = allClimbers.find(c => c._id === item.climberId);
+              const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+              return `${climberName} (${sessionTime})`;
+            }).join(', ');
+            showToast(`Успешно резервирано за: ${successDetails}`, 'success');
+          }
         } else {
-          showToast('Сесията е резервирана успешно', 'success');
+          if (message) {
+            showToast(message, successful && successful.length > 0 ? 'success' : 'error');
+          } else {
+            showToast('Сесията е резервирана успешно', 'success');
+          }
+          // Close form only if no registration errors
+          if (successful && successful.length > 0 && (!failed || failed.length === 0)) {
+            setShowBookingForm(false);
+            setSelectedSession(null);
+            setBookingData({ selectedClimberIds: [], sessionId: '' });
+            fetchData();
+          }
         }
       } else {
         // Fallback for backward compatibility
         showToast('Сесията е резервирана успешно', 'success');
+        setShowBookingForm(false);
+        setSelectedSession(null);
+        setBookingData({ selectedClimberIds: [], sessionId: '' });
+        fetchData();
       }
-
-      setShowBookingForm(false);
-      setSelectedSession(null);
-      setBookingData({ selectedClimberIds: [], sessionId: '' });
-      fetchData();
     } catch (error) {
       console.error('Booking error details:', {
         error,
@@ -231,7 +270,13 @@ const Schedule = () => {
         status: error.response?.status,
       });
       const errorMessage = error.response?.data?.error?.message || error.response?.data?.error?.details || 'Грешка при резервиране на сесия';
-      showToast(errorMessage, 'error');
+      
+      // Check if it's the "already registered" error
+      if (errorMessage.includes('Вече е регистриран') || errorMessage.includes('регистриран за тази тренировка')) {
+        setBookingError(errorMessage);
+      } else {
+        showToast(errorMessage, 'error');
+      }
     }
   };
 
@@ -313,6 +358,7 @@ const Schedule = () => {
       showToast('Моля, изберете поне един катерач', 'error');
       return;
     }
+    setBulkBookingError(null); // Clear any previous error
     setShowBulkConfirmation(true);
   };
 
@@ -408,24 +454,50 @@ const Schedule = () => {
       }
 
       if (results.failed.length > 0) {
-        const failedDetails = results.failed.map(item => {
-          const climber = allClimbers.find(c => {
-            const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
-            const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
-            return climberIdStr === itemIdStr;
-          });
-          const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-          const session = availableSessions.find(s => s._id === item.sessionId);
-          const sessionName = session ? `${session.title} - ${format(new Date(session.date), 'PPpp')}` : 'Тренировка';
-          return `${climberName} (${sessionName}): ${item.reason || 'Грешка'}`;
-        }).join(', ');
-        showToast(`Неуспешни резервации: ${failedDetails}`, 'error');
+        // Check for "already registered" errors
+        const registrationErrors = results.failed.filter(item => 
+          item.reason && (item.reason.includes('Вече е регистриран') || item.reason.includes('регистриран за тази тренировка'))
+        );
+        
+        if (registrationErrors.length > 0) {
+          // Show errors in modal instead of closing
+          const errorDetails = registrationErrors.map(item => {
+            const climber = allClimbers.find(c => {
+              const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+              const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
+              return climberIdStr === itemIdStr;
+            });
+            const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+            const session = availableSessions.find(s => s._id === item.sessionId);
+            const sessionName = session ? `${session.title} - ${format(new Date(session.date), 'PPpp')}` : 'Тренировка';
+            return `${climberName} (${sessionName}): ${item.reason}`;
+          }).join('\n');
+          setBulkBookingError(errorDetails);
+        } else {
+          const failedDetails = results.failed.map(item => {
+            const climber = allClimbers.find(c => {
+              const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+              const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
+              return climberIdStr === itemIdStr;
+            });
+            const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+            const session = availableSessions.find(s => s._id === item.sessionId);
+            const sessionName = session ? `${session.title} - ${format(new Date(session.date), 'PPpp')}` : 'Тренировка';
+            return `${climberName} (${sessionName}): ${item.reason || 'Грешка'}`;
+          }).join(', ');
+          showToast(`Неуспешни резервации: ${failedDetails}`, 'error');
+          // Clear selections and refresh data only if no registration errors
+          setSelectedSessionIds([]);
+          setShowBulkConfirmation(false);
+          fetchData();
+        }
+      } else {
+        // All successful, clear selections and refresh data
+        setSelectedSessionIds([]);
+        setShowBulkConfirmation(false);
+        setBulkBookingError(null);
+        fetchData();
       }
-
-      // Clear selections and refresh data
-      setSelectedSessionIds([]);
-      setShowBulkConfirmation(false);
-      fetchData();
     } catch (error) {
       showToast('Грешка при масово резервиране', 'error');
       console.error('Bulk booking error:', error);
@@ -686,16 +758,54 @@ const Schedule = () => {
         }
         
         if (failed && failed.length > 0) {
-          const failedDetails = failed.map(item => {
-            const climber = allClimbers.find(c => {
-              const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
-              const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
-              return climberIdStr === itemIdStr;
-            });
-            const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-            return `${climberName}: ${item.reason || 'Грешка'}`;
-          }).join(', ');
-          message += failed.length > 0 ? `\n\nНеуспешни резервации: ${failedDetails}` : '';
+          // Check for "already registered" errors - don't show them in toast
+          const hasRegistrationError = failed.some(item => 
+            item.reason && (item.reason.includes('Вече е регистриран') || item.reason.includes('регистриран за тази тренировка'))
+          );
+          
+          if (!hasRegistrationError) {
+            const failedDetails = failed.map(item => {
+              const climber = allClimbers.find(c => {
+                const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+                const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
+                return climberIdStr === itemIdStr;
+              });
+              const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+              return `${climberName}: ${item.reason || 'Грешка'}`;
+            }).join(', ');
+            message += failed.length > 0 ? `\n\nНеуспешни резервации: ${failedDetails}` : '';
+          } else {
+            // For registration errors, show them in the booking form instead
+            const registrationErrorDetails = failed
+              .filter(item => item.reason && (item.reason.includes('Вече е регистриран') || item.reason.includes('регистриран за тази тренировка')))
+              .map(item => {
+                const climber = allClimbers.find(c => {
+                  const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+                  const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
+                  return climberIdStr === itemIdStr;
+                });
+                const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+                return `${climberName}: ${item.reason}`;
+              }).join('\n');
+            setBookingError(registrationErrorDetails);
+            // Open booking form to show the error
+            setShowBookingForm(true);
+            setSelectedSession(sessionId);
+            // Don't show toast for registration errors - they're shown in the form
+            // Only show success toast if there are successful bookings
+            if (successful && successful.length > 0) {
+              const successfulClimberNames = successful.map(item => {
+                const climber = allClimbers.find(c => {
+                  const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
+                  const itemIdStr = typeof item.climberId === 'object' && item.climberId?.toString ? item.climberId.toString() : String(item.climberId);
+                  return climberIdStr === itemIdStr;
+                });
+                return climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+              }).join(', ');
+              showToast(`✓ Успешно резервирано за: ${successfulClimberNames}`, 'success');
+            }
+            return; // Exit early to avoid showing toast with failed details
+          }
         }
         
         if (message) {
@@ -853,6 +963,22 @@ const Schedule = () => {
       {showBookingForm && (
         <Card title="Резервирай сесия">
           <form onSubmit={handleBookSession}>
+            {/* Error message - prominently displayed */}
+            {bookingError && (
+              <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-[10px]">
+                <div className="flex items-start justify-center gap-2">
+                  <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm sm:text-base font-medium text-red-700 text-center whitespace-pre-line">
+                      {bookingError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 За кого резервирате?
@@ -937,6 +1063,7 @@ const Schedule = () => {
                 setShowBookingForm(false);
                 setSelectedSession(null);
                 setBookingData({ selectedClimberIds: [], sessionId: '' });
+                setBookingError(null);
               }}>
                 Отказ
               </Button>
@@ -1073,11 +1200,30 @@ const Schedule = () => {
               </p>
             </div>
 
+            {/* Error message - prominently displayed */}
+            {bulkBookingError && (
+              <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-[10px]">
+                <div className="flex items-start justify-center gap-2">
+                  <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm sm:text-base font-medium text-red-700 text-center whitespace-pre-line">
+                      {bulkBookingError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => setShowBulkConfirmation(false)}
+                onClick={() => {
+                  setShowBulkConfirmation(false);
+                  setBulkBookingError(null);
+                }}
                 disabled={isBulkBooking}
               >
                 Отказ
@@ -1497,6 +1643,9 @@ const Schedule = () => {
           </div>
         )}
       </div>
+
+      {/* PWA Install Prompt - Mobile Only */}
+      <InstallPrompt />
     </div>
   );
 };

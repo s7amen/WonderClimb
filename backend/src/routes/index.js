@@ -11,6 +11,7 @@ import adminSessionsRoutes from './adminSessions.js';
 import adminCalendarRoutes from './adminCalendar.js';
 import adminFinanceRoutes from './adminFinance.js';
 import adminUsersRoutes from './adminUsers.js';
+import adminSettingsRoutes from './adminSettings.js';
 import climberPhotosRoutes from './climberPhotos.js';
 import competitionsRoutes from './competitions.js';
 import competitionPublicRoutes from './competitionPublic.js';
@@ -45,6 +46,7 @@ router.use('/admin', adminSessionsRoutes);
 router.use('/admin', adminCalendarRoutes);
 router.use('/admin', adminFinanceRoutes);
 router.use('/admin', adminUsersRoutes);
+router.use('/admin', adminSettingsRoutes);
 router.use('/admin', climberPhotosRoutes);
 router.use('/admin/competitions', competitionsRoutes);
 router.use('/api/v1', docsRoutes); // API docs

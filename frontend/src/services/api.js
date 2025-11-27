@@ -124,6 +124,12 @@ export const adminAPI = {
   getAllClimbers: () => api.get('/admin/climbers'),
 };
 
+// Settings API
+export const settingsAPI = {
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (data) => api.put('/admin/settings', data),
+};
+
 // Bookings API
 export const bookingsAPI = {
   create: (data) => api.post('/bookings', data),

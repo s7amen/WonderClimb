@@ -4,6 +4,7 @@ import { Session } from '../models/session.js';
 import { User } from '../models/user.js';
 import { isWithinBookingHorizon, isCancellationAllowed } from './configService.js';
 import { isClimberLinkedToParent } from './parentClimberLinkService.js';
+import { getMessage } from './settingsService.js';
 import logger from '../middleware/logging.js';
 
 /**
@@ -40,10 +41,11 @@ export const createMultipleBookings = async (sessionId, climberIds, bookedById, 
   const session = await Session.findById(sessionId);
   if (!session) {
     // If session doesn't exist, fail all
+    const sessionNotFoundMsg = await getMessage('sessionNotFound');
     return climberIds.map(climberId => ({
       success: false,
       climberId,
-      error: 'Session not found',
+      error: sessionNotFoundMsg,
     }));
   }
 
@@ -84,27 +86,27 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     // Verify session exists and is active
     const session = await Session.findById(sessionId);
     if (!session) {
-      const error = new Error('Session not found');
+      const error = new Error(await getMessage('sessionNotFound'));
       error.statusCode = 404;
       throw error;
     }
 
     if (session.status !== 'active') {
-      const error = new Error('Session is not active');
+      const error = new Error(await getMessage('sessionNotActive'));
       error.statusCode = 400;
       throw error;
     }
 
     // Check booking horizon
     if (!isWithinBookingHorizon(session.date)) {
-      const error = new Error('Session is outside booking horizon');
+      const error = new Error(await getMessage('sessionOutsideBookingHorizon'));
       error.statusCode = 400;
       throw error;
     }
 
     // Check if session is in the past
     if (session.date <= new Date()) {
-      const error = new Error('Cannot book sessions in the past');
+      const error = new Error(await getMessage('cannotBookPastSessions'));
       error.statusCode = 400;
       throw error;
     }
@@ -115,7 +117,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
       roles: { $in: ['climber'] } 
     });
     if (!climber) {
-      const error = new Error('Climber not found');
+      const error = new Error(await getMessage('climberNotFound'));
       error.statusCode = 404;
       throw error;
     }
@@ -157,13 +159,13 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
         }, 'Climber booking ownership check');
         
         if (!isLinked && climber._id.toString() !== normalizedBookedById) {
-          const error = new Error('Climber can only book for themselves or their linked children');
+          const error = new Error(await getMessage('climberCanOnlyBookForSelf'));
           error.statusCode = 403;
           throw error;
         }
       } else {
         // User doesn't have climber role
-        const error = new Error('User must have climber role to create bookings');
+        const error = new Error(await getMessage('userMustHaveClimberRole'));
         error.statusCode = 403;
         throw error;
       }
@@ -177,7 +179,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     });
 
     if (existingBooking) {
-      const error = new Error('Вече е регистриран за тази тренировка');
+      const error = new Error(await getMessage('alreadyRegistered'));
       error.statusCode = 409;
       throw error;
     }
@@ -185,7 +187,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     // Check capacity (atomic check)
     const currentCount = await getSessionBookingCount(sessionId);
     if (currentCount >= session.capacity) {
-      const error = new Error('Session is full');
+      const error = new Error(await getMessage('sessionFull'));
       error.statusCode = 409;
       throw error;
     }
@@ -226,13 +228,13 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
   try {
     const booking = await Booking.findById(bookingId).populate('sessionId');
     if (!booking) {
-      const error = new Error('Booking not found');
+      const error = new Error(await getMessage('bookingNotFound'));
       error.statusCode = 404;
       throw error;
     }
 
     if (booking.status === 'cancelled') {
-      const error = new Error('Booking is already cancelled');
+      const error = new Error(await getMessage('bookingAlreadyCancelled'));
       error.statusCode = 400;
       throw error;
     }
@@ -244,7 +246,7 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
     
     // Admins and coaches can cancel any booking, others can only cancel their own
     if (!normalizedRoles.includes('admin') && !normalizedRoles.includes('coach') && normalizedBookedById !== normalizedUserId) {
-      const error = new Error('You can only cancel your own bookings');
+      const error = new Error(await getMessage('cannotCancelOwnBookings'));
       error.statusCode = 403;
       throw error;
     }
@@ -254,21 +256,21 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
       // If populate didn't work, fetch session separately
       const sessionDoc = await Session.findById(booking.sessionId);
       if (!sessionDoc) {
-        const error = new Error('Session not found');
+        const error = new Error(await getMessage('sessionNotFound'));
         error.statusCode = 404;
         throw error;
       }
 
       // Check cancellation window
       if (!isCancellationAllowed(sessionDoc.date)) {
-        const error = new Error('Cancellation window has passed');
+        const error = new Error(await getMessage('cancellationPeriodExpired'));
         error.statusCode = 400;
         throw error;
       }
     } else {
       // Check cancellation window
       if (!isCancellationAllowed(session.date)) {
-        const error = new Error('Cancellation window has passed');
+        const error = new Error(await getMessage('cancellationPeriodExpired'));
         error.statusCode = 400;
         throw error;
       }
@@ -357,10 +359,11 @@ export const createRecurringBookings = async (climberId, bookedById, userRoles, 
             date: session.date,
           });
         } else {
+          const sessionFullMsg = await getMessage('sessionFull');
           results.failed.push({
             sessionId: session._id,
             date: session.date,
-            reason: 'Session is full',
+            reason: sessionFullMsg,
           });
         }
       } catch (error) {

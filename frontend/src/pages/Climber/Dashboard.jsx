@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { format, startOfDay, addDays, eachDayOfInterval, isBefore, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfDay, addDays, isBefore, addMonths, subMonths, eachDayOfInterval } from 'date-fns';
 import { bg } from 'date-fns/locale';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
@@ -11,6 +11,7 @@ import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import { CalendarIcon as CalendarSvgIcon, ClockIcon, PersonIcon, ListIcon } from '../../components/Sessions/SessionIcons';
 import { useSynchronizedWidths } from '../../hooks/useSynchronizedWidths';
+import SessionCalendar from '../../components/Calendar/SessionCalendar';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -115,18 +116,71 @@ const Dashboard = () => {
 
     try {
       setIsCancelling(true);
-      // Cancel all selected bookings
-      await Promise.all(selectedBookingIds.map(bookingId => bookingsAPI.cancel(bookingId)));
-      showToast('Резервациите са отменени успешно', 'success');
-      // Refresh data
-      await fetchData();
-      setShowCancelDialog(false);
-      setBookingsToCancel([]);
-      setSelectedBookingIds([]);
-      setDateToCancel(null);
+      setCancelError(null); // Clear previous error
+      
+      // Cancel each booking individually to handle errors separately
+      const results = {
+        successful: [],
+        failed: []
+      };
+
+      for (const bookingId of selectedBookingIds) {
+        try {
+          await bookingsAPI.cancel(bookingId);
+          results.successful.push(bookingId);
+        } catch (error) {
+          results.failed.push({
+            bookingId,
+            reason: error.response?.data?.error?.message || 'Грешка при отмяна'
+          });
+        }
+      }
+
+      // Update local state for successful cancellations
+      if (results.successful.length > 0) {
+        await fetchData();
+        showToast('Резервациите са отменени успешно', 'success');
+      }
+
+      // Handle failed cancellations
+      if (results.failed.length > 0) {
+        // Check if ALL failures are cancellation errors (they will have error messages from backend)
+        // Show them in dialog if all are cancellation-related
+        const errorDetails = results.failed.map(f => {
+          const booking = bookingsToCancel.find(b => b._id === f.bookingId);
+          if (booking && booking.climber) {
+            const climber = booking.climber;
+            const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+            return `${climberName}: ${f.reason || 'Грешка'}`;
+          }
+          return f.reason || 'Грешка';
+        }).join('\n');
+        
+        // Show error in dialog - backend returns configurable messages
+        setCancelError(errorDetails);
+        // Don't close dialog, don't show toast - keep dialog open to show error
+      } else {
+        // All successful, close dialog
+        setShowCancelDialog(false);
+        setBookingsToCancel([]);
+        setSelectedBookingIds([]);
+        setDateToCancel(null);
+        setCancelError(null);
+      }
     } catch (error) {
       const errorMessage = error.response?.data?.error?.message || 'Грешка при отменяне на резервации';
-      showToast(errorMessage, 'error');
+      const statusCode = error.response?.status;
+      
+      // If it's a 400 error (cancellation period expired), show in dialog
+      if (statusCode === 400) {
+        setCancelError(errorMessage);
+      } else {
+        showToast(errorMessage, 'error');
+        setShowCancelDialog(false);
+        setBookingsToCancel([]);
+        setSelectedBookingIds([]);
+        setDateToCancel(null);
+      }
     } finally {
       setIsCancelling(false);
     }
@@ -348,30 +402,45 @@ const Dashboard = () => {
     }
   };
 
-  // Get sessions for a specific date (for calendar)
-  const getSessionsForDate = (date) => {
-    return sessions.filter((session) => {
-      const sessionDate = new Date(session.date);
-      return isSameDay(sessionDate, date);
-    });
-  };
 
-  // Get session color based on targetGroups
+  // Get session color based on targetGroups (same as MySessions)
   const getSessionColor = (session) => {
-    if (!session.targetGroups || session.targetGroups.length === 0) {
-      return { bg: '#00c950', border: '#00c950' };
+    if (session.status !== 'active') {
+      return { bg: '#99a1af', border: '#99a1af', backgroundColor: '#99a1af', color: 'white' };
     }
     
     const targetGroups = session.targetGroups || [];
+    
+    const groupColors = {
+      beginner: '#DCFCE7',      // green-100
+      experienced: '#FFEDD5',   // orange-100
+      advanced: '#FEE2E2',      // red-100
+    };
+    
+    const textColors = {
+      beginner: '#15803D',    // green-700
+      experienced: '#C2410C', // orange-700
+      advanced: '#B91C1C',    // red-700
+    };
+    
+    let primaryGroup = null;
     if (targetGroups.includes('beginner')) {
-      return { bg: '#00c950', border: '#00c950' };
+      primaryGroup = 'beginner';
     } else if (targetGroups.includes('experienced')) {
-      return { bg: '#93c5fd', border: '#93c5fd' };
+      primaryGroup = 'experienced';
     } else if (targetGroups.includes('advanced')) {
-      return { bg: '#dc2626', border: '#dc2626' };
+      primaryGroup = 'advanced';
     }
     
-    return { bg: '#00c950', border: '#00c950' };
+    if (!primaryGroup) {
+      const bg = '#FFEDD5';
+      const border = '#C2410C';
+      return { bg, border, backgroundColor: bg, color: '#C2410C' };
+    }
+    
+    const bg = groupColors[primaryGroup];
+    const border = textColors[primaryGroup];
+    return { bg, border, backgroundColor: bg, color: textColors[primaryGroup] };
   };
 
   // Get reservations for a session
@@ -416,120 +485,6 @@ const Dashboard = () => {
     });
   };
 
-  // Render calendar month view
-  const renderCalendarMonthView = () => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const start = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const end = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const days = eachDayOfInterval({ start, end });
-
-    return (
-      <>
-        {/* Mobile Calendar Grid View - Full Width */}
-        <div className="md:hidden grid grid-cols-7 gap-0.5 w-full">
-          {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day) => (
-            <div key={day} className="p-1 text-center text-[11px] font-semibold text-gray-700">
-              {day}
-            </div>
-          ))}
-          {days.map((day) => {
-            const daySessions = getSessionsForDate(day);
-            const isCurrentMonth = isSameMonth(day, currentDate);
-            const isToday = isSameDay(day, new Date());
-            
-            return (
-              <div
-                key={day.toISOString()}
-                className={`
-                  h-12 p-1 border border-gray-200 bg-white
-                  ${isCurrentMonth ? '' : 'bg-gray-50'}
-                  ${isToday ? 'ring-2 ring-[#ff6900] ring-inset' : ''}
-                `}
-              >
-                <div className={`text-[10px] font-medium mb-0.5 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
-                  {format(day, 'd')}
-                </div>
-                <div className="space-y-0.5">
-                  {daySessions.slice(0, 1).map((session) => {
-                    const colorStyle = getSessionColor(session);
-                    return (
-                      <div
-                        key={session._id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSessionClick(session);
-                        }}
-                        className="text-[8px] px-0.5 py-0.5 rounded cursor-pointer hover:opacity-80 text-white font-medium truncate"
-                        style={{ backgroundColor: colorStyle.bg }}
-                        title={session.title || 'Тренировка'}
-                      >
-                        {formatTime(session.date)}
-                      </div>
-                    );
-                  })}
-                  {daySessions.length > 1 && (
-                    <div className="text-[8px] text-[#4a5565] text-center font-medium">+{daySessions.length - 1}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Desktop Grid View - Smaller/Compact */}
-        <div className="hidden md:grid md:grid-cols-7 gap-1">
-          {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
-            <div key={day} className="p-1.5 text-center text-xs font-semibold text-gray-700">
-              {day}
-            </div>
-          ))}
-          {days.map((day) => {
-            const daySessions = getSessionsForDate(day);
-            const isCurrentMonth = isSameMonth(day, currentDate);
-            const isToday = isSameDay(day, new Date());
-            
-            return (
-              <div
-                key={day.toISOString()}
-                className={`
-                  h-16 p-1 border border-gray-200 bg-white
-                  ${isCurrentMonth ? '' : 'bg-gray-50'}
-                  ${isToday ? 'ring-2 ring-[#ff6900] ring-inset' : ''}
-                `}
-              >
-                <div className={`text-xs font-medium mb-0.5 ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
-                  {format(day, 'd')}
-                </div>
-                <div className="space-y-0.5">
-                  {daySessions.slice(0, 2).map((session) => {
-                    const colorStyle = getSessionColor(session);
-                    return (
-                      <div
-                        key={session._id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSessionClick(session);
-                        }}
-                        className="text-[9px] px-0.5 py-0.5 rounded cursor-pointer hover:opacity-80 text-white font-medium truncate"
-                        style={{ backgroundColor: colorStyle.bg }}
-                        title={session.title || 'Тренировка'}
-                      >
-                        {formatTime(session.date)}
-                      </div>
-                    );
-                  })}
-                  {daySessions.length > 2 && (
-                    <div className="text-[9px] text-[#4a5565]">+{daySessions.length - 2}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </>
-    );
-  };
 
   const navigateDate = (direction) => {
     if (direction === 'prev') {
@@ -640,12 +595,8 @@ const Dashboard = () => {
           {/* Запазени часове Section */}
           <div className="space-y-6">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-xl sm:text-2xl font-bold text-neutral-950">
-                  Запазени часове за следващите 7 дни
-                </h2>
-
-                {/* View Toggle: Calendar/List */}
+              {/* View Toggle: Calendar/List - positioned to the right */}
+              <div className="flex justify-end mr-0 sm:mr-2">
                 <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setViewMode('calendar')}
@@ -674,32 +625,38 @@ const Dashboard = () => {
 
               {/* Group By Toggle (only in list mode) */}
               {viewMode === 'list' && (
-                <div className="flex justify-end">
-                  <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => setGroupBy('date')}
-                      className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                        groupBy === 'date'
-                          ? 'bg-[#ea7a24] text-white'
-                          : 'text-[#4a5565] hover:bg-gray-50'
-                      }`}
-                    >
-                      <CalendarSvgIcon />
-                      По дата
-                    </button>
-                    <button
-                      onClick={() => setGroupBy('climber')}
-                      className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                        groupBy === 'climber'
-                          ? 'bg-[#ea7a24] text-white'
-                          : 'text-[#4a5565] hover:bg-gray-50'
-                      }`}
-                    >
-                      <PersonIcon />
-                      По катерачи
-                    </button>
+                <>
+                  <div className="flex justify-end mr-0 sm:mr-2">
+                    <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
+                      <button
+                        onClick={() => setGroupBy('date')}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
+                          groupBy === 'date'
+                            ? 'bg-[#ea7a24] text-white'
+                            : 'text-[#4a5565] hover:bg-gray-50'
+                        }`}
+                      >
+                        <CalendarSvgIcon />
+                        По дата
+                      </button>
+                      <button
+                        onClick={() => setGroupBy('climber')}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
+                          groupBy === 'climber'
+                            ? 'bg-[#ea7a24] text-white'
+                            : 'text-[#4a5565] hover:bg-gray-50'
+                        }`}
+                      >
+                        <PersonIcon />
+                        По катерачи
+                      </button>
+                    </div>
                   </div>
-                </div>
+                  {/* Heading text - only visible in list mode, not bold, larger and centered on mobile */}
+                  <h2 className="text-base sm:text-xl md:text-2xl font-normal text-neutral-950 text-center sm:text-left">
+                    Запазени часове за следващите 7 дни
+                  </h2>
+                </>
               )}
             </div>
 
@@ -711,73 +668,81 @@ const Dashboard = () => {
                   <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
                     {/* Mobile Calendar Header */}
                     <div className="md:hidden">
-                      <div className="flex flex-col justify-between items-center gap-4 mb-4 px-4 pt-4">
-                        <div className="flex items-center gap-2 w-full justify-between">
-                          <Button
-                            variant="secondary"
+                      <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
+                        {/* Month title on top row */}
+                        <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                          {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                        </h2>
+                        {/* Buttons next to each other */}
+                        <div className="flex items-center gap-2 w-full justify-center">
+                          <button
                             onClick={() => navigateDate('prev')}
-                            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                            className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
                           >
                             ←
-                          </Button>
-                          <div className="flex flex-col items-center gap-2">
-                            <h2 className="text-base font-medium text-neutral-950 text-center">
-                              {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                            </h2>
-                            <Button
-                              variant="secondary"
-                              onClick={goToToday}
-                              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
-                            >
-                              Днес
-                            </Button>
-                          </div>
+                          </button>
                           <Button
                             variant="secondary"
+                            onClick={goToToday}
+                            className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                          >
+                            Днес
+                          </Button>
+                          <button
                             onClick={() => navigateDate('next')}
-                            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                            className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
                           >
                             →
-                          </Button>
+                          </button>
                         </div>
                       </div>
                       <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
-                        {renderCalendarMonthView()}
+                        <SessionCalendar
+                          sessions={sessions}
+                          currentDate={currentDate}
+                          onSessionClick={handleSessionClick}
+                          getSessionColor={getSessionColor}
+                        />
                       </div>
                     </div>
 
                     {/* Desktop Calendar Header */}
                     <div className="hidden md:block">
-                      <div className="flex flex-row justify-between items-center gap-4 mb-4 px-6 pt-6">
-                        <Button
-                          variant="secondary"
-                          onClick={() => navigateDate('prev')}
-                          className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
-                        >
-                          ← Предишен
-                        </Button>
-                        <div className="flex flex-row items-center gap-2">
-                          <h2 className="text-base font-medium text-neutral-950 text-center">
-                            {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                          </h2>
+                      <div className="flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-2">
+                        {/* Month title on top row */}
+                        <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                          {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                        </h2>
+                        {/* Buttons next to each other */}
+                        <div className="flex flex-row items-center gap-2 justify-center w-full">
+                          <button
+                            onClick={() => navigateDate('prev')}
+                            className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                          >
+                            Предишен
+                          </button>
                           <Button
                             variant="secondary"
                             onClick={goToToday}
-                            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
+                            className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
                           >
                             Днес
                           </Button>
+                          <button
+                            onClick={() => navigateDate('next')}
+                            className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                          >
+                            Следващ
+                          </button>
                         </div>
-                        <Button
-                          variant="secondary"
-                          onClick={() => navigateDate('next')}
-                          className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
-                        >
-                          Следващ →
-                        </Button>
                       </div>
                       <div className="px-6 pb-6">
-                        {renderCalendarMonthView()}
+                        <SessionCalendar
+                          sessions={sessions}
+                          currentDate={currentDate}
+                          onSessionClick={handleSessionClick}
+                          getSessionColor={getSessionColor}
+                        />
                       </div>
                     </div>
                   </Card>
@@ -833,6 +798,9 @@ const Dashboard = () => {
                                   const timeStr = formatTime(session.date);
                                   const endTimeStr = getEndTime(session.date, session.durationMinutes);
                                   const borderColor = getSessionColor(session).border;
+                                  const fullDayNames = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
+                                  const fullDayName = fullDayNames[sessionDate.getDay()];
+                                  const formattedDate = format(sessionDate, 'dd/MM/yyyy');
 
                                   return (
                                     <div
@@ -843,6 +811,16 @@ const Dashboard = () => {
                                       <div className="px-4 py-3">
                                         {/* Desktop Layout */}
                                         <div className="hidden md:flex flex-col gap-2">
+                                          {/* Date Row */}
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <div className="w-4 h-4 shrink-0">
+                                              <CalendarSvgIcon />
+                                            </div>
+                                            <span className="text-sm md:text-base leading-6 text-[#0f172b] font-normal">
+                                              {fullDayName}, {formattedDate}
+                                            </span>
+                                          </div>
+                                          
                                           {/* Time Row with Title, Target Groups and Cancel Button */}
                                           <div className="flex items-center justify-between gap-2 md:gap-4 flex-wrap">
                                             <div className="flex items-center gap-2 transition-colors duration-200 group-hover:text-[#ff6900] flex-1 min-w-0 flex-wrap">
@@ -930,45 +908,23 @@ const Dashboard = () => {
                                           </div>
                                         </div>
 
-                                        {/* Reservations Info */}
-                                        {reservations.length > 0 && (
-                                          <div className="mb-2 flex items-center gap-2 flex-wrap">
-                                            <div className="flex items-center flex-wrap gap-2">
-                                              {reservations.map((reservation, index) => {
-                                                const colorClasses = [
-                                                  { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
-                                                  { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-                                                  { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
-                                                  { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-                                                  { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-                                                  { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-                                                  { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
-                                                  { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                                                ];
-                                                const colorIndex = index % colorClasses.length;
-                                                const colors = colorClasses[colorIndex];
-
-                                                return (
-                                                  <span
-                                                    key={reservation.bookingId || index}
-                                                    className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
-                                                  >
-                                                    <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                      <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
-                                                    </svg>
-                                                    {reservation.climberName}
-                                                  </span>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
+                                        {/* Reservations Info - не показваме името на катерача тук, защото вече е в заглавието */}
 
                                         {/* Mobile Layout */}
                                         <div className="md:hidden flex gap-4">
                                           {/* Left side - Content */}
                                           <div className="flex-1 min-w-0">
+                                            {/* Дата с икона календар */}
+                                            <div className="mb-2">
+                                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <div className="w-4 h-4 shrink-0">
+                                                  <CalendarSvgIcon />
+                                                </div>
+                                                <span className="text-sm leading-6 text-[#0f172b] font-normal">
+                                                  {fullDayName}, {formattedDate}
+                                                </span>
+                                              </div>
+                                            </div>
                                             {/* 2. Часът и заглавието - могат да wrap-ват на два реда */}
                                             <div className="mb-2">
                                               <div className="flex items-center gap-2 mb-1 transition-colors duration-200 group-hover:text-[#ff6900] flex-wrap">
@@ -1022,58 +978,26 @@ const Dashboard = () => {
                                               </div>
                                             )}
 
-                                          {/* Reservations */}
-                                          {reservations.length > 0 && (
-                                            <div className="mb-2 flex items-center flex-wrap gap-2">
-                                              <div className="flex items-center flex-wrap gap-2">
-                                                {reservations.map((reservation, index) => {
-                                                  // Различни цветове за всяко дете (без blue, green, red за да не съвпадат с target groups)
-                                                  const colorClasses = [
-                                                    { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-                                                    { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-                                                    { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-                                                    { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-                                                    { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
-                                                    { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                                                    { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
-                                                    { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
-                                                  ];
-                                                  const colorIndex = index % colorClasses.length;
-                                                  const colors = colorClasses[colorIndex];
+                                            {/* Reservations - не показваме името на катерача тук, защото вече е в заглавието */}
+                                          </div>
 
-                                                  return (
-                                                    <span
-                                                      key={reservation.bookingId || index}
-                                                      className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
-                                                    >
-                                                      <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
-                                                      </svg>
-                                                      {reservation.climberName}
-                                                    </span>
-                                                  );
-                                                })}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-
-                                        {/* Right side - Cancel Button */}
-                                        <div className="flex flex-col items-end gap-2 shrink-0">
-                                          {reservations.length > 0 && (
-                                            <button
-                                              onClick={() => {
-                                                const singleDateGroup = {
-                                                  date: startOfDay(sessionDate),
-                                                  bookings: bookings
-                                                };
-                                                handleCancelBooking(singleDateGroup);
-                                              }}
-                                              className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
-                                            >
-                                              Отмени
-                                            </button>
-                                          )}
+                                          {/* Right side - Cancel Button */}
+                                          <div className="flex flex-col items-end gap-2 shrink-0">
+                                            {reservations.length > 0 && (
+                                              <button
+                                                onClick={() => {
+                                                  const singleDateGroup = {
+                                                    date: startOfDay(sessionDate),
+                                                    bookings: bookings
+                                                  };
+                                                  handleCancelBooking(singleDateGroup);
+                                                }}
+                                                className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
+                                              >
+                                                Отмени
+                                              </button>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
@@ -1610,17 +1534,54 @@ const Dashboard = () => {
               })()}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100">
-              <Button
-                type="button"
-                onClick={() => {
-                  setShowSessionModal(false);
-                  setSelectedSession(null);
-                }}
-                className="w-full"
-              >
-                Затвори
-              </Button>
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+              {(() => {
+                const reservations = getReservationsForSession(selectedSession._id);
+                const hasReservations = reservations.length > 0;
+                
+                // Get bookings for this session
+                const sessionBookings = bookings.filter(b => {
+                  if (!b || b.status !== 'booked' || !b.session) return false;
+                  const bookingSessionId = b.session._id || b.sessionId;
+                  const sessionId = selectedSession._id;
+                  return String(bookingSessionId) === String(sessionId);
+                });
+                
+                return (
+                  <>
+                    {hasReservations && sessionBookings.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() => {
+                          setShowSessionModal(false);
+                          setSelectedSession(null);
+                          // Trigger cancel booking flow
+                          const sessionDate = new Date(selectedSession.date);
+                          const dateGroup = {
+                            date: startOfDay(sessionDate),
+                            bookings: sessionBookings
+                          };
+                          handleCancelBooking(dateGroup);
+                        }}
+                        className="flex-1"
+                      >
+                        Отмени
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setShowSessionModal(false);
+                        setSelectedSession(null);
+                      }}
+                      className={hasReservations && sessionBookings.length > 0 ? "flex-1" : "w-full"}
+                    >
+                      Затвори
+                    </Button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

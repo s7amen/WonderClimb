@@ -36,26 +36,23 @@ export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   return (
     <div 
       className={`
-        fixed bottom-4 left-1/2 z-40
-        border-l-4 rounded shadow-lg
+        fixed z-40
+        bottom-0 left-0 sm:bottom-4 sm:left-1/2
+        border-l-4 rounded-t-lg sm:rounded shadow-lg
         transition-all duration-300 ease-in-out
-        ${isExiting ? 'opacity-0' : 'opacity-100'}
+        ${isExiting 
+          ? 'opacity-0 translate-y-full sm:translate-y-[calc(100%+1rem)] sm:translate-x-[-50%]' 
+          : 'opacity-100 translate-y-0 sm:translate-y-0 sm:translate-x-[-50%]'}
         ${types[type]}
-        px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4
-        max-w-[95vw] sm:max-w-md md:max-w-lg lg:max-w-xl
-        w-auto
+        px-4 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4
+        w-screen sm:w-auto sm:max-w-md md:max-w-lg lg:max-w-xl
       `}
-      style={{
-        transform: isExiting 
-          ? 'translate(-50%, calc(100% + 1rem))' 
-          : 'translate(-50%, 0)'
-      }}
     >
       <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">
         <p className={`
           font-medium text-center
-          text-xs sm:text-sm md:text-base lg:text-lg
-          whitespace-nowrap overflow-hidden text-ellipsis
+          text-sm sm:text-sm md:text-base lg:text-lg
+          break-words
           flex-1 min-w-0
         `}>
           {message}

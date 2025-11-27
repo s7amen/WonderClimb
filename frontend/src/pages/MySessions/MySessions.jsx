@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { bookingsAPI } from '../../services/api';
-import { format, addDays, startOfDay, isBefore, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, addDays, startOfDay, isBefore, addMonths, subMonths } from 'date-fns';
 import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import SessionList from '../../components/Sessions/SessionList';
+import SessionCalendar from '../../components/Calendar/SessionCalendar';
 
 const MySessions = () => {
   const [myBookings, setMyBookings] = useState([]);
@@ -121,13 +122,6 @@ const MySessions = () => {
     return sessionBookings.length;
   };
 
-  // Get sessions for a specific date (for calendar)
-  const getSessionsForDate = (date) => {
-    return sessions.filter((session) => {
-      const sessionDate = new Date(session.date);
-      return isSameDay(sessionDate, date);
-    });
-  };
 
   // Get reservations for a specific session
   const getReservationsForSession = (sessionId) => {
@@ -213,120 +207,6 @@ const MySessions = () => {
     return { backgroundColor: groupColors[primaryGroup], color: textColors[primaryGroup] };
   };
 
-  // Render calendar month view
-  const renderCalendarMonthView = () => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-    return (
-      <>
-        {/* Mobile Calendar Grid View - Full Width */}
-        <div className="md:hidden grid grid-cols-7 gap-0.5 w-full">
-          {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day) => (
-            <div key={day} className="p-1 text-center text-[11px] font-semibold text-gray-700">
-              {day}
-            </div>
-          ))}
-          {days.map((day) => {
-            const daySessions = getSessionsForDate(day);
-            const isCurrentMonth = isSameMonth(day, currentDate);
-            const isToday = isSameDay(day, new Date());
-
-            return (
-              <div
-                key={day.toISOString()}
-                className={`
-                  min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[6px]
-                  ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
-                  ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
-                `}
-              >
-                <div className={`text-xs font-medium mb-1 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
-                  {format(day, 'd')}
-                </div>
-                <div className="space-y-0.5">
-                  {daySessions.slice(0, 1).map((session) => {
-                    const colorStyle = getSessionColor(session);
-                    return (
-                      <div
-                        key={session._id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSessionClick(session);
-                        }}
-                        className="text-[9px] px-0.5 py-0.5 rounded-[4px] truncate text-white text-center font-medium cursor-pointer hover:opacity-80 transition-opacity"
-                        style={colorStyle}
-                        title={`${format(new Date(session.date), 'HH:mm')} - ${session.title}`}
-                      >
-                        {format(new Date(session.date), 'HH:mm')}
-                      </div>
-                    );
-                  })}
-                  {daySessions.length > 1 && (
-                    <div className="text-[9px] text-[#4a5565] text-center font-medium">+{daySessions.length - 1}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Desktop Grid View - Smaller/Compact */}
-        <div className="hidden md:grid md:grid-cols-7 gap-1">
-          {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
-            <div key={day} className="p-1.5 text-center text-xs font-semibold text-gray-700">
-              {day}
-            </div>
-          ))}
-          {days.map((day) => {
-            const daySessions = getSessionsForDate(day);
-            const isCurrentMonth = isSameMonth(day, currentDate);
-            const isToday = isSameDay(day, new Date());
-
-            return (
-              <div
-                key={day.toISOString()}
-                className={`
-                  min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[8px]
-                  ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
-                  ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
-                `}
-              >
-                <div className={`text-xs font-medium mb-1 ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
-                  {format(day, 'd')}
-                </div>
-                <div className="space-y-0.5">
-                  {daySessions.slice(0, 2).map((session) => {
-                    const colorStyle = getSessionColor(session);
-                    return (
-                      <div
-                        key={session._id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSessionClick(session);
-                        }}
-                        className="text-[10px] p-0.5 rounded-[6px] truncate text-white cursor-pointer hover:opacity-80 transition-opacity"
-                        style={colorStyle}
-                        title={session.title}
-                      >
-                        {format(new Date(session.date), 'HH:mm')}
-                      </div>
-                    );
-                  })}
-                  {daySessions.length > 2 && (
-                    <div className="text-[10px] text-[#4a5565]">+{daySessions.length - 2}</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </>
-    );
-  };
 
   const navigateDate = (direction) => {
     setCurrentDate(direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
@@ -353,38 +233,41 @@ const MySessions = () => {
         {sessions.length > 0 && (
           <div className="md:hidden mb-6">
             <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-              <div className="flex flex-col justify-between items-center gap-4 mb-4 px-4 pt-4">
-                <div className="flex items-center gap-2 w-full justify-between">
-                  <Button 
-                    variant="secondary" 
+              <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
+                {/* Month title on top row */}
+                <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                  {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                </h2>
+                {/* Buttons next to each other */}
+                <div className="flex items-center gap-2 w-full justify-center">
+                  <button
                     onClick={() => navigateDate('prev')}
-                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
                   >
                     ←
-                  </Button>
-                  <div className="flex flex-col items-center gap-2">
-                    <h2 className="text-base font-medium text-neutral-950 text-center">
-                      {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                    </h2>
-                    <Button 
-                      variant="secondary" 
-                      onClick={goToToday}
-                      className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
-                    >
-                      Днес
-                    </Button>
-                  </div>
+                  </button>
                   <Button 
                     variant="secondary" 
+                    onClick={goToToday}
+                    className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                  >
+                    Днес
+                  </Button>
+                  <button
                     onClick={() => navigateDate('next')}
-                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
+                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
                   >
                     →
-                  </Button>
+                  </button>
                 </div>
               </div>
               <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
-                {renderCalendarMonthView()}
+                <SessionCalendar
+                  sessions={sessions}
+                  currentDate={currentDate}
+                  onSessionClick={handleSessionClick}
+                  getSessionColor={getSessionColor}
+                />
               </div>
             </Card>
           </div>
@@ -396,36 +279,41 @@ const MySessions = () => {
         {sessions.length > 0 && (
           <div className="hidden md:block mb-6">
             <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-              <div className="flex flex-row justify-between items-center gap-4 mb-4 px-6 pt-6">
-                <Button 
-                  variant="secondary" 
-                  onClick={() => navigateDate('prev')}
-                  className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
-                >
-                  ← Предишен
-                </Button>
-                <div className="flex flex-row items-center gap-2">
-                  <h2 className="text-base font-medium text-neutral-950 text-center">
-                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                  </h2>
+              <div className="flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-2">
+                {/* Month title on top row */}
+                <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                  {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                </h2>
+                {/* Buttons next to each other */}
+                <div className="flex flex-row items-center gap-2 justify-center w-full">
+                  <button
+                    onClick={() => navigateDate('prev')}
+                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  >
+                    Предишен
+                  </button>
                   <Button 
                     variant="secondary" 
                     onClick={goToToday}
-                    className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
+                    className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
                   >
                     Днес
                   </Button>
+                  <button
+                    onClick={() => navigateDate('next')}
+                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  >
+                    Следващ
+                  </button>
                 </div>
-                <Button 
-                  variant="secondary" 
-                  onClick={() => navigateDate('next')}
-                  className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm"
-                >
-                  Следващ →
-                </Button>
               </div>
               <div className="px-6 pb-6">
-                {renderCalendarMonthView()}
+                <SessionCalendar
+                  sessions={sessions}
+                  currentDate={currentDate}
+                  onSessionClick={handleSessionClick}
+                  getSessionColor={getSessionColor}
+                />
               </div>
             </Card>
           </div>
@@ -771,17 +659,44 @@ const MySessions = () => {
                 })()}
               </div>
 
-              <div className="px-6 py-4 border-t border-gray-100">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowSessionModal(false);
-                    setSelectedSession(null);
-                  }}
-                  className="w-full"
-                >
-                  Затвори
-                </Button>
+              <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+                {(() => {
+                  const reservations = getReservationsForSession(selectedSession._id);
+                  const hasReservations = reservations.length > 0;
+                  
+                  return (
+                    <>
+                      {hasReservations && (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() => {
+                            setShowSessionModal(false);
+                            setSelectedSession(null);
+                            // Trigger cancel booking flow
+                            setCancelBookingSessionId(selectedSession._id);
+                            setCancelBookingBookings(reservations);
+                            setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
+                            setShowCancelBookingModal(true);
+                          }}
+                          className="flex-1"
+                        >
+                          Отмени
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setShowSessionModal(false);
+                          setSelectedSession(null);
+                        }}
+                        className={hasReservations ? "flex-1" : "w-full"}
+                      >
+                        Затвори
+                      </Button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
