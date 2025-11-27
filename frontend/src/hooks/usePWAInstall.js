@@ -280,23 +280,50 @@ export const usePWAInstall = () => {
     }
 
     try {
-      console.log('[PWA Install] Calling deferredPrompt.prompt()');
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice();
-      console.log('[PWA Install] User choice:', outcome);
+      console.log('[PWA Install] Calling deferredPrompt.prompt()', {
+        deferredPrompt,
+        hasPrompt: typeof deferredPrompt.prompt === 'function',
+        hasUserChoice: typeof deferredPrompt.userChoice === 'function',
+      });
 
-      if (outcome === 'accepted') {
-        setIsInstalled(true);
-        localStorage.setItem('pwa-installed', 'true');
-        setError(null);
-      } else {
-        setError(`Потребителят отказа инсталацията. Outcome: ${outcome}`);
+      // Check if prompt method exists
+      if (typeof deferredPrompt.prompt !== 'function') {
+        throw new Error('deferredPrompt.prompt is not a function. The prompt may have already been used.');
       }
 
+      // Call prompt
+      deferredPrompt.prompt();
+
+      // Check if userChoice method exists before calling it
+      if (typeof deferredPrompt.userChoice === 'function') {
+        const choiceResult = await deferredPrompt.userChoice();
+        console.log('[PWA Install] User choice:', choiceResult);
+        
+        const outcome = choiceResult?.outcome;
+        if (outcome === 'accepted') {
+          setIsInstalled(true);
+          localStorage.setItem('pwa-installed', 'true');
+          setError(null);
+        } else {
+          setError(`Потребителят отказа инсталацията. Outcome: ${outcome || 'unknown'}`);
+        }
+      } else {
+        console.warn('[PWA Install] userChoice is not a function, prompt was shown but cannot track outcome');
+        // Prompt was shown, but we can't track the outcome
+        // Assume it might be accepted and let the appinstalled event handle it
+      }
+
+      // Clear the deferredPrompt after use
       setDeferredPrompt(null);
     } catch (error) {
       const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
       console.error('[PWA Install] Error showing install prompt:', error);
+      console.error('[PWA Install] Error details:', {
+        error,
+        deferredPrompt,
+        errorType: typeof error,
+        errorString: String(error),
+      });
       setError(errorMsg);
       alert(errorMsg);
       setDeferredPrompt(null);
