@@ -42,9 +42,22 @@ export const usePWAInstall = () => {
         serviceWorkerErrors: [],
       };
 
-      // Check if installed
-      if (diagnostics.isStandalone || diagnostics.isIOSStandalone || diagnostics.localStorageInstalled) {
+      // Check if installed - only trust actual standalone mode, not localStorage
+      // If localStorage says installed but we're not in standalone mode, reset it
+      if (diagnostics.isStandalone || diagnostics.isIOSStandalone) {
         setIsInstalled(true);
+        // Make sure localStorage is set
+        if (!diagnostics.localStorageInstalled) {
+          localStorage.setItem('pwa-installed', 'true');
+        }
+      } else {
+        // Not in standalone mode - reset installed status
+        setIsInstalled(false);
+        // Clear localStorage if it says installed but we're not actually installed
+        if (diagnostics.localStorageInstalled) {
+          console.log('[PWA Install] App was uninstalled, clearing localStorage');
+          localStorage.removeItem('pwa-installed');
+        }
       }
 
       // Check manifest
@@ -188,13 +201,31 @@ export const usePWAInstall = () => {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Listen for app installed event
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
       console.log('[PWA Install] App installed event received');
       setIsInstalled(true);
       setDeferredPrompt(null);
       localStorage.setItem('pwa-installed', 'true');
       setError(null);
-    });
+    };
+    
+    window.addEventListener('appinstalled', handleAppInstalled);
+    
+    // Also listen for when app is uninstalled (when we detect we're no longer in standalone)
+    // This happens when user uninstalls the app
+    const checkIfUninstalled = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
+      
+      if (!isStandalone && !isIOSStandalone && localStorage.getItem('pwa-installed') === 'true') {
+        console.log('[PWA Install] Detected app was uninstalled, resetting status');
+        setIsInstalled(false);
+        localStorage.removeItem('pwa-installed');
+      }
+    };
+    
+    // Check periodically if app was uninstalled
+    const uninstallCheckInterval = setInterval(checkIfUninstalled, 1000);
 
     // Update debug info periodically
     const interval = setInterval(() => {
@@ -203,7 +234,9 @@ export const usePWAInstall = () => {
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
       clearInterval(interval);
+      clearInterval(uninstallCheckInterval);
     };
   }, [deferredPrompt]);
 

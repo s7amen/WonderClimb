@@ -5,6 +5,11 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const { install, isInstalled, error, debugInfo, deferredPrompt } = usePWAInstall();
+  
+  const handleResetInstallStatus = () => {
+    localStorage.removeItem('pwa-installed');
+    window.location.reload();
+  };
 
   return (
     <footer 
@@ -67,7 +72,7 @@ const Footer = () => {
             </p>
             
             {/* PWA Install Button - Always visible for debugging */}
-            {!isInstalled && (
+            {!isInstalled ? (
               <div className="flex flex-col items-center gap-2">
                 <button
                   onClick={install}
@@ -118,11 +123,39 @@ const Footer = () => {
                         ))}
                         {debugInfo.serviceWorkerErrors?.map((err, i) => (
                           <div key={`sw-${i}`} className="text-yellow-200">• {err}</div>
-                        ))}
-                      </div>
-                    )}
+                        )                    )}
                   </div>
                 )}
+              </div>
+            ) : (
+              // Show reset button if installed but user wants to reinstall
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-xs text-[#99a1af] text-center">
+                  Приложението е инсталирано
+                </div>
+                <button
+                  onClick={handleResetInstallStatus}
+                  className="flex items-center gap-2 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded-md transition-colors"
+                  aria-label="Reset install status"
+                  title="Ако сте изтрили приложението, натиснете за да покажете бутона отново"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>Reset статус</span>
+                </button>
+              </div>
+            )}
                 
                 {/* Error Display */}
                 {error && (
