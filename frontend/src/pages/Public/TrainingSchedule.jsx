@@ -1159,30 +1159,32 @@ const Sessions = () => {
               <div className="h-[80px] md:hidden" />
             )}
 
-            {/* Маркирай всички бутон - точно над графика в дясно */}
-            {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
-              <div className="flex justify-end items-center gap-3 mb-2 lg:mb-4">
-                <button
-                  type="button"
-                  onClick={selectAllFilteredSessions}
-                  className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
-                >
-                  Маркирай всички
-                </button>
-                {selectedSessionIds.length > 0 && (
-                  <>
-                    <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
-                    <button
-                      type="button"
-                      onClick={clearAllSelectedSessions}
-                      className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
-                    >
-                      Изчисти всички
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            {/* Маркирай всички бутон - точно над графика в дясно - с запазено място */}
+            <div className="h-[32px] flex justify-end items-center gap-3 mb-2 lg:mb-4">
+              {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={selectAllFilteredSessions}
+                    className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+                  >
+                    Маркирай всички тренировки
+                  </button>
+                  {selectedSessionIds.length > 0 && (
+                    <>
+                      <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+                      <button
+                        type="button"
+                        onClick={clearAllSelectedSessions}
+                        className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+                      >
+                        Изчисти всички
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Sessions List */}
             <SessionList

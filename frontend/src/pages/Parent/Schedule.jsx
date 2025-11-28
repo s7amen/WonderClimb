@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getUserFullName } from '../../utils/userUtils';
 import ConfirmDialog from '../../components/UI/ConfirmDialog';
 import InstallPrompt from '../../components/UI/InstallPrompt';
+import PWAInstallButton from '../../components/UI/PWAInstallButton';
 
 const Schedule = () => {
   const { user } = useAuth();
@@ -1408,13 +1409,13 @@ const Schedule = () => {
                     {isBulkBooking ? 'Резервиране...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                   </Button>
                 )}
-                <div className="flex flex-row gap-2 items-center">
+                <div className="h-[24px] flex flex-row gap-2 items-center">
                   <button
                     type="button"
                     onClick={selectAllFilteredSessions}
                     className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
                   >
-                    Маркирай всички
+                    Маркирай всички тренировки
                   </button>
                   {selectedSessionIds.length > 0 && (
                     <button
@@ -1501,7 +1502,7 @@ const Schedule = () => {
                             key={session._id}
                             className={`px-4 py-3 ${
                               sessionHasBookings 
-                                ? 'bg-green-50' 
+                                ? 'bg-green-300 border-l-4 border-green-600' 
                                 : (isEvenRow ? 'bg-white' : 'bg-orange-50')
                             } border-b border-gray-100 last:border-b-0`}
                           >
@@ -1646,6 +1647,12 @@ const Schedule = () => {
 
       {/* PWA Install Prompt - Mobile Only */}
       <InstallPrompt />
+      
+      {/* Sticky PWA Install Icon - Mobile Only */}
+      <PWAInstallButton 
+        variant="sticky" 
+        hideWhenBulkBooking={selectedSessionIds.length > 0}
+      />
     </div>
   );
 };

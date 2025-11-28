@@ -1522,13 +1522,13 @@ const Schedule = () => {
                     {isBulkBooking ? 'Резервиране...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                   </Button>
                 )}
-                <div className="flex flex-row gap-2 items-center">
+                <div className="h-[24px] flex flex-row gap-2 items-center">
                   <button
                     type="button"
                     onClick={selectAllFilteredSessions}
                     className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
                   >
-                    Маркирай всички
+                    Маркирай всички тренировки
                   </button>
                   {selectedSessionIds.length > 0 && (
                     <button
@@ -1625,7 +1625,7 @@ const Schedule = () => {
                             key={session._id}
                             className={`px-4 py-3 ${
                               sessionHasBookings 
-                                ? 'bg-green-50' 
+                                ? 'bg-green-300 border-l-4 border-green-600' 
                                 : 'bg-white'
                             } border-b border-gray-100 last:border-b-0`}
                           >

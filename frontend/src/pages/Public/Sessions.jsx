@@ -14,6 +14,8 @@ import BookingModal from '../../components/UI/BookingModal';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
 import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
+import ScrollToTop from '../../components/UI/ScrollToTop';
+import PWAInstallButton from '../../components/UI/PWAInstallButton';
 
 const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
@@ -72,9 +74,69 @@ const Sessions = () => {
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
   const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
 
+  // Save filters utility functions
+  const getSavedFiltersKey = () => {
+    if (!user?.id) return null;
+    return `wonderclimb-saved-filters-${user.id}`;
+  };
+
+  const saveFilters = () => {
+    if (!user?.id) return;
+    
+    const filtersToSave = {
+      selectedDays,
+      selectedTimes,
+      selectedTitles,
+      selectedTargetGroups,
+      selectedAgeGroups,
+      defaultSelectedClimberIds: defaultSelectedClimberIds.map(id => 
+        typeof id === 'object' && id?.toString ? id.toString() : String(id)
+      ),
+    };
+    
+    const key = getSavedFiltersKey();
+    if (key) {
+      localStorage.setItem(key, JSON.stringify(filtersToSave));
+      showToast('Филтрите са запазени успешно', 'success');
+    }
+  };
+
+  const loadSavedFilters = () => {
+    if (!user?.id) return;
+    
+    const key = getSavedFiltersKey();
+    if (!key) return;
+    
+    try {
+      const savedFilters = localStorage.getItem(key);
+      if (savedFilters) {
+        const filters = JSON.parse(savedFilters);
+        
+        if (filters.selectedDays) setSelectedDays(filters.selectedDays);
+        if (filters.selectedTimes) setSelectedTimes(filters.selectedTimes);
+        if (filters.selectedTitles) setSelectedTitles(filters.selectedTitles);
+        if (filters.selectedTargetGroups) setSelectedTargetGroups(filters.selectedTargetGroups);
+        if (filters.selectedAgeGroups) setSelectedAgeGroups(filters.selectedAgeGroups);
+        if (filters.defaultSelectedClimberIds) {
+          // Convert string IDs back to proper format
+          setDefaultSelectedClimberIds(filters.defaultSelectedClimberIds);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
   }, []);
+
+  // Load saved filters when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadSavedFilters();
+    }
+  }, [isAuthenticated, user?.id]);
 
   // Fetch children and self climber when authenticated
   useEffect(() => {
@@ -640,10 +702,11 @@ const Sessions = () => {
           : [...prev, value]
       );
     } else if (filterType === 'title') {
+      // Single select - replace current selection or deselect if same value
       setSelectedTitles(prev => 
         prev.includes(value) 
-          ? prev.filter(t => t !== value)
-          : [...prev, value]
+          ? [] // Deselect if same value clicked
+          : [value] // Replace with new selection (single select)
       );
     } else if (filterType === 'targetGroup') {
       setSelectedTargetGroups(prev => 
@@ -739,6 +802,7 @@ const Sessions = () => {
               setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
               setFoundExistingProfile(null);
             }}
+            onSaveFilters={saveFilters}
           />
         </div>
 
@@ -793,30 +857,32 @@ const Sessions = () => {
               <div className="h-[80px] md:hidden" />
             )}
 
-            {/* Маркирай всички бутон - точно над графика в дясно */}
-            {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
-              <div className="flex justify-end items-center gap-3 mb-2 lg:mb-4">
-                <button
-                  type="button"
-                  onClick={selectAllFilteredSessions}
-                  className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
-                >
-                  Маркирай всички
-                </button>
-                {selectedSessionIds.length > 0 && (
-                  <>
-                    <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
-                    <button
-                      type="button"
-                      onClick={clearAllSelectedSessions}
-                      className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
-                    >
-                      Изчисти всички
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            {/* Маркирай всички бутон - точно над графика в дясно - с запазено място */}
+            <div className="h-[32px] flex justify-end items-center gap-3 mb-2 lg:mb-4">
+              {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={selectAllFilteredSessions}
+                    className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+                  >
+                    Маркирай всички тренировки
+                  </button>
+                  {selectedSessionIds.length > 0 && (
+                    <>
+                      <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+                      <button
+                        type="button"
+                        onClick={clearAllSelectedSessions}
+                        className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+                      >
+                        Изчисти всички
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Sessions List */}
             <SessionList
@@ -1309,6 +1375,15 @@ const Sessions = () => {
           </div>
         </div>
       )}
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
+
+      {/* Sticky PWA Install Icon - Mobile Only */}
+      <PWAInstallButton 
+        variant="sticky" 
+        hideWhenBulkBooking={selectedSessionIds.length > 0}
+      />
 
       <Footer />
     </div>

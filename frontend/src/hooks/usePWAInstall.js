@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 
-export const usePWAInstall = () => {
+export const usePWAInstall = (onErrorModalOpen = null) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
   const [debugInfo, setDebugInfo] = useState({});
 
   useEffect(() => {
@@ -240,8 +241,41 @@ export const usePWAInstall = () => {
     };
   }, [deferredPrompt]);
 
+  const openInstalledApp = () => {
+    // If app is installed, try to open it
+    if (isInstalled) {
+      // Try to navigate to the app's start URL
+      // In standalone mode, this will open the installed app
+      window.location.href = '/';
+    } else {
+      // If not installed, show message
+      const message = 'Приложението не е инсталирано. Моля, инсталирайте го първо.';
+      if (onErrorModalOpen) {
+        setError(message);
+        setShowErrorModal(true);
+        onErrorModalOpen(message, {
+          protocol: debugInfo.protocol,
+          hostname: debugInfo.hostname,
+          hasBeforeInstallPrompt: debugInfo.hasBeforeInstallPrompt,
+          deferredPrompt: !!deferredPrompt,
+          userAgent: debugInfo.userAgent,
+          browserInfo: debugInfo.browserInfo,
+        });
+      } else {
+        alert(message);
+      }
+    }
+  };
+
   const install = async () => {
+    // If already installed, open the app instead
+    if (isInstalled) {
+      openInstalledApp();
+      return;
+    }
+
     setError(null);
+    setShowErrorModal(false);
     console.log('[PWA Install] Install button clicked', {
       deferredPrompt: !!deferredPrompt,
       isInstalled,
@@ -255,18 +289,22 @@ export const usePWAInstall = () => {
           '1. Натиснете бутона "Share" (Сподели) в долния ред\n' +
           '2. Изберете "Add to Home Screen" (Добави в началния екран)\n' +
           '3. Натиснете "Add" (Добави)';
-        alert(message);
+        if (onErrorModalOpen) {
+          setError(message);
+          setShowErrorModal(true);
+          onErrorModalOpen(message, {
+            protocol: debugInfo.protocol,
+            hostname: debugInfo.hostname,
+            browserInfo: debugInfo.browserInfo,
+          });
+        } else {
+          alert(message);
+        }
         return;
       }
       
-      // No deferred prompt and not iOS - show error
-      const errorMsg = `PWA инсталацията не е налична.\n\nDebug информация:\n` +
-        `- Protocol: ${window.location.protocol}\n` +
-        `- Hostname: ${window.location.hostname}\n` +
-        `- Has beforeinstallprompt: ${'BeforeInstallPromptEvent' in window}\n` +
-        `- Deferred prompt: ${!!deferredPrompt}\n` +
-        `- User Agent: ${navigator.userAgent}\n\n` +
-        `PWA изисква HTTPS или localhost.`;
+      // No deferred prompt and not iOS - show error in modal
+      const errorMsg = 'PWA инсталацията не е налична.\n\nPWA изисква HTTPS или localhost.';
       
       setError(errorMsg);
       console.error('[PWA Install] No deferred prompt available', {
@@ -275,67 +313,71 @@ export const usePWAInstall = () => {
         userAgent: navigator.userAgent,
         hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
       });
-      alert(errorMsg);
+      
+      if (onErrorModalOpen) {
+        setShowErrorModal(true);
+        onErrorModalOpen(errorMsg, {
+          protocol: window.location.protocol,
+          hostname: window.location.hostname,
+          hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
+          deferredPrompt: false,
+          userAgent: navigator.userAgent,
+          browserInfo: debugInfo.browserInfo,
+        });
+      } else {
+        alert(errorMsg);
+      }
       return;
     }
 
     try {
-      console.log('[PWA Install] Calling deferredPrompt.prompt()', {
-        deferredPrompt,
-        hasPrompt: typeof deferredPrompt.prompt === 'function',
-        hasUserChoice: typeof deferredPrompt.userChoice === 'function',
-      });
-
-      // Check if prompt method exists
-      if (typeof deferredPrompt.prompt !== 'function') {
-        throw new Error('deferredPrompt.prompt is not a function. The prompt may have already been used.');
-      }
-
-      // Call prompt
+      console.log('[PWA Install] Calling deferredPrompt.prompt()');
       deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice();
+      console.log('[PWA Install] User choice:', outcome);
 
-      // Check if userChoice method exists before calling it
-      if (typeof deferredPrompt.userChoice === 'function') {
-        const choiceResult = await deferredPrompt.userChoice();
-        console.log('[PWA Install] User choice:', choiceResult);
-        
-        const outcome = choiceResult?.outcome;
-        if (outcome === 'accepted') {
-          setIsInstalled(true);
-          localStorage.setItem('pwa-installed', 'true');
-          setError(null);
-        } else {
-          setError(`Потребителят отказа инсталацията. Outcome: ${outcome || 'unknown'}`);
-        }
+      if (outcome === 'accepted') {
+        setIsInstalled(true);
+        localStorage.setItem('pwa-installed', 'true');
+        setError(null);
+        setShowErrorModal(false);
       } else {
-        console.warn('[PWA Install] userChoice is not a function, prompt was shown but cannot track outcome');
-        // Prompt was shown, but we can't track the outcome
-        // Assume it might be accepted and let the appinstalled event handle it
+        const errorMsg = `Потребителят отказа инсталацията.`;
+        setError(errorMsg);
+        if (onErrorModalOpen) {
+          setShowErrorModal(true);
+          onErrorModalOpen(errorMsg, debugInfo);
+        }
       }
 
-      // Clear the deferredPrompt after use
       setDeferredPrompt(null);
     } catch (error) {
       const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
       console.error('[PWA Install] Error showing install prompt:', error);
-      console.error('[PWA Install] Error details:', {
-        error,
-        deferredPrompt,
-        errorType: typeof error,
-        errorString: String(error),
-      });
       setError(errorMsg);
-      alert(errorMsg);
+      
+      if (onErrorModalOpen) {
+        setShowErrorModal(true);
+        onErrorModalOpen(errorMsg, {
+          ...debugInfo,
+          error: error.message || error,
+        });
+      } else {
+        alert(errorMsg);
+      }
       setDeferredPrompt(null);
     }
   };
 
   return {
     install,
+    openInstalledApp,
     isInstalled,
     isSupported,
     canInstall: !!deferredPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent),
     error,
+    showErrorModal,
+    setShowErrorModal,
     debugInfo,
     deferredPrompt: !!deferredPrompt,
   };

@@ -44,6 +44,9 @@ const SessionCard = ({
   const timeStr = formatTime ? formatTime(session.date) : format(sessionDate, 'HH:mm');
   const endTimeStr = getEndTime ? getEndTime(session.date, session.durationMinutes) : format(new Date(sessionDate.getTime() + session.durationMinutes * 60000), 'HH:mm');
   
+  // Check if session has reservations
+  const hasReservations = (showReservationsInfo && allReservations && allReservations.length > 0) || reservationInfo;
+
   // Determine border color based on target groups (lowest priority) or selection
   const getBorderColor = () => {
     // If selected, use orange
@@ -153,11 +156,8 @@ const SessionCard = ({
     if (isSelected) {
       return 'bg-[#ffe5d4]'; // Selected: orange tint
     }
-    if (showReservationsInfo && allReservations && allReservations.length > 0) {
-      return 'bg-orange-50'; // Has reservation: light orange background (matches Dashboard)
-    }
-    if (reservationInfo) {
-      return 'bg-orange-50'; // Has reservation: light orange background
+    if (hasReservations) {
+      return 'bg-orange-100'; // Has reservation: orange background
     }
     return 'bg-white'; // Default: white
   };

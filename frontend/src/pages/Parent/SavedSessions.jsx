@@ -333,13 +333,13 @@ const SavedSessions = () => {
       {/* Bulk Actions */}
       {upcomingBookings.length > 0 && (
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pt-4 border-t-2 border-gray-300">
-          <div className="flex flex-row gap-2 items-center">
+          <div className="h-[32px] flex flex-row gap-2 items-center">
             <button
               type="button"
               onClick={selectAllBookings}
               className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
             >
-              Маркирай всички
+              Маркирай всички тренировки
             </button>
             {selectedBookingIds.length > 0 && (
               <>
@@ -434,7 +434,7 @@ const SavedSessions = () => {
                       return (
                         <div
                           key={session._id}
-                          className={`px-4 py-3 bg-green-50 border-b border-gray-100 last:border-b-0`}
+                          className={`px-4 py-3 bg-green-300 border-l-4 border-green-600 border-b border-gray-100 last:border-b-0`}
                         >
                           {/* Mobile Layout */}
                           <div className="md:hidden space-y-2">

@@ -9,6 +9,7 @@ import { useToast } from '../../components/UI/Toast';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
 import ConfirmDialog from '../../components/UI/ConfirmDialog';
+import ScrollToTop from '../../components/UI/ScrollToTop';
 
 const Sessions = () => {
   const [sessions, setSessions] = useState([]);
@@ -627,10 +628,11 @@ const Sessions = () => {
           : [...prev, value]
       );
     } else if (filterType === 'title') {
+      // Single select - replace current selection or deselect if same value
       setSelectedTitles(prev => 
         prev.includes(value) 
-          ? prev.filter(t => t !== value)
-          : [...prev, value]
+          ? [] // Deselect if same value clicked
+          : [value] // Replace with new selection (single select)
       );
     }
   };
@@ -1522,15 +1524,15 @@ const Sessions = () => {
         hasActiveFilters={hasActiveFilters}
       />
 
-      {/* Bulk Actions */}
+      {/* Bulk Actions - с запазено място */}
       <div className="flex justify-between items-center mb-4 px-2">
-        <div className="flex items-center gap-3">
+        <div className="h-[32px] flex items-center gap-3">
           <button
             type="button"
             onClick={selectAllFilteredSessions}
             className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
           >
-            Маркирай всички
+            Маркирай всички тренировки
           </button>
           {selectedSessionIds.length > 0 && (
             <>
@@ -1597,6 +1599,9 @@ const Sessions = () => {
         onDelete={handleDeleteClick}
         showToast={showToast}
       />
+
+      {/* Scroll to Top Button */}
+      <ScrollToTop />
     </div>
   );
 };
