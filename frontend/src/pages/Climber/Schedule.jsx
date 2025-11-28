@@ -1437,7 +1437,7 @@ const Schedule = () => {
           {/* Bulk booking section */}
           <div 
             ref={climberSelectionRef}
-            className={`mt-6 pt-6 space-y-3 transition-all duration-300 rounded-lg p-4 ${
+            className={`mt-3 pt-3 md:pt-6 space-y-3 transition-all duration-300 rounded-lg p-4 ${
               showClimberSelectionHighlight 
                 ? 'border-2 border-dashed border-orange-400 bg-orange-50' 
                 : ''
@@ -1522,27 +1522,32 @@ const Schedule = () => {
                     {isBulkBooking ? 'Резервиране...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                   </Button>
                 )}
-                <div className="h-[24px] flex flex-row gap-2 items-center">
-                  <button
-                    type="button"
-                    onClick={selectAllFilteredSessions}
-                    className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
-                  >
-                    Маркирай всички тренировки
-                  </button>
-                  {selectedSessionIds.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearAllSelectedSessions}
-                      className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
-                    >
-                      Изчисти всички
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Маркирай всички бутон - точно над графика */}
+        <div className="flex justify-end items-center gap-2 mb-1">
+          <button
+            type="button"
+            onClick={selectAllFilteredSessions}
+            className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+          >
+            Маркирай всички тренировки
+          </button>
+          {selectedSessionIds.length > 0 && (
+            <>
+              <span className="text-gray-400 text-xs">|</span>
+              <button
+                type="button"
+                onClick={clearAllSelectedSessions}
+                className="text-xs md:text-sm text-gray-600 hover:text-gray-800 underline whitespace-nowrap"
+              >
+                Изчисти всички
+              </button>
+            </>
+          )}
         </div>
 
         <div className="space-y-4">

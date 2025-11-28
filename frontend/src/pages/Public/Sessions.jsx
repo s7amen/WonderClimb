@@ -852,29 +852,24 @@ const Sessions = () => {
               </>
             )}
 
-            {/* Spacer for sticky button on mobile (at bottom) */}
-            {selectedSessionIds.length > 0 && (
-              <div className="h-[80px] md:hidden" />
-            )}
-
-            {/* Маркирай всички бутон - точно над графика в дясно - с запазено място */}
-            <div className="h-[32px] flex justify-end items-center gap-3 mb-2 lg:mb-4">
+            {/* Маркирай всички бутон - точно над графика в дясно */}
+            <div className="flex justify-end items-center gap-2 mb-1">
               {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
                 <>
                   <button
                     type="button"
                     onClick={selectAllFilteredSessions}
-                    className="text-xs md:text-base text-[#ff6900] leading-6 hover:opacity-80 transition-opacity"
+                    className="text-xs md:text-sm text-[#ff6900] hover:opacity-80 transition-opacity underline"
                   >
                     Маркирай всички тренировки
                   </button>
                   {selectedSessionIds.length > 0 && (
                     <>
-                      <span className="text-[#cad5e2] text-xs md:text-sm leading-5">|</span>
+                      <span className="text-[#cad5e2] text-xs">|</span>
                       <button
                         type="button"
                         onClick={clearAllSelectedSessions}
-                        className="text-xs md:text-base text-[#45556c] leading-6 hover:opacity-80 transition-opacity"
+                        className="text-xs md:text-sm text-[#45556c] hover:opacity-80 transition-opacity underline"
                       >
                         Изчисти всички
                       </button>
@@ -910,6 +905,11 @@ const Sessions = () => {
                 setShowCancelBookingModal(true);
               }}
             />
+
+            {/* Spacer for sticky button on mobile (at bottom) */}
+            {selectedSessionIds.length > 0 && (
+              <div className="h-[80px] md:hidden" />
+            )}
 
             {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
               <Card>

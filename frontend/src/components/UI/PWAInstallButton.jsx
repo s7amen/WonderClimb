@@ -34,6 +34,26 @@ const PWAInstallButton = ({
 
   // Sticky icon variant for mobile
   if (variant === 'sticky') {
+    // Check if we're in standalone mode (PWA)
+    const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
+    
+    // Hide if in standalone mode (PWA) - no button needed
+    if (isStandalone) {
+      return (
+        <>
+          <ErrorModal
+            isOpen={showErrorModal || !!errorModalData}
+            onClose={() => {
+              setShowErrorModal(false);
+              setErrorModalData(null);
+            }}
+            message={errorModalData?.message || error}
+            debugInfo={errorModalData?.debugInfo || debugInfo}
+          />
+        </>
+      );
+    }
+
     // Hide if bulk booking button is visible
     if (hideWhenBulkBooking) {
       return (
@@ -50,6 +70,11 @@ const PWAInstallButton = ({
         </>
       );
     }
+
+    // At this point we're not in standalone mode
+    // Show button if:
+    // - PWA is not installed (show Install)
+    // - PWA is installed but we're in browser (show Отвори)
 
     return (
       <>
@@ -115,15 +140,35 @@ const PWAInstallButton = ({
     );
   }
 
-  // Regular button variant
+  // Regular button variant (for footer)
+  // Check if we're in standalone mode (PWA)
+  const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
+  
+  // Hide if in standalone mode (PWA) - no button needed in PWA
+  // Show only on mobile (md:hidden) and when not in standalone mode
+  if (isStandalone) {
+    return (
+      <>
+        <ErrorModal
+          isOpen={showErrorModal || !!errorModalData}
+          onClose={() => {
+            setShowErrorModal(false);
+            setErrorModalData(null);
+          }}
+          message={errorModalData?.message || error}
+          debugInfo={errorModalData?.debugInfo || debugInfo}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <button
         onClick={handleClick}
-        disabled={isInstalled && !window.matchMedia('(display-mode: standalone)').matches}
-        className={`flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
+        className={`md:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
           isInstalled 
-            ? 'bg-gray-600 cursor-not-allowed opacity-60' 
+            ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' 
             : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
         } ${className}`}
         aria-label={isInstalled ? "Отвори приложението" : "Инсталирай приложението"}

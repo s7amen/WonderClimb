@@ -431,9 +431,9 @@ const SessionFilters = ({
               <label className="hidden min-[480px]:block text-[#94a3b8] text-xs leading-4 whitespace-nowrap text-left min-w-[120px] min-[900px]:min-w-[60px]">Години:</label>
               <div className="flex gap-[6px] flex-wrap min-[480px]:flex-nowrap justify-start">
                 {[
-                  { value: '4-6', label: '4-6' },
-                  { value: '7-12', label: '7-12' },
-                  { value: '13+', label: '13+' },
+                  { value: '4-6', label: '4-6 г.' },
+                  { value: '7-12', label: '7-12 г.' },
+                  { value: '13+', label: '13 г.+' },
                 ].map((ageGroup) => {
                   const isSelected = selectedAgeGroups?.includes(ageGroup.value) || false;
                   return (
