@@ -43,8 +43,8 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         serviceWorkerErrors: [],
       };
 
-      // Check if installed - only trust actual standalone mode, not localStorage
-      // If localStorage says installed but we're not in standalone mode, reset it
+      // Check if installed
+      // If we're in standalone mode, PWA is definitely installed and open
       if (diagnostics.isStandalone || diagnostics.isIOSStandalone) {
         setIsInstalled(true);
         // Make sure localStorage is set
@@ -52,13 +52,15 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           localStorage.setItem('pwa-installed', 'true');
         }
       } else {
-        // Not in standalone mode - reset installed status
-        setIsInstalled(false);
-        // Clear localStorage if it says installed but we're not actually installed
+        // Not in standalone mode - check localStorage to see if PWA was previously installed
+        // If localStorage says installed, PWA is installed but user is viewing in browser
         if (diagnostics.localStorageInstalled) {
-          console.log('[PWA Install] App was uninstalled, clearing localStorage');
-          localStorage.removeItem('pwa-installed');
+          setIsInstalled(true);
+          console.log('[PWA Install] PWA is installed (from localStorage), but user is in browser mode');
+        } else {
+          setIsInstalled(false);
         }
+        // Don't clear localStorage here - we only clear it when we detect actual uninstallation
       }
 
       // Check manifest
@@ -194,6 +196,16 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
       console.log('[PWA Install] beforeinstallprompt event received', e);
+      
+      // If beforeinstallprompt fires and we have localStorage saying installed, 
+      // it means the app was uninstalled (because beforeinstallprompt only fires when NOT installed)
+      const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
+      if (hasLocalStorageInstalled) {
+        console.log('[PWA Install] beforeinstallprompt fired but localStorage says installed - app was uninstalled');
+        setIsInstalled(false);
+        localStorage.removeItem('pwa-installed');
+      }
+      
       e.preventDefault();
       setDeferredPrompt(e);
       setError(null);
@@ -212,21 +224,31 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     
     window.addEventListener('appinstalled', handleAppInstalled);
     
-    // Also listen for when app is uninstalled (when we detect we're no longer in standalone)
-    // This happens when user uninstalls the app
+    // Also listen for when app is uninstalled
+    // We can't directly detect uninstallation, but we can check if:
+    // 1. We were in standalone mode before but now we're not
+    // 2. The beforeinstallprompt event fires again (means app was uninstalled)
+    // For now, we rely on the beforeinstallprompt event to detect re-installation capability
+    // If beforeinstallprompt fires and localStorage says installed, it means app was uninstalled
     const checkIfUninstalled = () => {
+      // Only check if we have localStorage set but no deferred prompt
+      // This might indicate uninstallation, but we can't be 100% sure
+      // So we'll be conservative and only clear if we're sure
+      const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
       
-      if (!isStandalone && !isIOSStandalone && localStorage.getItem('pwa-installed') === 'true') {
-        console.log('[PWA Install] Detected app was uninstalled, resetting status');
+      // If we're not in standalone and we have a deferred prompt, it means app was uninstalled
+      // because beforeinstallprompt only fires when app is NOT installed
+      if (!isStandalone && !isIOSStandalone && hasLocalStorageInstalled && deferredPrompt) {
+        console.log('[PWA Install] Detected app was uninstalled (beforeinstallprompt fired again), resetting status');
         setIsInstalled(false);
         localStorage.removeItem('pwa-installed');
       }
     };
     
-    // Check periodically if app was uninstalled
-    const uninstallCheckInterval = setInterval(checkIfUninstalled, 1000);
+    // Check periodically if app was uninstalled (less frequently now)
+    const uninstallCheckInterval = setInterval(checkIfUninstalled, 5000);
 
     // Update debug info periodically
     const interval = setInterval(() => {
@@ -242,11 +264,32 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   }, [deferredPrompt]);
 
   const openInstalledApp = () => {
-    // If app is installed, try to open it
+    // If app is installed, show message to open it manually
     if (isInstalled) {
-      // Try to navigate to the app's start URL
-      // In standalone mode, this will open the installed app
-      window.location.href = '/';
+      const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
+      
+      if (isStandalone) {
+        // Already in PWA, just navigate to home
+        window.location.href = '/';
+      } else {
+        // In browser but PWA is installed - show instructions
+        const message = 'Приложението е инсталирано!\n\n' +
+          'Моля, отворете го от началния екран на вашия телефон.\n\n' +
+          'Ако не можете да го намерите, проверете в менюто с приложения.';
+        if (onErrorModalOpen) {
+          setError(message);
+          setShowErrorModal(true);
+          onErrorModalOpen(message, {
+            protocol: debugInfo.protocol,
+            hostname: debugInfo.hostname,
+            isInstalled: true,
+            isStandalone: false,
+            browserInfo: debugInfo.browserInfo,
+          });
+        } else {
+          alert(message);
+        }
+      }
     } else {
       // If not installed, show message
       const message = 'Приложението не е инсталирано. Моля, инсталирайте го първо.';
