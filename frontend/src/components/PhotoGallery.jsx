@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { climberPhotosAPI } from '../services/api';
+import { API_BASE_URL, climberPhotosAPI } from '../services/api';
 import { useToast } from './UI/Toast';
 import AuthImage from './AuthImage';
 import PhotoUpload from './PhotoUpload';
@@ -10,8 +10,6 @@ const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
   const [settingMain, setSettingMain] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const { showToast, ToastComponent } = useToast();
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
   const getPhotoUrl = (filename) => {
     return `${API_BASE_URL}/admin/photos/${climberId}/${filename}`;

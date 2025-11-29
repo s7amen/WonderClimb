@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { adminUsersAPI } from '../../services/api';
+import { API_BASE_URL, adminUsersAPI } from '../../services/api';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { getUserFullName } from '../../utils/userUtils';
@@ -66,7 +66,6 @@ const ClimberProfile = () => {
   };
 
   const getPhotoUrl = (filename) => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
     return `${API_BASE_URL}/admin/photos/${id}/${filename}`;
   };
 

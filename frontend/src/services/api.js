@@ -1,6 +1,24 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const DEFAULT_DEV_API_URL = 'http://localhost:3000/api/v1';
+const DEFAULT_PROD_API_URL = 'https://wonderclimb.fly.dev/api/v1';
+
+const normalizeBaseUrl = (url) => {
+  if (!url) return url;
+  return url.replace(/\/+$/, '');
+};
+
+const resolveApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  if (envUrl) {
+    return normalizeBaseUrl(envUrl);
+  }
+
+  // Keep localhost for vite dev server, otherwise fall back to hosted API.
+  return import.meta.env.DEV ? DEFAULT_DEV_API_URL : DEFAULT_PROD_API_URL;
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 // Create axios instance
 const api = axios.create({
