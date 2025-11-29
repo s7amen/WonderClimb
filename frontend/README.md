@@ -9,7 +9,7 @@ React admin panel for WonderClimb climbing gym management system.
 - Node.js 20.x or higher
 - Backend API running on http://localhost:3000
 
-### Installation
+### Installation 3
 
 ```bash
 npm install
