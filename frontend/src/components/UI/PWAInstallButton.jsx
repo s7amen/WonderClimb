@@ -80,7 +80,7 @@ const PWAInstallButton = ({
       <>
         <button
           onClick={handleClick}
-          className={`fixed bottom-3 right-4 z-[9998] md:hidden w-14 h-14 ${
+          className={`fixed bottom-3 right-4 z-[9998] lg:hidden w-14 h-14 ${
             isInstalled 
               ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' 
               : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
@@ -145,7 +145,7 @@ const PWAInstallButton = ({
   const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
   
   // Hide if in standalone mode (PWA) - no button needed in PWA
-  // Show only on mobile (md:hidden) and when not in standalone mode
+  // Show only on mobile/tablet (lg:hidden) and when not in standalone mode
   if (isStandalone) {
     return (
       <>
@@ -166,7 +166,7 @@ const PWAInstallButton = ({
     <>
       <button
         onClick={handleClick}
-        className={`md:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
+        className={`lg:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
           isInstalled 
             ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' 
             : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
