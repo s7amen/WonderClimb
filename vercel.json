@@ -29,7 +29,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!.*\\.).*)$",
+      "source": "/((?!manifest\\.json|manifest\\.webmanifest|sw\\.js|workbox-.*\\.js|favicon\\.svg|logo-icon\\.svg|registerSW\\.js|.*\\.(js|css|png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|eot)).*)",
       "destination": "/index.html"
     }
   ]

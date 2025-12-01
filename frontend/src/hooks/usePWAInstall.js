@@ -135,9 +135,8 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           
           if (registrations.length === 0) {
             diagnostics.serviceWorkerErrors.push('No service worker registered');
-          } else {
-            diagnostics.serviceWorkerErrors.push(`Service worker registered: ${registrations[0].scope}`);
           }
+          // Note: Service worker successfully registered is not an error
         } catch (e) {
           diagnostics.serviceWorkerErrors.push(`Error checking service worker: ${e.message}`);
         }

@@ -37,9 +37,10 @@ const corsOptions = {
     
     // Check if origin is in allowed list or is a Vercel preview URL
     if (allowedOrigins.includes(origin) || isVercelPreview) {
+      logger.info(`CORS allowing origin: ${origin}`);
       callback(null, true);
     } else {
-      logger.warn(`CORS blocked origin: ${origin}`);
+      logger.warn(`CORS blocked origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ') || 'none'}, isVercelPreview: ${isVercelPreview}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
