@@ -3,10 +3,11 @@ import { config } from '../config/env.js';
 
 /**
  * Rate limiter for authentication endpoints
+ * More lenient in development to allow testing
  */
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: config.nodeEnv === 'development' ? 50 : 10, // 50 in dev, 10 in production per windowMs
   message: {
     error: {
       message: 'Too many authentication attempts, please try again later',
@@ -14,6 +15,23 @@ export const authRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Use email as key if available, otherwise fall back to IP
+  keyGenerator: (req) => {
+    // Try to use email from body to rate limit per user instead of per IP
+    // This prevents one user from blocking others on the same network
+    if (req.body?.email) {
+      return req.body.email.toLowerCase().trim();
+    }
+    return req.ip || req.connection?.remoteAddress || 'unknown';
+  },
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    if (config.nodeEnv === 'development') {
+      const ip = req.ip || req.connection?.remoteAddress || '';
+      return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127.0.0.1');
+    }
+    return false;
+  },
 });
 
 /**
