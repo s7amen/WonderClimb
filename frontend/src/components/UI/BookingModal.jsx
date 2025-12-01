@@ -81,14 +81,10 @@ const BookingModal = ({
         setSelfClimber(selfRes.data.climber);
       }
 
-      // Set default selection if no defaultSelectedClimberIds provided
-      if (defaultSelectedClimberIds.length === 0) {
-        if (filteredChildren.length > 0) {
-          const defaultIds = filteredChildren.map(c => c._id);
-          setSelectedClimberIds(defaultIds);
-        } else if (selfRes.data?.climber) {
-          setSelectedClimberIds([selfRes.data.climber._id]);
-        }
+      // No automatic selection - user must manually select climbers
+      // This prevents booking for wrong profiles (e.g., only children when user wanted self + children)
+      if (defaultSelectedClimberIds.length > 0) {
+        setSelectedClimberIds(defaultSelectedClimberIds);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -148,17 +144,27 @@ const BookingModal = ({
       return;
     }
 
-    // Filter out 'self' from climber IDs for API call
-    const climberIdsForAPI = selectedClimberIds.filter(id => {
-      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-      return idStr !== 'self';
-    });
+    // Filter out 'self' from climber IDs and replace with actual self climber ID
+    const climberIdsForAPI = [];
     const hasSelf = selectedClimberIds.some(id => {
       const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
       return idStr === 'self';
     });
 
-    if (climberIdsForAPI.length === 0 && !hasSelf) {
+    // Add self climber ID if 'self' is selected
+    if (hasSelf && selfClimber?._id) {
+      climberIdsForAPI.push(selfClimber._id);
+    }
+
+    // Add children IDs (filter out 'self' placeholder)
+    selectedClimberIds.forEach(id => {
+      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+      if (idStr !== 'self') {
+        climberIdsForAPI.push(id);
+      }
+    });
+
+    if (climberIdsForAPI.length === 0) {
       showToast('Моля, изберете поне един катерач', 'error');
       return;
     }
@@ -174,9 +180,8 @@ const BookingModal = ({
       // Book each session for each selected climber
       for (const sessionId of normalizedSessionIds) {
         try {
-          const bookingData = (hasClimberRole || hasAdminRole) && climberIdsForAPI.length > 0
-            ? { sessionId, climberIds: climberIdsForAPI }
-            : { sessionId };
+          // Always send climberIds array with all selected climbers (including self if selected)
+          const bookingData = { sessionId, climberIds: climberIdsForAPI };
 
           const response = await bookingsAPI.create(bookingData);
 
@@ -196,13 +201,6 @@ const BookingModal = ({
             }
           } else {
             // Fallback - assume all succeeded
-            if (hasSelf) {
-              results.successful.push({
-                climberId: 'self',
-                sessionId,
-                climberName: getUserFullName(user) || 'Аз'
-              });
-            }
             climberIdsForAPI.forEach(climberId => {
               const climber = allClimbers.find(c => {
                 const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
@@ -217,14 +215,7 @@ const BookingModal = ({
             });
           }
         } catch (error) {
-          // Session booking failed
-          if (hasSelf) {
-            results.failed.push({
-              climberId: 'self',
-              sessionId,
-              reason: error.response?.data?.error?.message || 'Грешка при резервиране'
-            });
-          }
+          // Session booking failed - add all selected climbers to failed list
           climberIdsForAPI.forEach(climberId => {
             const climber = allClimbers.find(c => {
               const climberIdStr = typeof c._id === 'object' && c._id?.toString ? c._id.toString() : String(c._id);
