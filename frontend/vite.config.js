@@ -9,6 +9,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'logo-icon.svg'],
+      manifestFilename: 'manifest.json', // Use manifest.json instead of manifest.webmanifest
       manifest: {
         name: 'WonderClimb',
         short_name: 'WonderClimb',

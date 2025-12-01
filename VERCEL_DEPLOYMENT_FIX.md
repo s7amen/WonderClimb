@@ -16,14 +16,15 @@
 **Problem:** Browser console showing 401 error when fetching manifest.json from Vercel.
 
 **Root Cause:** 
-- The source `index.html` had a manual reference to `/manifest.json`
-- VitePWA plugin generates `/manifest.webmanifest` and injects it automatically
-- This caused confusion and potential routing issues
+- VitePWA plugin was generating `/manifest.webmanifest` by default
+- Browser/service worker was requesting `/manifest.json`
+- Vercel rewrite rule was potentially intercepting the request
 
 **Solution:** 
+- Configured VitePWA to generate `manifest.json` instead of `manifest.webmanifest` (via `manifestFilename` option)
 - Removed manual manifest link from `index.html` (VitePWA handles it automatically)
-- Updated `usePWAInstall.js` hook to check for `manifest.webmanifest` first, then fallback to `manifest.json`
-- Updated `vercel.json` with proper headers and CORS for both manifest files
+- Updated `usePWAInstall.js` hook to check for `manifest.json` first
+- Updated `vercel.json` with proper headers and rewrite rule that excludes static files
 
 ## Next Steps
 
@@ -127,7 +128,8 @@ If CORS errors persist after deploying:
 - `backend/README.md` - Updated documentation
 
 **Frontend:**
+- `frontend/vite.config.js` - Configured VitePWA to generate `manifest.json` instead of `manifest.webmanifest`
 - `frontend/index.html` - Removed manual manifest link (VitePWA handles it)
-- `frontend/src/hooks/usePWAInstall.js` - Updated to check manifest.webmanifest first
-- `vercel.json` - Added proper headers and CORS for manifest files
+- `frontend/src/hooks/usePWAInstall.js` - Updated to check manifest.json first
+- `vercel.json` - Added proper headers and rewrite rule that excludes static files
 
