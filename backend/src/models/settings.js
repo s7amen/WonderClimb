@@ -109,3 +109,4 @@ settingsSchema.statics.getSettings = async function() {
 export const Settings = mongoose.model('Settings', settingsSchema);
 
 
+

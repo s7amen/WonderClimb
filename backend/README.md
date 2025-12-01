@@ -140,6 +140,21 @@ See `.env.example` for all available configuration options.
 1. Set `NODE_ENV=production` in `.env`
 2. Use MongoDB Atlas connection string
 3. Set strong `JWT_SECRET`
-4. Configure `CORS_ORIGIN` for your frontend domain
+4. Configure `CORS_ORIGIN` for your frontend domain(s)
+   - **Vercel preview URLs are automatically allowed** (pattern: `*.vercel.app`)
+   - For custom domains, set `CORS_ORIGIN` as comma-separated list: `https://yourdomain.com,https://www.yourdomain.com`
+   - Example: `CORS_ORIGIN=https://wonderclimb.com,https://www.wonderclimb.com`
 5. Use process manager (PM2, systemd) or container orchestration
+
+### CORS Configuration
+
+The backend automatically allows:
+- All Vercel preview URLs (`*.vercel.app`) - no configuration needed
+- Origins specified in `CORS_ORIGIN` environment variable
+- All origins in development mode
+
+To set CORS_ORIGIN on Fly.dev:
+```bash
+fly secrets set CORS_ORIGIN="https://your-production-domain.com"
+```
 

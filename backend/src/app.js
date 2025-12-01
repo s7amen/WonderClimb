@@ -15,12 +15,40 @@ const app = express();
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: config.nodeEnv === 'production' 
-    ? process.env.CORS_ORIGIN?.split(',') || false
-    : true, // Allow all origins in development
+
+// CORS configuration
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // In development, allow all origins
+    if (config.nodeEnv !== 'production') {
+      return callback(null, true);
+    }
+
+    // In production, check against allowed origins
+    const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || [];
+    
+    // Allow Vercel preview URLs (pattern: *.vercel.app)
+    const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
+    
+    // Check if origin is in allowed list or is a Vercel preview URL
+    if (allowedOrigins.includes(origin) || isVercelPreview) {
+      callback(null, true);
+    } else {
+      logger.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
 
 // Middleware
 app.use(httpLogger);
