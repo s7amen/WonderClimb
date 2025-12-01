@@ -60,6 +60,10 @@ const Schedule = () => {
       if (hasFetched) return; // Prevent duplicate requests
       hasFetched = true;
       
+      // Reset selection immediately before fetching data
+      setBookingData({ selectedClimberIds: [], sessionId: '' });
+      setBulkBookingClimberIds([]);
+      
       try {
         await fetchData();
       } catch (error) {
@@ -130,21 +134,10 @@ const Schedule = () => {
         }
       }
 
-      // Set default selection: all linked children if available, else self if climber role exists
-      if (filteredChildren.length > 0) {
-        // Select all linked children by default
-        const defaultIds = filteredChildren.map(c => c._id);
-        console.log('Setting default selection to all children:', defaultIds);
-        setBookingData(prev => ({ ...prev, selectedClimberIds: defaultIds }));
-        setBulkBookingClimberIds(defaultIds);
-      } else if (fetchedSelfClimber) {
-        // Select self if no children but user has climber role
-        console.log('Setting default selection to self:', fetchedSelfClimber._id);
-        setBookingData(prev => ({ ...prev, selectedClimberIds: [fetchedSelfClimber._id] }));
-        setBulkBookingClimberIds([fetchedSelfClimber._id]);
-      } else {
-        console.log('No default selection - no children or self climber');
-      }
+      // No automatic selection - user must manually select climbers
+      // Reset to empty selection - force reset without using prev
+      setBookingData({ selectedClimberIds: [], sessionId: '' });
+      setBulkBookingClimberIds([]);
     } catch (error) {
       if (error.response?.status === 429) {
         showToast('Твърде много заявки. Моля, изчакайте малко преди да опитате отново.', 'error');
@@ -1035,7 +1028,7 @@ const Schedule = () => {
                 <select
                   value={bookingData.sessionId}
                   onChange={(e) => {
-                    setBookingData({ ...bookingData, sessionId: e.target.value });
+                    setBookingData(prev => ({ ...prev, sessionId: e.target.value }));
                     setSelectedSession(e.target.value || null);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md"

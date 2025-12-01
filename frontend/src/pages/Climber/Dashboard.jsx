@@ -5,7 +5,7 @@ import { format, startOfDay, addDays, isBefore, addMonths, subMonths, eachDayOfI
 import { bg } from 'date-fns/locale';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
-import { parentClimbersAPI, bookingsAPI } from '../../services/api';
+import { parentClimbersAPI, bookingsAPI, sessionsAPI } from '../../services/api';
 import ConfirmDialog from '../../components/UI/ConfirmDialog';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -29,6 +29,7 @@ const Dashboard = () => {
   const [selectedBookingIds, setSelectedBookingIds] = useState([]);
   const [dateToCancel, setDateToCancel] = useState(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
   const { showToast, ToastComponent } = useToast();
 
   const hasFetchedRef = useRef(false);
@@ -69,7 +70,14 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [childrenRes, bookingsRes] = await Promise.all([
+      const today = startOfDay(new Date());
+      const endDate = addDays(today, 365); // Load sessions for next year for calendar view
+      
+      const [sessionsRes, childrenRes, bookingsRes] = await Promise.all([
+        sessionsAPI.getAvailable({
+          startDate: today.toISOString(),
+          endDate: endDate.toISOString(),
+        }).catch(() => ({ data: { sessions: [] } })),
         parentClimbersAPI.getAll().catch(() => ({ data: { climbers: [] } })),
         bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } })),
       ]);
@@ -144,8 +152,7 @@ const Dashboard = () => {
 
       // Handle failed cancellations
       if (results.failed.length > 0) {
-        // Check if ALL failures are cancellation errors (they will have error messages from backend)
-        // Show them in dialog if all are cancellation-related
+        // Show error details in dialog
         const errorDetails = results.failed.map(f => {
           const booking = bookingsToCancel.find(b => b._id === f.bookingId);
           if (booking && booking.climber) {
@@ -156,7 +163,7 @@ const Dashboard = () => {
           return f.reason || 'Грешка';
         }).join('\n');
         
-        // Show error in dialog - backend returns configurable messages
+        // Show error in dialog - keep dialog open, no toast
         setCancelError(errorDetails);
         // Don't close dialog, don't show toast - keep dialog open to show error
       } else {
@@ -169,18 +176,9 @@ const Dashboard = () => {
       }
     } catch (error) {
       const errorMessage = error.response?.data?.error?.message || 'Грешка при отменяне на резервации';
-      const statusCode = error.response?.status;
       
-      // If it's a 400 error (cancellation period expired), show in dialog
-      if (statusCode === 400) {
-        setCancelError(errorMessage);
-      } else {
-        showToast(errorMessage, 'error');
-        setShowCancelDialog(false);
-        setBookingsToCancel([]);
-        setSelectedBookingIds([]);
-        setDateToCancel(null);
-      }
+      // Show all errors in dialog, no toast - keep dialog open
+      setCancelError(errorMessage);
     } finally {
       setIsCancelling(false);
     }
@@ -191,6 +189,7 @@ const Dashboard = () => {
     setBookingsToCancel([]);
     setSelectedBookingIds([]);
     setDateToCancel(null);
+    setCancelError(null);
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -519,6 +518,7 @@ const Dashboard = () => {
         confirmText={isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
         cancelText="Отказ"
         variant="danger"
+        errorMessage={cancelError}
         disabled={isCancelling || selectedBookingIds.length === 0}
       >
         {dateToCancel && bookingsToCancel.length > 0 && (() => {
@@ -618,7 +618,7 @@ const Dashboard = () => {
                     }`}
                   >
                     <ListIcon />
-                    Список
+                    Списък
                   </button>
                 </div>
               </div>
@@ -798,9 +798,6 @@ const Dashboard = () => {
                                   const timeStr = formatTime(session.date);
                                   const endTimeStr = getEndTime(session.date, session.durationMinutes);
                                   const borderColor = getSessionColor(session).border;
-                                  const fullDayNames = ['Неделя', 'Понеделник', 'Вторник', 'Сряда', 'Четвъртък', 'Петък', 'Събота'];
-                                  const fullDayName = fullDayNames[sessionDate.getDay()];
-                                  const formattedDate = format(sessionDate, 'dd/MM/yyyy');
 
                                   return (
                                     <div
@@ -811,16 +808,6 @@ const Dashboard = () => {
                                       <div className="px-4 py-3">
                                         {/* Desktop Layout */}
                                         <div className="hidden md:flex flex-col gap-2">
-                                          {/* Date Row */}
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <div className="w-4 h-4 shrink-0">
-                                              <CalendarSvgIcon />
-                                            </div>
-                                            <span className="text-sm md:text-base leading-6 text-[#0f172b] font-normal">
-                                              {fullDayName}, {formattedDate}
-                                            </span>
-                                          </div>
-                                          
                                           {/* Time Row with Title, Target Groups and Cancel Button */}
                                           <div className="flex items-center justify-between gap-2 md:gap-4 flex-wrap">
                                             <div className="flex items-center gap-2 transition-colors duration-200 group-hover:text-[#ff6900] flex-1 min-w-0 flex-wrap">
@@ -908,23 +895,45 @@ const Dashboard = () => {
                                           </div>
                                         </div>
 
-                                        {/* Reservations Info - не показваме името на катерача тук, защото вече е в заглавието */}
+                                        {/* Reservations Info */}
+                                        {reservations.length > 0 && (
+                                          <div className="mb-2 flex items-center gap-2 flex-wrap">
+                                            <div className="flex items-center flex-wrap gap-2">
+                                              {reservations.map((reservation, index) => {
+                                                const colorClasses = [
+                                                  { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200' },
+                                                  { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+                                                  { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },
+                                                  { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+                                                  { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
+                                                  { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+                                                  { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
+                                                  { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+                                                ];
+                                                const colorIndex = index % colorClasses.length;
+                                                const colors = colorClasses[colorIndex];
+
+                                                return (
+                                                  <span
+                                                    key={reservation.bookingId || index}
+                                                    className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
+                                                  >
+                                                    <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                      <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                    </svg>
+                                                    {reservation.climberName}
+                                                  </span>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
 
                                         {/* Mobile Layout */}
                                         <div className="md:hidden flex gap-4">
                                           {/* Left side - Content */}
                                           <div className="flex-1 min-w-0">
-                                            {/* Дата с икона календар */}
-                                            <div className="mb-2">
-                                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <div className="w-4 h-4 shrink-0">
-                                                  <CalendarSvgIcon />
-                                                </div>
-                                                <span className="text-sm leading-6 text-[#0f172b] font-normal">
-                                                  {fullDayName}, {formattedDate}
-                                                </span>
-                                              </div>
-                                            </div>
                                             {/* 2. Часът и заглавието - могат да wrap-ват на два реда */}
                                             <div className="mb-2">
                                               <div className="flex items-center gap-2 mb-1 transition-colors duration-200 group-hover:text-[#ff6900] flex-wrap">
@@ -978,26 +987,58 @@ const Dashboard = () => {
                                               </div>
                                             )}
 
-                                            {/* Reservations - не показваме името на катерача тук, защото вече е в заглавието */}
-                                          </div>
+                                          {/* Reservations */}
+                                          {reservations.length > 0 && (
+                                            <div className="mb-2 flex items-center flex-wrap gap-2">
+                                              <div className="flex items-center flex-wrap gap-2">
+                                                {reservations.map((reservation, index) => {
+                                                  // Различни цветове за всяко дете (без blue, green, red за да не съвпадат с target groups)
+                                                  const colorClasses = [
+                                                    { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+                                                    { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+                                                    { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
+                                                    { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+                                                    { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
+                                                    { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+                                                    { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
+                                                    { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
+                                                  ];
+                                                  const colorIndex = index % colorClasses.length;
+                                                  const colors = colorClasses[colorIndex];
 
-                                          {/* Right side - Cancel Button */}
-                                          <div className="flex flex-col items-end gap-2 shrink-0">
-                                            {reservations.length > 0 && (
-                                              <button
-                                                onClick={() => {
-                                                  const singleDateGroup = {
-                                                    date: startOfDay(sessionDate),
-                                                    bookings: bookings
-                                                  };
-                                                  handleCancelBooking(singleDateGroup);
-                                                }}
-                                                className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
-                                              >
-                                                Отмени
-                                              </button>
-                                            )}
-                                          </div>
+                                                  return (
+                                                    <span
+                                                      key={reservation.bookingId || index}
+                                                      className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
+                                                    >
+                                                      <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                      </svg>
+                                                      {reservation.climberName}
+                                                    </span>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* Right side - Cancel Button */}
+                                        <div className="flex flex-col items-end gap-2 shrink-0">
+                                          {reservations.length > 0 && (
+                                            <button
+                                              onClick={() => {
+                                                const singleDateGroup = {
+                                                  date: startOfDay(sessionDate),
+                                                  bookings: bookings
+                                                };
+                                                handleCancelBooking(singleDateGroup);
+                                              }}
+                                              className="h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
+                                            >
+                                              Отмени
+                                            </button>
+                                          )}
                                         </div>
                                       </div>
                                     </div>

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Card from '../UI/Card';
 
 // MultiSelect Dropdown Component for climbers/children
-const MultiSelectDropdown = ({ label, options, selectedValues, onToggle, getUserDisplayName, onAddChild, user }) => {
+const MultiSelectDropdown = ({ label, options, selectedValues, onToggle, getUserDisplayName, onAddChild, user, placeholder = 'Избери...' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -50,7 +50,7 @@ const MultiSelectDropdown = ({ label, options, selectedValues, onToggle, getUser
   };
 
   const displayText = selectedValues.length === 0
-    ? 'Избери...'
+    ? placeholder
     : selectedValues.length === 1
     ? (() => {
         const selected = options.find(opt => {

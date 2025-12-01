@@ -11,6 +11,7 @@ const ConfirmDialog = ({
   cancelText = 'Отказ',
   variant = 'danger',
   warningMessage = null,
+  errorMessage = null,
   hasBookedSessions = false,
   bookedSessionsCount = 0,
   children = null,
@@ -116,8 +117,24 @@ const ConfirmDialog = ({
           </div>
         )}
 
+        {/* Error message if provided */}
+        {errorMessage && (
+          <div className="bg-red-50 border-2 border-red-300 rounded-[10px] p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm sm:text-[16px] font-medium text-red-900 leading-tight sm:leading-[24px] whitespace-pre-line break-words">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Additional warning message if provided */}
-        {warningMessage && !hasBookedSessions && (
+        {warningMessage && !hasBookedSessions && !errorMessage && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-[10px] p-4 mb-6">
             <p className="text-sm sm:text-[16px] text-yellow-800 leading-tight sm:leading-[24px]">
               {warningMessage}

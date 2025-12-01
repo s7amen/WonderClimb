@@ -22,6 +22,7 @@ const Bookings = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelBookingId, setCancelBookingId] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
 
   const [bookingData, setBookingData] = useState({
     climberId: '',
@@ -109,38 +110,62 @@ const Bookings = () => {
   const handleBookSession = async (e) => {
     e.preventDefault();
     try {
+      setBookingError(null); // Clear previous error
       const sessionIdToUse = selectedSession || bookingData.sessionId;
       if (!sessionIdToUse) {
         showToast('Моля, изберете сесия', 'error');
         return;
       }
-      const response = await bookingsAPI.create({
-        sessionId: sessionIdToUse,
-        climberId: bookingData.climberId,
-      });
-      
-      // Optimistically update bookings list instead of full reload
-      if (response.data?.booking) {
-        setMyBookings(prev => [...prev, response.data.booking]);
+      if (!bookingData.climberId) {
+        showToast('Моля, изберете дете', 'error');
+        return;
       }
       
-      // Optimistically update session booked count
-      setAvailableSessions(prev => prev.map(session => {
-        if (session._id === sessionIdToUse) {
-          return {
-            ...session,
-            bookedCount: (session.bookedCount || 0) + 1
-          };
-        }
-        return session;
-      }));
+      const response = await bookingsAPI.create({
+        sessionId: sessionIdToUse,
+        climberIds: [bookingData.climberId], // Use climberIds array for consistency
+      });
       
-      setShowBookingForm(false);
-      setSelectedSession(null);
-      setBookingData({ climberId: '', sessionId: '' });
-      showToast('Резервацията е успешна', 'success');
+      // Handle response with summary (multiple bookings)
+      if (response.data?.summary) {
+        const { successful, failed } = response.data.summary;
+        
+        if (successful && successful.length > 0) {
+          // Optimistically update bookings list
+          await fetchData(); // Refresh to get latest data
+          showToast('Резервацията е успешна', 'success');
+          setShowBookingForm(false);
+          setSelectedSession(null);
+          setBookingData({ climberId: '', sessionId: '' });
+        }
+        
+        if (failed && failed.length > 0) {
+          // Show errors in form
+          const errorDetails = failed.map(item => {
+            const climber = children.find(c => c._id === item.climberId);
+            const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
+            return `${climberName}: ${item.reason || 'Грешка'}`;
+          }).join('\n');
+          setBookingError(errorDetails);
+          // Don't close form if there are errors
+        }
+      } else if (response.data?.booking) {
+        // Fallback for single booking response
+        await fetchData(); // Refresh to get latest data
+        showToast('Резервацията е успешна', 'success');
+        setShowBookingForm(false);
+        setSelectedSession(null);
+        setBookingData({ climberId: '', sessionId: '' });
+      }
     } catch (error) {
-      showToast(error.response?.data?.error?.message || 'Грешка при резервиране на сесия', 'error');
+      const errorMessage = error.response?.data?.error?.message || 'Грешка при резервиране на сесия';
+      
+      // Check if it's the "already registered" error
+      if (errorMessage.includes('Вече е регистриран') || errorMessage.includes('регистриран за тази тренировка')) {
+        setBookingError(errorMessage);
+      } else {
+        showToast(errorMessage, 'error');
+      }
     }
   };
 
@@ -458,6 +483,31 @@ const Bookings = () => {
               </div>
             )}
 
+            {/* Error message */}
+            {bookingError && (
+              <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-[10px]">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm sm:text-base font-medium text-red-900 whitespace-pre-line break-words">
+                      {bookingError}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setBookingError(null)}
+                    className="text-red-600 hover:text-red-800 transition-colors shrink-0"
+                    aria-label="Затвори"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-2">
               <Button type="submit" variant="primary" className="w-full sm:w-auto">
                 Резервирай сесия
@@ -466,6 +516,7 @@ const Bookings = () => {
                 setShowBookingForm(false);
                 setSelectedSession(null);
                 setBookingData({ climberId: '', sessionId: '' });
+                setBookingError(null);
               }} className="w-full sm:w-auto">
                 Отказ
               </Button>

@@ -276,9 +276,10 @@ const Sessions = () => {
     });
 
     // Set up booking modal with single session
+    // No automatic selection - user must manually select climbers
     setBookingSessionIds([sessionId]);
     setBookingSessions(session ? [session] : []);
-    setBookingDefaultClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
+    setBookingDefaultClimberIds([]);
     setShowBookingModal(true);
   };
 
@@ -477,7 +478,8 @@ const Sessions = () => {
     // Set up booking modal with multiple sessions
     setBookingSessionIds(selectedSessionIds);
     setBookingSessions(selectedSessions);
-    setBookingDefaultClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : (bulkBookingClimberIds.length > 0 ? [...bulkBookingClimberIds] : []));
+    // No automatic selection - user must manually select climbers
+    setBookingDefaultClimberIds([]);
     setShowBookingModal(true);
   };
 
