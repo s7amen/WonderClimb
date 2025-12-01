@@ -13,10 +13,7 @@ const logger = pino({ level: config.logLevel });
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
-// CORS configuration
+// CORS configuration (must be before helmet to ensure CORS headers are set)
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -50,6 +47,12 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Security middleware (after CORS to not interfere with CORS headers)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Middleware
 app.use(httpLogger);

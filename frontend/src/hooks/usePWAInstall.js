@@ -87,35 +87,52 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           
           // Check icons in manifest
           if (manifest.icons && Array.isArray(manifest.icons)) {
-            const icon192 = manifest.icons.find(icon => icon.sizes === '192x192');
-            const icon512 = manifest.icons.find(icon => icon.sizes === '512x512');
+            // Check for PNG icons (192x192 and 512x512) or SVG icons
+            const icon192 = manifest.icons.find(icon => icon.sizes === '192x192' || icon.sizes === 'any');
+            const icon512 = manifest.icons.find(icon => icon.sizes === '512x512' || icon.sizes === 'any');
+            const svgIcon = manifest.icons.find(icon => icon.type === 'image/svg+xml' || icon.src?.endsWith('.svg'));
             
-            if (icon192) {
+            // If we have an SVG icon, it can serve both sizes
+            if (svgIcon) {
               try {
-                const iconResponse = await fetch(icon192.src);
+                const iconResponse = await fetch(svgIcon.src);
                 diagnostics.iconsExist.icon192 = iconResponse.ok;
-                if (!iconResponse.ok) {
-                  diagnostics.iconErrors.push(`Icon 192x192 not found: ${icon192.src}`);
-                }
-              } catch (e) {
-                diagnostics.iconErrors.push(`Error checking icon 192x192: ${e.message}`);
-              }
-            } else {
-              diagnostics.iconErrors.push('Icon 192x192 missing in manifest');
-            }
-            
-            if (icon512) {
-              try {
-                const iconResponse = await fetch(icon512.src);
                 diagnostics.iconsExist.icon512 = iconResponse.ok;
                 if (!iconResponse.ok) {
-                  diagnostics.iconErrors.push(`Icon 512x512 not found: ${icon512.src}`);
+                  diagnostics.iconErrors.push(`SVG icon not found: ${svgIcon.src}`);
                 }
               } catch (e) {
-                diagnostics.iconErrors.push(`Error checking icon 512x512: ${e.message}`);
+                diagnostics.iconErrors.push(`Error checking SVG icon: ${e.message}`);
               }
             } else {
-              diagnostics.iconErrors.push('Icon 512x512 missing in manifest');
+              // Check for PNG icons
+              if (icon192) {
+                try {
+                  const iconResponse = await fetch(icon192.src);
+                  diagnostics.iconsExist.icon192 = iconResponse.ok;
+                  if (!iconResponse.ok) {
+                    diagnostics.iconErrors.push(`Icon 192x192 not found: ${icon192.src}`);
+                  }
+                } catch (e) {
+                  diagnostics.iconErrors.push(`Error checking icon 192x192: ${e.message}`);
+                }
+              } else {
+                diagnostics.iconErrors.push('Icon 192x192 missing in manifest');
+              }
+              
+              if (icon512) {
+                try {
+                  const iconResponse = await fetch(icon512.src);
+                  diagnostics.iconsExist.icon512 = iconResponse.ok;
+                  if (!iconResponse.ok) {
+                    diagnostics.iconErrors.push(`Icon 512x512 not found: ${icon512.src}`);
+                  }
+                } catch (e) {
+                  diagnostics.iconErrors.push(`Error checking icon 512x512: ${e.message}`);
+                }
+              } else {
+                diagnostics.iconErrors.push('Icon 512x512 missing in manifest');
+              }
             }
           } else {
             diagnostics.manifestErrors.push('Icons array missing or invalid in manifest');
