@@ -12,14 +12,37 @@
 - Vercel preview URLs are now automatically allowed (no configuration needed)
 - Custom production domains can still be added via `CORS_ORIGIN` environment variable
 
-### 2. Manifest.json 401 Error
-**Problem:** Browser console showing 401 error when fetching manifest.json.
+### 2. Manifest.json 401 Error ✅
+**Problem:** Browser console showing 401 error when fetching manifest.json from Vercel.
 
-**Solution:** Updated `vercel.json` to ensure proper headers for manifest.json. This error may also resolve once CORS is fixed (could be a preflight OPTIONS request issue).
+**Root Cause:** 
+- The source `index.html` had a manual reference to `/manifest.json`
+- VitePWA plugin generates `/manifest.webmanifest` and injects it automatically
+- This caused confusion and potential routing issues
+
+**Solution:** 
+- Removed manual manifest link from `index.html` (VitePWA handles it automatically)
+- Updated `usePWAInstall.js` hook to check for `manifest.webmanifest` first, then fallback to `manifest.json`
+- Updated `vercel.json` with proper headers and CORS for both manifest files
 
 ## Next Steps
 
-### 1. Deploy Backend Changes to Fly.dev
+### 1. Rebuild and Redeploy Frontend to Vercel
+
+The manifest.json fix requires a rebuild:
+
+```bash
+cd frontend
+npm run build
+# Commit and push changes
+git add index.html src/hooks/usePWAInstall.js vercel.json
+git commit -m "Fix manifest.json 401 error - use manifest.webmanifest"
+git push
+```
+
+Vercel will automatically rebuild and deploy.
+
+### 2. Deploy Backend Changes to Fly.dev (if not done already)
 
 The CORS fix needs to be deployed to your Fly.dev backend:
 
@@ -99,7 +122,12 @@ If CORS errors persist after deploying:
 
 ## Files Changed
 
-- `backend/src/app.js` - Updated CORS configuration
-- `vercel.json` - Added headers for manifest.json
+**Backend:**
+- `backend/src/app.js` - Updated CORS configuration to allow Vercel preview URLs
 - `backend/README.md` - Updated documentation
+
+**Frontend:**
+- `frontend/index.html` - Removed manual manifest link (VitePWA handles it)
+- `frontend/src/hooks/usePWAInstall.js` - Updated to check manifest.webmanifest first
+- `vercel.json` - Added proper headers and CORS for manifest files
 

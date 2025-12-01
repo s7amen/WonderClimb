@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for wonderclimb-dcb-qa on 2025-11-27T13:40:04Z
+# fly.toml app configuration file generated for wonderclimb-lively-pine-6451 on 2025-12-01T07:08:31+02:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'wonderclimb-dcb-qa'
+app = 'wonderclimb-lively-pine-6451'
 primary_region = 'fra'
 
 [build]
@@ -20,4 +20,3 @@ primary_region = 'fra'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 1024

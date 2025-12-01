@@ -1,6 +1,8 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/manifest.json",
@@ -8,6 +10,23 @@
         {
           "key": "Content-Type",
           "value": "application/manifest+json"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         }
       ]
     }

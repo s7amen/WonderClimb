@@ -63,9 +63,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         // Don't clear localStorage here - we only clear it when we detect actual uninstallation
       }
 
-      // Check manifest
+      // Check manifest (VitePWA generates manifest.webmanifest)
       try {
-        const manifestResponse = await fetch('/manifest.json');
+        // Try manifest.webmanifest first (VitePWA standard), then fallback to manifest.json
+        let manifestResponse = await fetch('/manifest.webmanifest');
+        if (!manifestResponse.ok) {
+          manifestResponse = await fetch('/manifest.json');
+        }
         diagnostics.manifestExists = manifestResponse.ok;
         
         if (manifestResponse.ok) {
