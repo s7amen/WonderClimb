@@ -77,6 +77,12 @@ describe('Parent Booking E2E Tests', () => {
       status: 'active',
       coachIds: [coachUser._id],
     });
+
+    // Verify session creation
+    const createdSession = await Session.findById(session._id);
+    if (!createdSession) {
+      throw new Error('Session not created in beforeAll');
+    }
   });
 
   describe('POST /api/v1/bookings', () => {

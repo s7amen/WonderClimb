@@ -29,10 +29,10 @@ describe('Unified User Model E2E Tests', () => {
       accountStatus: 'active',
     });
     await parentUser.save();
-    parentToken = generateToken({ 
-      id: parentUser._id.toString(), 
-      email: parentUser.email, 
-      roles: parentUser.roles 
+    parentToken = generateToken({
+      id: parentUser._id.toString(),
+      email: parentUser.email,
+      roles: parentUser.roles
     });
 
     // Create admin user
@@ -45,10 +45,10 @@ describe('Unified User Model E2E Tests', () => {
       accountStatus: 'active',
     });
     await adminUser.save();
-    adminToken = generateToken({ 
-      id: adminUser._id.toString(), 
-      email: adminUser.email, 
-      roles: adminUser.roles 
+    adminToken = generateToken({
+      id: adminUser._id.toString(),
+      email: adminUser.email,
+      roles: adminUser.roles
     });
 
     // Create coach user
@@ -287,7 +287,7 @@ describe('Unified User Model E2E Tests', () => {
           email: 'invalid-email',
           password: 'password123',
         })
-        .expect(400);
+        .expect(400); // Validation error
     });
   });
 
@@ -315,7 +315,7 @@ describe('Unified User Model E2E Tests', () => {
         .send({
           email: 'inactive@test.com',
           password: 'password123',
-        })).body.error.message).toContain('Account is inactive');
+        })).body.error.message).toContain('Профилът е неактивен');
     });
   });
 
@@ -487,10 +487,10 @@ describe('Unified User Model E2E Tests', () => {
         status: 'booked',
       });
 
-      const coachToken = generateToken({ 
-        id: coachUser._id.toString(), 
-        email: coachUser.email, 
-        roles: coachUser.roles 
+      const coachToken = generateToken({
+        id: coachUser._id.toString(),
+        email: coachUser.email,
+        roles: coachUser.roles
       });
 
       const response = await request(app)

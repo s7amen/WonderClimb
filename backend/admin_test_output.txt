@@ -1,0 +1,73 @@
+﻿
+> wonderclimb-backend@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration/adminSessions.e2e.test.js --verbose=false
+
+node.exe : (node:15376) ExperimentalWarning: VM Modules 
+is an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:15376) 
+    Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the 
+warning was created)
+{"level":30,"time":1764666266875,"pid":15376,"hostname":"Stamen","msg":"Competitions routes loaded, Competition model:"}
+{"level":30,"time":1764666267615,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/sessions","msg":"Token decoded"}
+{"level":30,"time":1764666267615,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/sessions","method":"POST","msg":"Role check"}
+{"level":30,"time":1764666267621,"pid":15376,"hostname":"Stamen","sessionId":"692eab9ba2aed5c624d3990e","title":"New Session","date":"2025-12-12T16:00:00.000Z","msg":"Session created"}
+{"level":30,"time":1764666267624,"pid":15376,"hostname":"Stamen","req":{"id":1,"method":"POST","url":"/api/v1/admin/sessions","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":25,"msg":"request completed"}
+{"level":30,"time":1764666267712,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d39918","email":"parent@sessions.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/sessions","msg":"Token decoded"}
+{"level":30,"time":1764666267712,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d39918","email":"parent@sessions.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":false,"path":"/sessions","method":"POST","msg":"Role check"}
+{"level":40,"time":1764666267712,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d39918","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"path":"/sessions","method":"POST","fullUser":{"id":"692eab9ba2aed5c624d39918","email":"parent@sessions.com","roles":["climber"],"iat":1764666267,"exp":1765271067},"msg":"Access denied: insufficient role"}
+{"level":40,"time":1764666267712,"pid":15376,"hostname":"Stamen","req":{"id":2,"method":"POST","url":"/api/v1/admin/sessions","headers":{"content-type":"application/json"}},"res":{"statusCode":403},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1764666267727,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/sessions/692eab9ba2aed5c624d39922","msg":"Token decoded"}
+{"level":30,"time":1764666267727,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/sessions/692eab9ba2aed5c624d39922","method":"PUT","msg":"Role check"}
+{"level":30,"time":1764666267744,"pid":15376,"hostname":"Stamen","sessionId":"692eab9ba2aed5c624d39922","updates":{"title":"Updated Title","capacity":20},"msg":"Session updated"}
+{"level":30,"time":1764666267744,"pid":15376,"hostname":"Stamen","req":{"id":3,"method":"PUT","url":"/api/v1/admin/sessions/692eab9ba2aed5c624d39922","headers":{"content-type":"application/json"}},"res":{"statusCode":200},"responseTime":18,"msg":"request completed"}
+{"level":30,"time":1764666267762,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/sessions/692eab9ba2aed5c624d3992e","msg":"Token decoded"}
+{"level":30,"time":1764666267762,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/sessions/692eab9ba2aed5c624d3992e","method":"PUT","msg":"Role check"}
+{"level":50,"time":1764666267764,"pid":15376,"hostname":"Stamen","error":"Cannot reduce capacity below 1 (current bookings)","sessionId":"692eab9ba2aed5c624d3992e","updateData":{"capacity":0},"msg":"Error updating session"}
+{"level":50,"time":1764666267764,"pid":15376,"hostname":"Stamen","err":{"type":"Object","message":"Cannot reduce capacity below 1 (current bookings)","stack":""},"path":"/api/v1/admin/sessions/692eab9ba2aed5c624d3992e","method":"PUT","statusCode":400,"msg":"Cannot reduce capacity below 1 (current bookings)"}
+{"level":40,"time":1764666267765,"pid":15376,"hostname":"Stamen","req":{"id":4,"method":"PUT","url":"/api/v1/admin/sessions/692eab9ba2aed5c624d3992e","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":5,"msg":"request completed"}
+{"level":30,"time":1764666267781,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/sessions/692eab9ba2aed5c624d3993d/payout-status","msg":"Token decoded"}
+{"level":30,"time":1764666267781,"pid":15376,"hostname":"Stamen","userId":"692eab9ba2aed5c624d3990a","email":"admin@sessions.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/sessions/692eab9ba2aed5c624d3993d/payout-status","method":"PATCH","msg":"Role check"}
+{"level":30,"time":1764666267783,"pid":15376,"hostname":"Stamen","sessionId":"692eab9ba2aed5c624d3993d","payoutStatus":"paid","payoutAmount":50,"msg":"Coach payout status updated"}
+{"level":30,"time":1764666267784,"pid":15376,"hostname":"Stamen","req":{"id":5,"method":"PATCH","url":"/api/v1/admin/sessions/692eab9ba2aed5c624d3993d/payout-status","headers":{"content-type":"application/json"}},"res":{"statusCode":200},"responseTime":4,"msg":"request completed"}
+FAIL tests/integration/adminSessions.e2e.test.js
+  ÔùÅ Admin Sessions E2E Tests ÔÇ║ POST 
+/api/v1/admin/sessions ÔÇ║ should create a new session
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 50
+    Received: null
+
+    [0m [90m 64 |[39m       expect(response[33m.[39mb
+ody[33m.[39msession)[33m.[39mtoBeDefined()[33m;[39m
+     [90m 65 |[39m       expect(response[33m.[39mbody
+[33m.[39msession[33m.[39mtitle)[33m.[39mtoBe([32m'Ne
+w Session'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 66 |[39m       expect(respo
+nse[33m.[39mbody[33m.[39msession[33m.[39mcoachPayout
+Amount)[33m.[39mtoBe([35m50[39m)[33m;[39m
+     [90m    |[39m                                      
+                 [31m[1m^[22m[39m
+     [90m 67 |[39m       expect(response[33m.[39mbody
+[33m.[39msession[33m.[39mcoachPayoutStatus)[33m.[39mt
+oBe([32m'unpaid'[39m)[33m;[39m
+     [90m 68 |[39m     })[33m;[39m
+     [90m 69 |[39m[0m
+
+      at Object.<anonymous> 
+(tests/integration/adminSessions.e2e.test.js:66:55)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 4 passed, 5 total
+Snapshots:   0 total
+Time:        3.539 s, estimated 4 s
+Ran all test suites matching 
+/tests\\integration\\adminSessions.e2e.test.js/i.

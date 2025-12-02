@@ -53,7 +53,13 @@ describe('Admin Sessions E2E Tests', () => {
           coachPayoutAmount: 50,
           coachPayoutStatus: 'unpaid',
         })
-        .expect(201);
+        .expect(201)
+        .catch(err => {
+          if (err.response) {
+            console.log('Admin Session Create Error:', JSON.stringify(err.response.body, null, 2));
+          }
+          throw err;
+        });
 
       expect(response.body.session).toBeDefined();
       expect(response.body.session.title).toBe('New Session');

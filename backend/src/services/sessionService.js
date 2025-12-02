@@ -17,7 +17,7 @@ export const getAvailableSessions = async (filters = {}) => {
 
     // Build date query properly
     const dateQuery = {};
-    
+
     // Use startDate if provided
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
@@ -31,7 +31,7 @@ export const getAvailableSessions = async (filters = {}) => {
       const endDate = new Date(filters.endDate);
       dateQuery.$lte = endDate;
     }
-    
+
     // Always add date query
     query.date = dateQuery;
 
@@ -109,6 +109,8 @@ export const createSession = async (sessionData) => {
       capacity: sessionData.capacity,
       status: sessionData.status || 'active',
       coachIds: sessionData.coachIds || [],
+      coachPayoutAmount: sessionData.coachPayoutAmount !== undefined ? sessionData.coachPayoutAmount : null,
+      coachPayoutStatus: sessionData.coachPayoutStatus || 'unpaid',
       targetGroups: sessionData.targetGroups || [],
       ageGroups: sessionData.ageGroups || ['4-6', '7-12', '13+'],
     });
@@ -288,7 +290,7 @@ export const createBulkSessions = async (sessionData) => {
 
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      
+
       if (daysOfWeek.includes(dayOfWeek)) {
         // Create session date with time
         const sessionDate = new Date(currentDate);
@@ -357,9 +359,9 @@ export const checkSessionRelatedData = async (sessionId) => {
 
     // Count bookings for this session
     const bookingCount = await Booking.countDocuments({ sessionId });
-    const activeBookingCount = await Booking.countDocuments({ 
-      sessionId, 
-      status: 'booked' 
+    const activeBookingCount = await Booking.countDocuments({
+      sessionId,
+      status: 'booked'
     });
 
     // Count attendance records for this session

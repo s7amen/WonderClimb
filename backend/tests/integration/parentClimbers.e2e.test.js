@@ -187,7 +187,11 @@ describe('Parent Climbers E2E Tests', () => {
         .set('Authorization', `Bearer ${parentToken}`)
         .expect(200);
 
-      expect(response.body.child.accountStatus).toBe('inactive');
+      expect(response.body.message).toMatch(/deleted|removed|success/i);
+
+      // Verify child is inactive in DB
+      const deletedChild = await User.findById(child._id);
+      expect(deletedChild.accountStatus).toBe('inactive');
     });
   });
 });

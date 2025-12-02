@@ -1,0 +1,352 @@
+﻿
+> wonderclimb-backend@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration/auth.e2e.test.js
+
+{"level":30,"time":1764664785266,"pid":1700,"hostname":"Stamen","msg":"Competitions routes loaded, Competition model:"}
+node.exe : (node:1700) ExperimentalWarning: VM Modules is 
+an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:1700)  
+   Exp...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the 
+warning was created)
+(node:1700) [MONGOOSE] Warning: Duplicate schema index on 
+{"email":1} found. This is often due to declaring an 
+index using both "index: true" and "schema.index()". 
+Please remove the duplicate index definition.
+{"level":30,"time":1764664785870,"pid":1700,"hostname":"Stamen","userId":"692ea5d1c87c00ae922048d7","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664785873,"pid":1700,"hostname":"Stamen","req":{"id":1,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":105,"msg":"request completed"}
+{"level":30,"time":1764664785956,"pid":1700,"hostname":"Stamen","userId":"692ea5d1c87c00ae922048e4","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664785956,"pid":1700,"hostname":"Stamen","req":{"id":2,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":65,"msg":"request completed"}
+{"level":40,"time":1764664785963,"pid":1700,"hostname":"Stamen","req":{"id":3,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":409},"responseTime":4,"msg":"request completed"}
+{"level":40,"time":1764664785976,"pid":1700,"hostname":"Stamen","req":{"id":4,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":1,"msg":"request completed"}
+{"level":40,"time":1764664785991,"pid":1700,"hostname":"Stamen","req":{"id":5,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1764664786066,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae92204906","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664786067,"pid":1700,"hostname":"Stamen","req":{"id":6,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":64,"msg":"request completed"}
+{"level":30,"time":1764664786140,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae92204913","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664786141,"pid":1700,"hostname":"Stamen","req":{"id":7,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":64,"msg":"request completed"}
+{"level":30,"time":1764664786209,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae92204913","email":"test@auth.com","roles":["climber"],"rolesFromDB":["climber"],"rolesType":"object","msg":"User logged in"}
+{"level":30,"time":1764664786210,"pid":1700,"hostname":"Stamen","req":{"id":8,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":200},"responseTime":65,"msg":"request completed"}
+{"level":30,"time":1764664786285,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae92204921","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664786286,"pid":1700,"hostname":"Stamen","req":{"id":9,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":64,"msg":"request completed"}
+{"level":40,"time":1764664786291,"pid":1700,"hostname":"Stamen","req":{"id":10,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":401},"responseTime":2,"msg":"request completed"}
+{"level":30,"time":1764664786363,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae9220492f","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664786363,"pid":1700,"hostname":"Stamen","req":{"id":11,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":62,"msg":"request completed"}
+{"level":40,"time":1764664786426,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae9220492f","email":"test@auth.com","msg":"Failed login attempt"}
+{"level":40,"time":1764664786427,"pid":1700,"hostname":"Stamen","req":{"id":12,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":401},"responseTime":61,"msg":"request completed"}
+{"level":30,"time":1764664786497,"pid":1700,"hostname":"Stamen","userId":"692ea5d2c87c00ae9220493d","email":"test@auth.com","roles":["climber"],"msg":"User registered"}
+{"level":30,"time":1764664786498,"pid":1700,"hostname":"Stamen","req":{"id":13,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":62,"msg":"request completed"}
+{"level":40,"time":1764664786501,"pid":1700,"hostname":"Stamen","req":{"id":14,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":0,"msg":"request completed"}
+{"level":40,"time":1764664786513,"pid":1700,"hostname":"Stamen","req":{"id":15,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":429},"responseTime":1,"msg":"request completed"}
+{"level":40,"time":1764664786523,"pid":1700,"hostname":"Stamen","req":{"id":16,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":429},"responseTime":1,"msg":"request completed"}
+{"level":40,"time":1764664786533,"pid":1700,"hostname":"Stamen","req":{"id":17,"method":"POST","url":"/api/v1/auth/register","headers":{"content-type":"application/json"}},"res":{"statusCode":429},"responseTime":0,"msg":"request completed"}
+FAIL tests/integration/auth.e2e.test.js
+  Authentication E2E Tests
+    POST /api/v1/auth/register
+      ÔêÜ should register a new user successfully (163 ms)
+      ├ù should reject duplicate email (85 ms)
+      ├ù should validate required fields (14 ms)
+      ├ù should validate email format (12 ms)
+      ├ù should validate password length (75 ms)
+    POST /api/v1/auth/login
+      ÔêÜ should login successfully with valid 
+credentials (143 ms)
+      ├ù should reject invalid email (81 ms)
+      ├ù should reject invalid password (135 ms)
+      ├ù should validate required fields (75 ms)
+    JWT Token Usage
+      ├ù should allow access to protected endpoints with 
+valid token (11 ms)
+      ├ù should reject access without token (9 ms)
+      ├ù should reject access with invalid token (9 ms)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/register ÔÇ║ should reject duplicate email
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected substring: "already exists"
+    Received string:    "ðƒð¥ÐéÐÇðÁð▒ð©ÐéðÁð╗ Ðü Ðéð¥ðÀð© 
+ð©ð╝ðÁð╣ð╗ ð▓ðÁÐçðÁ ÐüÐèÐëðÁÐüÐéð▓Ðâð▓ð░"
+
+    [0m [90m 52 |[39m         
+[33m.[39mexpect([35m409[39m)[33m;[39m
+     [90m 53 |[39m
+    [31m[1m>[22m[39m[90m 54 |[39m       expect(respo
+nse[33m.[39mbody[33m.[39merror[33m.[39mmessage)[33m
+.[39mtoContain([32m'already exists'[39m)[33m;[39m
+     [90m    |[39m                                      
+     [31m[1m^[22m[39m
+     [90m 55 |[39m     })[33m;[39m
+     [90m 56 |[39m
+     [90m 57 |[39m     it([32m'should validate 
+required fields'[39m[33m,[39m [36masync[39m () 
+[33m=>[39m {[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:54:43)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/register ÔÇ║ should validate required fields
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Validation failed"
+    Received: "ðÆð░ð╗ð©ð┤ð░Ðåð©ÐÅÐéð░ ð¢ðÁÐâÐüð┐ðÁÐêð¢ð░"
+
+    [0m [90m 61 |[39m         
+[33m.[39mexpect([35m400[39m)[33m;[39m
+     [90m 62 |[39m
+    [31m[1m>[22m[39m[90m 63 |[39m       expect(respo
+nse[33m.[39mbody[33m.[39merror[33m.[39mmessage)[33m
+.[39mtoBe([32m'Validation failed'[39m)[33m;[39m
+     [90m    |[39m                                      
+     [31m[1m^[22m[39m
+     [90m 64 |[39m       expect(response[33m.[39mbody
+[33m.[39merror[33m.[39merrors)[33m.[39mtoBeInstanceOf
+([33mArray[39m)[33m;[39m
+     [90m 65 |[39m     })[33m;[39m
+     [90m 66 |[39m[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:63:43)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/register ÔÇ║ should validate email format
+
+    expect(received).toContainEqual(expected) // deep 
+equality
+
+    Expected value: StringContaining "valid email address"
+    Received array: ["ðÿð╝ðÁð╣ð╗ÐèÐé ÐéÐÇÐÅð▒ð▓ð░ ð┤ð░ 
+ð▒Ðèð┤ðÁ ð▓ð░ð╗ð©ð┤ðÁð¢ ð©ð╝ðÁð╣ð╗ ð░ð┤ÐÇðÁÐü"]
+
+    [0m [90m 74 |[39m         
+[33m.[39mexpect([35m400[39m)[33m;[39m
+     [90m 75 |[39m
+    [31m[1m>[22m[39m[90m 76 |[39m       expect(respo
+nse[33m.[39mbody[33m.[39merror[33m.[39merrors)[33m.
+[39mtoContainEqual(
+     [90m    |[39m                                      
+    [31m[1m^[22m[39m
+     [90m 77 |[39m         
+expect[33m.[39mstringContaining([32m'valid email 
+address'[39m)
+     [90m 78 |[39m       )[33m;[39m
+     [90m 79 |[39m     })[33m;[39m[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:76:42)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/register ÔÇ║ should validate password length
+
+    expected 400 "Bad Request", got 201 "Created"
+
+    [0m [90m 86 |[39m           password[33m:[39m 
+[32m'12345'[39m[33m,[39m [90m// Too short[39m
+     [90m 87 |[39m         })
+    [31m[1m>[22m[39m[90m 88 |[39m         
+[33m.[39mexpect([35m400[39m)[33m;[39m
+     [90m    |[39m          [31m[1m^[22m[39m
+     [90m 89 |[39m
+     [90m 90 |[39m       expect(response[33m.[39mbody
+[33m.[39merror[33m.[39merrors)[33m.[39mtoContainEqual
+(
+     [90m 91 |[39m         
+expect[33m.[39mstringContaining([32m'at least 6 
+characters'[39m)[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:88:10)
+      ----
+      at Test._assertStatus 
+(node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction 
+(node_modules/supertest/lib/test.js:285:13)
+      at Test.assert 
+(node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert 
+(node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/login ÔÇ║ should reject invalid email
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Invalid email or password"
+    Received: "ðØðÁð▓ð░ð╗ð©ð┤ðÁð¢ ð©ð╝ðÁð╣ð╗ ð©ð╗ð© 
+ð┐ð░ÐÇð¥ð╗ð░"
+
+    [0m [90m 133 |[39m         
+[33m.[39mexpect([35m401[39m)[33m;[39m
+     [90m 134 |[39m
+    [31m[1m>[22m[39m[90m 135 |[39m       expect(resp
+onse[33m.[39mbody[33m.[39merror[33m.[39mmessage)[33
+m.[39mtoBe([32m'Invalid email or 
+password'[39m)[33m;[39m
+     [90m     |[39m                                     
+      [31m[1m^[22m[39m
+     [90m 136 |[39m     })[33m;[39m
+     [90m 137 |[39m
+     [90m 138 |[39m     it([32m'should reject invalid 
+password'[39m[33m,[39m [36masync[39m () [33m=>[39m 
+{[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:135:43)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/login ÔÇ║ should reject invalid password
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Invalid email or password"
+    Received: "ðØðÁð▓ð░ð╗ð©ð┤ðÁð¢ ð©ð╝ðÁð╣ð╗ ð©ð╗ð© 
+ð┐ð░ÐÇð¥ð╗ð░"
+
+    [0m [90m 145 |[39m         
+[33m.[39mexpect([35m401[39m)[33m;[39m
+     [90m 146 |[39m
+    [31m[1m>[22m[39m[90m 147 |[39m       expect(resp
+onse[33m.[39mbody[33m.[39merror[33m.[39mmessage)[33
+m.[39mtoBe([32m'Invalid email or 
+password'[39m)[33m;[39m
+     [90m     |[39m                                     
+      [31m[1m^[22m[39m
+     [90m 148 |[39m     })[33m;[39m
+     [90m 149 |[39m
+     [90m 150 |[39m     it([32m'should validate 
+required fields'[39m[33m,[39m [36masync[39m () 
+[33m=>[39m {[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:147:43)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ POST 
+/api/v1/auth/login ÔÇ║ should validate required fields
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Validation failed"
+    Received: "ðÆð░ð╗ð©ð┤ð░Ðåð©ÐÅÐéð░ ð¢ðÁÐâÐüð┐ðÁÐêð¢ð░"
+
+    [0m [90m 154 |[39m         
+[33m.[39mexpect([35m400[39m)[33m;[39m
+     [90m 155 |[39m
+    [31m[1m>[22m[39m[90m 156 |[39m       expect(resp
+onse[33m.[39mbody[33m.[39merror[33m.[39mmessage)[33
+m.[39mtoBe([32m'Validation failed'[39m)[33m;[39m
+     [90m     |[39m                                     
+      [31m[1m^[22m[39m
+     [90m 157 |[39m     })[33m;[39m
+     [90m 158 |[39m   })[33m;[39m
+     [90m 159 |[39m[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:156:43)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ JWT Token Usage ÔÇ║ 
+should allow access to protected endpoints with valid 
+token
+
+    expected 201 "Created", got 429 "Too Many Requests"
+
+    [0m [90m 166 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/register'[39m)
+     [90m 167 |[39m         [33m.[39msend(testUser)
+    [31m[1m>[22m[39m[90m 168 |[39m         
+[33m.[39mexpect([35m201[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 169 |[39m
+     [90m 170 |[39m       [36mconst[39m loginResponse 
+[33m=[39m [36mawait[39m request(app)
+     [90m 171 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/login'[39m)[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:168:10)
+      ----
+      at Test._assertStatus 
+(node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction 
+(node_modules/supertest/lib/test.js:285:13)
+      at Test.assert 
+(node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert 
+(node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ JWT Token Usage ÔÇ║ 
+should reject access without token
+
+    expected 201 "Created", got 429 "Too Many Requests"
+
+    [0m [90m 166 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/register'[39m)
+     [90m 167 |[39m         [33m.[39msend(testUser)
+    [31m[1m>[22m[39m[90m 168 |[39m         
+[33m.[39mexpect([35m201[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 169 |[39m
+     [90m 170 |[39m       [36mconst[39m loginResponse 
+[33m=[39m [36mawait[39m request(app)
+     [90m 171 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/login'[39m)[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:168:10)
+      ----
+      at Test._assertStatus 
+(node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction 
+(node_modules/supertest/lib/test.js:285:13)
+      at Test.assert 
+(node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert 
+(node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Authentication E2E Tests ÔÇ║ JWT Token Usage ÔÇ║ 
+should reject access with invalid token
+
+    expected 201 "Created", got 429 "Too Many Requests"
+
+    [0m [90m 166 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/register'[39m)
+     [90m 167 |[39m         [33m.[39msend(testUser)
+    [31m[1m>[22m[39m[90m 168 |[39m         
+[33m.[39mexpect([35m201[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 169 |[39m
+     [90m 170 |[39m       [36mconst[39m loginResponse 
+[33m=[39m [36mawait[39m request(app)
+     [90m 171 |[39m         
+[33m.[39mpost([32m'/api/v1/auth/login'[39m)[0m
+
+      at Object.<anonymous> 
+(tests/integration/auth.e2e.test.js:168:10)
+      ----
+      at Test._assertStatus 
+(node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction 
+(node_modules/supertest/lib/test.js:285:13)
+      at Test.assert 
+(node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert 
+(node_modules/supertest/lib/test.js:120:14)
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 2 passed, 12 total
+Snapshots:   0 total
+Time:        2.959 s, estimated 3 s
+Ran all test suites matching 
+/tests\\integration\\auth.e2e.test.js/i.

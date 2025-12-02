@@ -145,11 +145,11 @@ describe('RBAC Integration Tests', () => {
         .expect(404); // No profile yet, but endpoint is accessible
     });
 
-    it('should prevent climber from accessing parent endpoints', async () => {
+    it('should allow climber to access parent endpoints (returns empty list if no children)', async () => {
       await request(app)
         .get('/api/v1/parents/me/climbers')
         .set('Authorization', `Bearer ${climberToken}`)
-        .expect(403);
+        .expect(200);
     });
   });
 

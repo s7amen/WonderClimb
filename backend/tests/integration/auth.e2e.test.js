@@ -51,7 +51,7 @@ describe('Authentication E2E Tests', () => {
         .send(testUser)
         .expect(409);
 
-      expect(response.body.error.message).toContain('already exists');
+      expect(response.body.error.message).toContain('Потребител с този имейл вече съществува');
     });
 
     it('should validate required fields', async () => {
@@ -60,7 +60,7 @@ describe('Authentication E2E Tests', () => {
         .send({})
         .expect(400);
 
-      expect(response.body.error.message).toBe('Validation failed');
+      expect(response.body.error.message).toBe('Валидацията неуспешна');
       expect(response.body.error.errors).toBeInstanceOf(Array);
     });
 
@@ -74,7 +74,7 @@ describe('Authentication E2E Tests', () => {
         .expect(400);
 
       expect(response.body.error.errors).toContainEqual(
-        expect.stringContaining('valid email address')
+        expect.stringContaining('Имейлът трябва да бъде валиден имейл адрес')
       );
     });
 
@@ -83,12 +83,12 @@ describe('Authentication E2E Tests', () => {
         .post('/api/v1/auth/register')
         .send({
           ...testUser,
-          password: '12345', // Too short
+          password: '1234', // Too short (min 5)
         })
         .expect(400);
 
       expect(response.body.error.errors).toContainEqual(
-        expect.stringContaining('at least 6 characters')
+        expect.stringContaining('Паролата трябва да бъде поне 5 символа')
       );
     });
 
@@ -132,7 +132,7 @@ describe('Authentication E2E Tests', () => {
         })
         .expect(401);
 
-      expect(response.body.error.message).toBe('Invalid email or password');
+      expect(response.body.error.message).toBe('Невалиден имейл или парола');
     });
 
     it('should reject invalid password', async () => {
@@ -144,7 +144,7 @@ describe('Authentication E2E Tests', () => {
         })
         .expect(401);
 
-      expect(response.body.error.message).toBe('Invalid email or password');
+      expect(response.body.error.message).toBe('Невалиден имейл или парола');
     });
 
     it('should validate required fields', async () => {
@@ -153,7 +153,7 @@ describe('Authentication E2E Tests', () => {
         .send({})
         .expect(400);
 
-      expect(response.body.error.message).toBe('Validation failed');
+      expect(response.body.error.message).toBe('Валидацията неуспешна');
     });
   });
 

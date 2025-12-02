@@ -25,8 +25,8 @@ export const authRateLimiter = rateLimit({
     return req.ip || req.connection?.remoteAddress || 'unknown';
   },
   skip: (req) => {
-    // Skip rate limiting for localhost in development
-    if (config.nodeEnv === 'development') {
+    // Skip rate limiting for localhost in development and test environment
+    if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
       const ip = req.ip || req.connection?.remoteAddress || '';
       return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127.0.0.1');
     }
@@ -64,8 +64,8 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for localhost in development
-    if (config.nodeEnv === 'development') {
+    // Skip rate limiting for localhost in development and test environment
+    if (config.nodeEnv === 'development' || config.nodeEnv === 'test') {
       const ip = req.ip || req.connection?.remoteAddress || '';
       return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127.0.0.1');
     }

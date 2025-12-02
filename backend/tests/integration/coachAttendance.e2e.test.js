@@ -57,6 +57,8 @@ describe('Coach Attendance E2E Tests', () => {
       capacity: 10,
       status: 'active',
       coachIds: [coachUser._id],
+      coachPayoutAmount: 50,
+      coachPayoutStatus: 'unpaid',
     });
 
     // Create booking

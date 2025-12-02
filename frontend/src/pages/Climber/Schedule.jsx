@@ -23,7 +23,7 @@ const Schedule = () => {
   const [loadedUntilDate, setLoadedUntilDate] = useState(null); // Track what date range we've loaded
   const [loadingMore, setLoadingMore] = useState(false); // Loading state for "load more" button
   const { showToast, ToastComponent } = useToast();
-  
+
   // Filter states
   const [selectedDays, setSelectedDays] = useState([]);
   const [selectedTimes, setSelectedTimes] = useState([]);
@@ -46,6 +46,7 @@ const Schedule = () => {
   const [bookingsToCancel, setBookingsToCancel] = useState([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState([]);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
 
   const [bookingData, setBookingData] = useState({
     climberId: '',
@@ -63,18 +64,18 @@ const Schedule = () => {
   useEffect(() => {
     // Wait for auth to finish loading before fetching data
     if (authLoading) return;
-    
+
     // If user changed, reset the fetch flag
     const currentUserId = user?._id || user?.id;
     if (userIdRef.current !== currentUserId) {
       hasFetchedRef.current = false;
       userIdRef.current = currentUserId;
     }
-    
+
     // Prevent duplicate requests
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
-    
+
     let isMounted = true;
 
     const loadData = async () => {
@@ -101,7 +102,7 @@ const Schedule = () => {
       setLoading(true);
       const today = startOfDay(new Date());
       const endDate = addDays(today, 30 + additionalDays);
-      
+
       // Fetch sessions and bookings with error handling
       let sessionsRes;
       let bookingsRes;
@@ -113,9 +114,9 @@ const Schedule = () => {
           }),
           bookingsAPI.getMyBookings(),
         ]);
-        
+
         const newSessions = sessionsRes.data.sessions || [];
-        
+
         // On initial load (additionalDays === 0), replace sessions. Otherwise merge.
         if (additionalDays === 0) {
           setAvailableSessions(newSessions);
@@ -184,7 +185,7 @@ const Schedule = () => {
       }
 
       let climberId = bookingData.climberId;
-      
+
       // If booking for self and user has climber role
       if (bookingData.isSelf && selfClimber) {
         climberId = selfClimber._id;
@@ -216,7 +217,7 @@ const Schedule = () => {
 
   // Bulk booking functions
   const toggleSessionSelection = (sessionId) => {
-    setSelectedSessionIds(prev => 
+    setSelectedSessionIds(prev =>
       prev.includes(sessionId)
         ? prev.filter(id => id !== sessionId)
         : [...prev, sessionId]
@@ -241,7 +242,7 @@ const Schedule = () => {
   const toggleBulkClimberSelection = (climberId) => {
     const normalizedId = typeof climberId === 'object' && climberId?.toString ? climberId.toString() : String(climberId);
     setBulkBookingClimberIds(prev => {
-      const currentIds = (prev || []).map(id => 
+      const currentIds = (prev || []).map(id =>
         typeof id === 'object' && id?.toString ? id.toString() : String(id)
       );
       const isSelected = currentIds.includes(normalizedId);
@@ -410,8 +411,8 @@ const Schedule = () => {
 
   // Get bookings for a specific session
   const getBookingsForSession = (sessionId) => {
-    return myBookings.filter(booking => 
-      booking.session?._id === sessionId && 
+    return myBookings.filter(booking =>
+      booking.session?._id === sessionId &&
       booking.status === 'booked'
     );
   };
@@ -425,10 +426,10 @@ const Schedule = () => {
   const handleCancelClick = (sessionId) => {
     const bookings = getBookingsForSession(sessionId);
     if (bookings.length === 0) return;
-    
+
     setSessionToCancel(sessionId);
     setBookingsToCancel(bookings);
-    
+
     if (bookings.length === 1) {
       // Single booking - show direct confirmation
       setSelectedBookingIds([bookings[0]._id]);
@@ -443,17 +444,19 @@ const Schedule = () => {
   // Confirm cancel booking
   const confirmCancelBooking = async () => {
     if (selectedBookingIds.length === 0) {
-      showToast('Моля, изберете поне една резервация за отмяна', 'error');
+      setCancelError('Моля, изберете поне една резервация за отмяна');
       return;
     }
 
     setIsCancelling(true);
-    try {
-      const results = {
-        successful: [],
-        failed: []
-      };
+    setCancelError(null);
 
+    const results = {
+      successful: [],
+      failed: []
+    };
+
+    try {
       for (const bookingId of selectedBookingIds) {
         try {
           await bookingsAPI.cancel(bookingId);
@@ -468,12 +471,12 @@ const Schedule = () => {
 
       // Update local state for successful cancellations instead of full page reload
       if (results.successful.length > 0) {
-        setMyBookings(prev => prev.map(booking => 
+        setMyBookings(prev => prev.map(booking =>
           results.successful.includes(booking._id)
             ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
             : booking
         ));
-        
+
         const cancelledCount = results.successful.length;
         showToast(
           `Успешно отменени ${cancelledCount} резервации`,
@@ -482,30 +485,47 @@ const Schedule = () => {
       }
 
       if (results.failed.length > 0) {
-        showToast(
-          `Неуспешна отмяна на ${results.failed.length} резервации`,
-          'error'
-        );
+        const failedDetails = results.failed.map(item => {
+          const booking = bookingsToCancel.find(b => b._id === item.bookingId);
+          const climber = booking?.climber;
+          const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
+          return `${climberName}: ${item.reason || 'Грешка'}`;
+        }).join(', ');
+
+        // If all failed, show error in modal
+        if (results.successful.length === 0) {
+          setCancelError(`Неуспешна отмяна: ${failedDetails}`);
+        } else {
+          // If partial success, show toast for errors
+          showToast(
+            `Неуспешна отмяна на ${results.failed.length} резервации`,
+            'error'
+          );
+        }
       }
     } catch (error) {
-      showToast('Грешка при отмяна на резервации', 'error');
+      setCancelError('Грешка при отмяна на резервации');
       console.error('Cancel booking error:', error);
     } finally {
-      // Always close modal and clear state
-      setShowCancelModal(false);
-      setSessionToCancel(null);
-      setBookingsToCancel([]);
-      setSelectedBookingIds([]);
       setIsCancelling(false);
+
+      // Close modal only if there were successful cancellations
+      // If all failed, keep modal open to show error
+      if (results.successful.length > 0) {
+        setShowCancelModal(false);
+        setSessionToCancel(null);
+        setBookingsToCancel([]);
+        setSelectedBookingIds([]);
+      }
     }
   };
 
   const allClimbers = [
-    ...(selfClimber ? [{ 
-      _id: selfClimber._id, 
-      firstName: 'За мен', 
-      lastName: `(${getUserFullName(user)})`, 
-      isSelf: true 
+    ...(selfClimber ? [{
+      _id: selfClimber._id,
+      firstName: 'За мен',
+      lastName: `(${getUserFullName(user)})`,
+      isSelf: true
     }] : []),
     ...children.map(c => ({ ...c, isSelf: false })),
   ];
@@ -525,7 +545,7 @@ const Schedule = () => {
   const getFilteredSessions = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     return availableSessions.filter(session => {
       const sessionDate = new Date(session.date);
       const sessionDay = sessionDate.getDay();
@@ -560,11 +580,11 @@ const Schedule = () => {
   const groupSessionsByDay = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     const days = eachDayOfInterval({ start: today, end: viewEndDate });
-    
+
     const filteredSessions = getFilteredSessions();
-    
+
     const grouped = {};
     days.forEach(day => {
       const dayKey = format(day, 'yyyy-MM-dd');
@@ -577,7 +597,7 @@ const Schedule = () => {
     filteredSessions.forEach(session => {
       const sessionDate = new Date(session.date);
       const dayKey = format(sessionDate, 'yyyy-MM-dd');
-      
+
       if (grouped[dayKey]) {
         grouped[dayKey].sessions.push(session);
       }
@@ -585,7 +605,7 @@ const Schedule = () => {
 
     // Sort sessions within each day by time
     Object.keys(grouped).forEach(dayKey => {
-      grouped[dayKey].sessions.sort((a, b) => 
+      grouped[dayKey].sessions.sort((a, b) =>
         new Date(a.date) - new Date(b.date)
       );
     });
@@ -597,7 +617,7 @@ const Schedule = () => {
     // Check if any climber is selected - require explicit selection
     const hasBulkSelection = bulkBookingClimberIds.length > 0;
     const hasBookingDataSelection = bookingData.climberId || bookingData.isSelf;
-    
+
     if (!hasBulkSelection && !hasBookingDataSelection) {
       showToast('Моля, изберете за кого е резервацията. Използвайте бутоните "За кого резервирате?" над графика, за да изберете катерач (катерачи).', 'error');
       // Scroll to climber selection section and highlight it
@@ -639,7 +659,7 @@ const Schedule = () => {
     try {
       // Determine which climbers to book for
       let climberIdsToBook = [];
-      
+
       if (bulkBookingClimberIds.length > 0) {
         // Use bulk selection - handle self climber case
         climberIdsToBook = bulkBookingClimberIds.map(selectedId => {
@@ -773,7 +793,7 @@ const Schedule = () => {
       const today = startOfDay(new Date());
       const currentViewEnd = addDays(today, daysToShow);
       const additionalDays = 30;
-      
+
       // Fetch sessions and bookings for the next period
       const [sessionsRes, bookingsRes] = await Promise.all([
         sessionsAPI.getAvailable({
@@ -784,17 +804,17 @@ const Schedule = () => {
       ]);
 
       const newSessions = sessionsRes.data.sessions || [];
-      
+
       // Merge new sessions with existing ones, avoiding duplicates
       setAvailableSessions(prev => {
         const existingIds = new Set(prev.map(s => s._id));
         const uniqueNewSessions = newSessions.filter(s => !existingIds.has(s._id));
         return [...prev, ...uniqueNewSessions];
       });
-      
+
       // Update bookings
       setMyBookings(bookingsRes?.data?.bookings || []);
-      
+
       setLoadedUntilDate(addDays(currentViewEnd, additionalDays));
       setDaysToShow(prev => prev + additionalDays);
     } catch (error) {
@@ -810,35 +830,35 @@ const Schedule = () => {
     if (!loadedUntilDate) return false;
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     // Check if we have sessions beyond the current view period in already loaded data
     const hasSessionsBeyondView = availableSessions.some(session => {
       const sessionDate = new Date(session.date);
       return !isBefore(sessionDate, viewEndDate);
     });
-    
+
     // Or if we haven't loaded far enough yet
     const needsMoreData = isBefore(loadedUntilDate, addDays(viewEndDate, 1));
-    
+
     return hasSessionsBeyondView || needsMoreData;
   };
 
   const toggleFilter = (filterType, value) => {
     if (filterType === 'day') {
-      setSelectedDays(prev => 
-        prev.includes(value) 
+      setSelectedDays(prev =>
+        prev.includes(value)
           ? prev.filter(d => d !== value)
           : [...prev, value]
       );
     } else if (filterType === 'time') {
-      setSelectedTimes(prev => 
-        prev.includes(value) 
+      setSelectedTimes(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'title') {
-      setSelectedTitles(prev => 
-        prev.includes(value) 
+      setSelectedTitles(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
@@ -900,90 +920,90 @@ const Schedule = () => {
             <p className="text-sm" style={{ color: '#4a5565' }}>Изберете сесия и катерач за резервация</p>
           </div>
           <div className="px-6 py-6">
-          <form onSubmit={handleBookSession}>
-            <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: '#fff8f0', border: '2px solid #ffd4a3' }}>
+            <form onSubmit={handleBookSession}>
+              <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: '#fff8f0', border: '2px solid #ffd4a3' }}>
                 <label className="block text-sm font-medium mb-1" style={{ color: '#4a5565' }}>
                   За кого резервирате?
                 </label>
-              {allClimbers.length > 0 ? (
-                <select
-                  value={bookingData.isSelf ? 'self' : bookingData.climberId}
-                  onChange={(e) => {
-                    if (e.target.value === 'self') {
-                      setBookingData({ ...bookingData, isSelf: true, climberId: '' });
-                    } else {
-                      setBookingData({ ...bookingData, isSelf: false, climberId: e.target.value });
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Избери...</option>
-                  {selfClimber && (
-                    <option value="self">За мен ({getUserFullName(user)})</option>
-                  )}
-                  {children.map((child) => (
-                    <option key={child._id} value={child._id}>
-                      {child.firstName} {child.lastName}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-sm text-gray-500">Няма налични катерачи. Моля, добавете дете в профила си.</p>
-              )}
-            </div>
-
-            {selectedSession ? (
-              <div className="mb-4 p-3 bg-blue-50 rounded-md">
-                <p className="text-sm text-gray-700 font-medium">
-                  Избрана сесия: {availableSessions.find(s => s._id === selectedSession)?.title}
-                </p>
-                <p className="text-xs text-gray-600 mt-1">
-                  {format(new Date(availableSessions.find(s => s._id === selectedSession)?.date || new Date()), 'PPpp')}
-                </p>
-              </div>
-            ) : (
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Избери сесия
-                </label>
-                <select
-                  value={bookingData.sessionId}
-                  onChange={(e) => {
-                    setBookingData({ ...bookingData, sessionId: e.target.value });
-                    setSelectedSession(e.target.value || null);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                >
-                  <option value="">Избери сесия...</option>
-                  {availableSessions.map((session) => {
-                    const bookedCount = getBookedCount(session._id);
-                    const isFull = bookedCount >= session.capacity;
-                    return (
-                      <option key={session._id} value={session._id} disabled={isFull}>
-                        {format(new Date(session.date), 'PPpp')} - {session.title}
-                        {isFull ? ' (ПЪЛНА)' : ` (${session.capacity - bookedCount} свободни места)`}
+                {allClimbers.length > 0 ? (
+                  <select
+                    value={bookingData.isSelf ? 'self' : bookingData.climberId}
+                    onChange={(e) => {
+                      if (e.target.value === 'self') {
+                        setBookingData({ ...bookingData, isSelf: true, climberId: '' });
+                      } else {
+                        setBookingData({ ...bookingData, isSelf: false, climberId: e.target.value });
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  >
+                    <option value="">Избери...</option>
+                    {selfClimber && (
+                      <option value="self">За мен ({getUserFullName(user)})</option>
+                    )}
+                    {children.map((child) => (
+                      <option key={child._id} value={child._id}>
+                        {child.firstName} {child.lastName}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-gray-500">Няма налични катерачи. Моля, добавете дете в профила си.</p>
+                )}
               </div>
-            )}
 
-            <div className="flex gap-2">
-              <Button type="submit" variant="primary">
-                Резервирай сесия
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => {
-                setShowBookingForm(false);
-                setSelectedSession(null);
-                setBookingData({ climberId: '', sessionId: '', isSelf: false });
-              }}>
-                Отказ
-              </Button>
-            </div>
-          </form>
+              {selectedSession ? (
+                <div className="mb-4 p-3 bg-blue-50 rounded-md">
+                  <p className="text-sm text-gray-700 font-medium">
+                    Избрана сесия: {availableSessions.find(s => s._id === selectedSession)?.title}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {format(new Date(availableSessions.find(s => s._id === selectedSession)?.date || new Date()), 'PPpp')}
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Избери сесия
+                  </label>
+                  <select
+                    value={bookingData.sessionId}
+                    onChange={(e) => {
+                      setBookingData({ ...bookingData, sessionId: e.target.value });
+                      setSelectedSession(e.target.value || null);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    required
+                  >
+                    <option value="">Избери сесия...</option>
+                    {availableSessions.map((session) => {
+                      const bookedCount = getBookedCount(session._id);
+                      const isFull = bookedCount >= session.capacity;
+                      return (
+                        <option key={session._id} value={session._id} disabled={isFull}>
+                          {format(new Date(session.date), 'PPpp')} - {session.title}
+                          {isFull ? ' (ПЪЛНА)' : ` (${session.capacity - bookedCount} свободни места)`}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button type="submit" variant="primary">
+                  Резервирай сесия
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => {
+                  setShowBookingForm(false);
+                  setSelectedSession(null);
+                  setBookingData({ climberId: '', sessionId: '', isSelf: false });
+                }}>
+                  Отказ
+                </Button>
+              </div>
+            </form>
           </div>
         </Card>
       )}
@@ -993,7 +1013,7 @@ const Schedule = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Потвърждение на масово резервиране</h2>
-            
+
             <div className="mb-4">
               <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки:</h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -1092,7 +1112,7 @@ const Schedule = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-bold mb-4">Потвърждение на резервация</h2>
-              
+
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
                 <div className="p-2 bg-gray-50 rounded">
@@ -1155,7 +1175,13 @@ const Schedule = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Отмяна на резервация</h2>
-            
+
+            {cancelError && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {cancelError}
+              </div>
+            )}
+
             {sessionToCancel && (
               <div className="mb-4">
                 <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
@@ -1231,6 +1257,7 @@ const Schedule = () => {
                   setSessionToCancel(null);
                   setBookingsToCancel([]);
                   setSelectedBookingIds([]);
+                  setCancelError(null);
                 }}
                 disabled={isCancelling}
               >
@@ -1254,7 +1281,7 @@ const Schedule = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Потвърждение на масово резервиране</h2>
-            
+
             <div className="mb-4">
               <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки:</h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -1346,11 +1373,10 @@ const Schedule = () => {
                   key={day}
                   type="button"
                   onClick={() => toggleFilter('day', day)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${isSelected
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                 >
                   {dayNames[dayIndex]}
                 </button>
@@ -1377,11 +1403,10 @@ const Schedule = () => {
                   key={time}
                   type="button"
                   onClick={() => toggleFilter('time', time)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${isSelected
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                 >
                   {time}
                 </button>
@@ -1408,11 +1433,10 @@ const Schedule = () => {
                   key={title}
                   type="button"
                   onClick={() => toggleFilter('title', title)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors truncate max-w-[200px] ${
-                    isSelected
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors truncate max-w-[200px] ${isSelected
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
                   title={title}
                 >
                   {title}
@@ -1435,13 +1459,12 @@ const Schedule = () => {
           )}
 
           {/* Bulk booking section */}
-          <div 
+          <div
             ref={climberSelectionRef}
-            className={`mt-3 pt-3 md:pt-6 space-y-3 transition-all duration-300 rounded-lg p-4 ${
-              showClimberSelectionHighlight 
-                ? 'border-2 border-dashed border-orange-400 bg-orange-50' 
-                : ''
-            }`}
+            className={`mt-3 pt-3 md:pt-6 space-y-3 transition-all duration-300 rounded-lg p-4 ${showClimberSelectionHighlight
+              ? 'border-2 border-dashed border-orange-400 bg-orange-50'
+              : ''
+              }`}
             style={{ backgroundColor: showClimberSelectionHighlight ? '#fff4e6' : '#fff8f0' }}
           >
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -1454,7 +1477,7 @@ const Schedule = () => {
                   <div className="flex flex-col md:flex-row gap-2 flex-wrap items-center">
                     {allClimbers.map((climber) => {
                       const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
-                      const selectedIds = (bulkBookingClimberIds || []).map(id => 
+                      const selectedIds = (bulkBookingClimberIds || []).map(id =>
                         typeof id === 'object' && id?.toString ? id.toString() : String(id)
                       );
                       const isSelected = selectedIds.includes(climberIdStr);
@@ -1463,13 +1486,12 @@ const Schedule = () => {
                           key={climberIdStr}
                           type="button"
                           onClick={() => toggleBulkClimberSelection(climber._id)}
-                          className={`px-4 py-2 rounded-lg font-medium transition-colors w-full md:w-auto ${
-                            isSelected
-                              ? 'text-white'
-                              : 'text-gray-700'
-                          }`}
-                          style={isSelected 
-                            ? { backgroundColor: '#ea7a24' } 
+                          className={`px-4 py-2 rounded-lg font-medium transition-colors w-full md:w-auto ${isSelected
+                            ? 'text-white'
+                            : 'text-gray-700'
+                            }`}
+                          style={isSelected
+                            ? { backgroundColor: '#ea7a24' }
                             : { backgroundColor: '#f3f3f5', color: '#4a5565' }
                           }
                           onMouseEnter={(e) => {
@@ -1564,16 +1586,16 @@ const Schedule = () => {
               const filteredSessions = getFilteredSessions();
               const today = startOfDay(new Date());
               const viewEndDate = addDays(today, daysToShow);
-              
+
               const days = eachDayOfInterval({ start: today, end: viewEndDate });
-              
+
               // Check if there are any results when filters are active
               const hasResults = days.some(day => {
                 const dayKey = format(day, 'yyyy-MM-dd');
                 const dayData = groupedSessions[dayKey];
                 return dayData && dayData.sessions.length > 0;
               });
-              
+
               // Show message if filters are active but no results
               if (hasActiveFilters() && !hasResults && filteredSessions.length === 0) {
                 return (
@@ -1595,92 +1617,151 @@ const Schedule = () => {
                   </Card>
                 );
               }
-              
-              return days.map((day) => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayData = groupedSessions[dayKey];
-              const dayName = getBulgarianDayName(day);
-              const dayDate = format(day, 'dd/MM/yyyy');
-              
-              // Hide days without sessions when filters are active
-              if (hasActiveFilters() && (!dayData || dayData.sessions.length === 0)) {
-                return null;
-              }
-              
-              return (
-                <div key={dayKey} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                  {/* Day Header */}
-                  <div className="px-4 py-3" style={{ backgroundColor: '#35383d' }}>
-                    <h3 className="text-base font-medium text-white">
-                      {dayName} | {dayDate}
-                    </h3>
-                  </div>
 
-                  {/* Sessions List */}
-                  <div>
-                    {dayData && dayData.sessions.length > 0 ? (
-                      dayData.sessions.map((session, index) => {
-                        const bookedCount = getBookedCount(session._id);
-                        const availableSpots = session.capacity - bookedCount;
-                        const isFull = bookedCount >= session.capacity;
-                        const sessionHasBookings = hasBookings(session._id);
-                        
-                        return (
-                          <div
-                            key={session._id}
-                            className={`px-4 py-3 ${
-                              sessionHasBookings 
-                                ? 'bg-green-300 border-l-4 border-green-600' 
+              return days.map((day) => {
+                const dayKey = format(day, 'yyyy-MM-dd');
+                const dayData = groupedSessions[dayKey];
+                const dayName = getBulgarianDayName(day);
+                const dayDate = format(day, 'dd/MM/yyyy');
+
+                // Hide days without sessions when filters are active
+                if (hasActiveFilters() && (!dayData || dayData.sessions.length === 0)) {
+                  return null;
+                }
+
+                return (
+                  <div key={dayKey} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
+                    {/* Day Header */}
+                    <div className="px-4 py-3" style={{ backgroundColor: '#35383d' }}>
+                      <h3 className="text-base font-medium text-white">
+                        {dayName} | {dayDate}
+                      </h3>
+                    </div>
+
+                    {/* Sessions List */}
+                    <div>
+                      {dayData && dayData.sessions.length > 0 ? (
+                        dayData.sessions.map((session, index) => {
+                          const bookedCount = getBookedCount(session._id);
+                          const availableSpots = session.capacity - bookedCount;
+                          const isFull = bookedCount >= session.capacity;
+                          const sessionHasBookings = hasBookings(session._id);
+
+                          return (
+                            <div
+                              key={session._id}
+                              className={`px-4 py-3 ${sessionHasBookings
+                                ? 'bg-green-300 border-l-4 border-green-600'
                                 : 'bg-white'
-                            } border-b border-gray-100 last:border-b-0`}
-                          >
-                            {/* Mobile Layout */}
-                            <div className="md:hidden space-y-2">
-                              <div className="flex justify-between items-start">
+                                } border-b border-gray-100 last:border-b-0`}
+                            >
+                              {/* Mobile Layout */}
+                              <div className="md:hidden space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <div className="font-medium text-gray-900">
+                                    {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
+                                  </div>
+                                </div>
+                                <div className="text-gray-800 font-medium">
+                                  {session.title}
+                                </div>
+                                <div className="text-gray-600 text-sm">
+                                  {isFull ? '0 места' : `${availableSpots} места`}
+                                </div>
+                                <div className="flex items-center gap-2 justify-end">
+                                  {isFull ? (
+                                    <>
+                                      {sessionHasBookings && (
+                                        <button
+                                          onClick={() => handleCancelClick(session._id)}
+                                          className="text-red-600 hover:text-red-700 text-sm"
+                                        >
+                                          Отмени
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => showToast('Сесията е пълна. Моля, използвайте листата на чакащи.', 'info')}
+                                        className="text-orange-600 hover:text-orange-700 text-sm"
+                                      >
+                                        Листа на чакащи
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {sessionHasBookings && (
+                                        <button
+                                          onClick={() => handleCancelClick(session._id)}
+                                          className="text-red-600 hover:text-red-700 text-sm"
+                                        >
+                                          Отмени
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() => handleQuickBook(session._id)}
+                                        className="text-blue-600 hover:text-blue-700 text-sm"
+                                      >
+                                        Запази място
+                                      </button>
+                                      <label className="flex items-center cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedSessionIds.includes(session._id)}
+                                          onChange={() => toggleSessionSelection(session._id)}
+                                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                      </label>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Desktop Layout */}
+                              <div className="hidden md:grid md:grid-cols-5 gap-4 items-center">
+                                {/* Time */}
                                 <div className="font-medium text-gray-900">
                                   {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
                                 </div>
-                              </div>
-                              <div className="text-gray-800 font-medium">
-                                {session.title}
-                              </div>
-                              <div className="text-gray-600 text-sm">
-                                {isFull ? '0 места' : `${availableSpots} места`}
-                              </div>
-                              <div className="flex items-center gap-2 justify-end">
-                                {isFull ? (
-                                  <>
-                                    {sessionHasBookings && (
-                                      <button
-                                        onClick={() => handleCancelClick(session._id)}
-                                        className="text-red-600 hover:text-red-700 text-sm"
-                                      >
-                                        Отмени
-                                      </button>
-                                    )}
+
+                                {/* Activity Name */}
+                                <div className="text-gray-800">
+                                  {session.title}
+                                </div>
+
+                                {/* Available Spots */}
+                                <div className="text-gray-600">
+                                  {isFull ? '0 места' : `${availableSpots} места`}
+                                </div>
+
+                                {/* Action Button */}
+                                <div className="flex items-center gap-2">
+                                  {sessionHasBookings && (
+                                    <button
+                                      onClick={() => handleCancelClick(session._id)}
+                                      className="text-red-600 hover:text-red-700 text-sm"
+                                    >
+                                      Отмени
+                                    </button>
+                                  )}
+                                  {isFull ? (
                                     <button
                                       onClick={() => showToast('Сесията е пълна. Моля, използвайте листата на чакащи.', 'info')}
                                       className="text-orange-600 hover:text-orange-700 text-sm"
                                     >
                                       Листа на чакащи
                                     </button>
-                                  </>
-                                ) : (
-                                  <>
-                                    {sessionHasBookings && (
-                                      <button
-                                        onClick={() => handleCancelClick(session._id)}
-                                        className="text-red-600 hover:text-red-700 text-sm"
-                                      >
-                                        Отмени
-                                      </button>
-                                    )}
+                                  ) : (
                                     <button
                                       onClick={() => handleQuickBook(session._id)}
                                       className="text-blue-600 hover:text-blue-700 text-sm"
                                     >
                                       Запази място
                                     </button>
+                                  )}
+                                </div>
+
+                                {/* Checkbox */}
+                                <div className="flex justify-end">
+                                  {!isFull && (
                                     <label className="flex items-center cursor-pointer">
                                       <input
                                         type="checkbox"
@@ -1689,81 +1770,21 @@ const Schedule = () => {
                                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                       />
                                     </label>
-                                  </>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            
-                            {/* Desktop Layout */}
-                            <div className="hidden md:grid md:grid-cols-5 gap-4 items-center">
-                              {/* Time */}
-                              <div className="font-medium text-gray-900">
-                                {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                              </div>
-                              
-                              {/* Activity Name */}
-                              <div className="text-gray-800">
-                                {session.title}
-                              </div>
-                              
-                              {/* Available Spots */}
-                              <div className="text-gray-600">
-                                {isFull ? '0 места' : `${availableSpots} места`}
-                              </div>
-                              
-                              {/* Action Button */}
-                              <div className="flex items-center gap-2">
-                                {sessionHasBookings && (
-                                  <button
-                                    onClick={() => handleCancelClick(session._id)}
-                                    className="text-red-600 hover:text-red-700 text-sm"
-                                  >
-                                    Отмени
-                                  </button>
-                                )}
-                                {isFull ? (
-                                  <button
-                                    onClick={() => showToast('Сесията е пълна. Моля, използвайте листата на чакащи.', 'info')}
-                                    className="text-orange-600 hover:text-orange-700 text-sm"
-                                  >
-                                    Листа на чакащи
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleQuickBook(session._id)}
-                                    className="text-blue-600 hover:text-blue-700 text-sm"
-                                  >
-                                    Запази място
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Checkbox */}
-                              <div className="flex justify-end">
-                                {!isFull && (
-                                  <label className="flex items-center cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedSessionIds.includes(session._id)}
-                                      onChange={() => toggleSessionSelection(session._id)}
-                                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                  </label>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="px-4 py-6 text-center bg-gray-50">
-                        <p className="text-sm" style={{ color: '#4a5565' }}>Няма налични тренировки за този ден</p>
-                      </div>
-                    )}
+                          );
+                        })
+                      ) : (
+                        <div className="px-4 py-6 text-center bg-gray-50">
+                          <p className="text-sm" style={{ color: '#4a5565' }}>Няма налични тренировки за този ден</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            });
+                );
+              });
             })()
           )}
         </div>
@@ -1771,8 +1792,8 @@ const Schedule = () => {
         {/* Load More Button */}
         {hasMoreSessions() && (
           <div className="flex justify-center mt-6">
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={handleLoadMore}
               disabled={loadingMore}
             >
