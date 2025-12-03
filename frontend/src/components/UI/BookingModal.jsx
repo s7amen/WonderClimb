@@ -5,6 +5,7 @@ import { bg } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 import { getUserFullName } from '../../utils/userUtils';
 import { useToast } from './Toast';
+import BaseModal from './BaseModal';
 import Button from './Button';
 import Loading from './Loading';
 
@@ -44,18 +45,6 @@ const BookingModal = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user]);
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
 
   const fetchClimbers = async () => {
     try {
@@ -128,7 +117,6 @@ const BookingModal = ({
 
   const userRoles = user?.roles || [];
   const hasClimberRole = userRoles.includes('climber');
-  const hasAdminRole = userRoles.includes('admin');
 
   const allClimbers = [
     ...(selfClimber ? [{
@@ -277,12 +265,6 @@ const BookingModal = ({
     }
   };
 
-  const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
   // Get sessions to display (use provided sessions or find from sessionIds)
   const sessionsToDisplay = sessions.length > 0
     ? sessions
@@ -291,173 +273,152 @@ const BookingModal = ({
   return (
     <>
       <ToastComponent />
-      {!isOpen ? null : (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={handleOverlayClick}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">Запази час</h2>
-                <button
-                  onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                  aria-label="Затвори"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-
-              {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                  {error}
-                </div>
-              )}
-
-              {loading ? (
-                <Loading text="Зареждане..." />
+      <BaseModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Запази час"
+        size="md"
+        className="rounded-2xl"
+        footer={
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              className="flex-1 flex items-center justify-center gap-2"
+              disabled={isBooking}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Отказ
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleBookSessions}
+              disabled={isBooking || selectedClimberIds.length === 0 || normalizedSessionIds.length === 0}
+              className="flex-1 flex items-center justify-center gap-2"
+            >
+              {isBooking ? (
+                'Запазване...'
               ) : (
                 <>
-                  {/* Sessions Information */}
-                  {sessionsToDisplay.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                        {sessionsToDisplay.length === 1 ? 'Тренировка:' : `Тренировки (${sessionsToDisplay.length}):`}
-                      </h3>
-                      <div className="space-y-2">
-                        {sessionsToDisplay.map((session, index) => {
-                          const sessionId = session._id || normalizedSessionIds[index];
-                          const sessionTitle = session.title || 'Тренировка';
-                          const sessionDate = session.date ? new Date(session.date) : null;
-
-                          return (
-                            <div key={sessionId || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                              <div className="font-medium text-gray-900 mb-1">{sessionTitle}</div>
-                              {sessionDate && (
-                                <>
-                                  <div className="text-sm text-gray-600">
-                                    {format(sessionDate, 'EEEE, d MMMM yyyy', { locale: bg })}
-                                  </div>
-                                  <div className="text-sm text-gray-600">
-                                    {formatTime(sessionDate)} - {getEndTime(sessionDate, session.durationMinutes || 60)}
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Climber Selection */}
-                  {allClimbers.length > 0 ? (
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-gray-700 mb-3">За кого резервирате?</h3>
-                      <div className="space-y-3">
-                        {/* Self option for climbers */}
-                        {hasClimberRole && (
-                          <label
-                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedClimberIds.includes('self')
-                                ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                              }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedClimberIds.includes('self')}
-                              onChange={() => toggleClimberSelection('self')}
-                              className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                            />
-                            <span className="ml-3 text-base font-medium text-[#0f172b]">
-                              За мен ({getUserFullName(user) || user?.email || 'Аз'})
-                            </span>
-                          </label>
-                        )}
-                        {/* Children options */}
-                        {children.map((child) => {
-                          const childIdStr = typeof child._id === 'object' && child._id?.toString ? child._id.toString() : String(child._id);
-                          const selectedIds = selectedClimberIds.map(id => {
-                            if (id === 'self') return 'self';
-                            return typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                          });
-                          const isSelected = selectedIds.includes(childIdStr);
-
-                          return (
-                            <label
-                              key={child._id}
-                              className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
-                                  ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleClimberSelection(child._id)}
-                                className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                              />
-                              <span className="ml-3 text-base font-medium text-[#0f172b]">
-                                {child.firstName} {child.lastName}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-[#64748b]">Няма налични катерачи за резервиране.</p>
-                    </div>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Запази час
                 </>
               )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-5 border-t border-gray-100 flex gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onClose}
-                className="flex-1 flex items-center justify-center gap-2"
-                disabled={isBooking}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleBookSessions}
-                disabled={isBooking || selectedClimberIds.length === 0 || normalizedSessionIds.length === 0}
-                className="flex-1 flex items-center justify-center gap-2"
-              >
-                {isBooking ? (
-                  'Запазване...'
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Запази час
-                  </>
-                )}
-              </Button>
-            </div>
+            </Button>
           </div>
-        </div>
-      )}
+        }
+      >
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <Loading text="Зареждане..." />
+        ) : (
+          <>
+            {/* Sessions Information */}
+            {sessionsToDisplay.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  {sessionsToDisplay.length === 1 ? 'Тренировка:' : `Тренировки (${sessionsToDisplay.length}):`}
+                </h3>
+                <div className="space-y-2">
+                  {sessionsToDisplay.map((session, index) => {
+                    const sessionId = session._id || normalizedSessionIds[index];
+                    const sessionTitle = session.title || 'Тренировка';
+                    const sessionDate = session.date ? new Date(session.date) : null;
+
+                    return (
+                      <div key={sessionId || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="font-medium text-gray-900 mb-1">{sessionTitle}</div>
+                        {sessionDate && (
+                          <>
+                            <div className="text-sm text-gray-600">
+                              {format(sessionDate, 'EEEE, d MMMM yyyy', { locale: bg })}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {formatTime(sessionDate)} - {getEndTime(sessionDate, session.durationMinutes || 60)}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Climber Selection */}
+            {allClimbers.length > 0 ? (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">За кого резервирате?</h3>
+                <div className="space-y-3">
+                  {/* Self option for climbers */}
+                  {hasClimberRole && (
+                    <label
+                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedClimberIds.includes('self')
+                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedClimberIds.includes('self')}
+                        onChange={() => toggleClimberSelection('self')}
+                        className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
+                      />
+                      <span className="ml-3 text-base font-medium text-[#0f172b]">
+                        За мен ({getUserFullName(user) || user?.email || 'Аз'})
+                      </span>
+                    </label>
+                  )}
+                  {/* Children options */}
+                  {children.map((child) => {
+                    const childIdStr = typeof child._id === 'object' && child._id?.toString ? child._id.toString() : String(child._id);
+                    const selectedIds = selectedClimberIds.map(id => {
+                      if (id === 'self') return 'self';
+                      return typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                    });
+                    const isSelected = selectedIds.includes(childIdStr);
+
+                    return (
+                      <label
+                        key={child._id}
+                        className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
+                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleClimberSelection(child._id)}
+                          className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
+                        />
+                        <span className="ml-3 text-base font-medium text-[#0f172b]">
+                          {child.firstName} {child.lastName}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-[#64748b]">Няма налични катерачи за резервиране.</p>
+              </div>
+            )}
+          </>
+        )}
+      </BaseModal>
     </>
   );
 };

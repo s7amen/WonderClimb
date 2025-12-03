@@ -8,6 +8,8 @@ import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import SessionList from '../../components/Sessions/SessionList';
 import SessionCalendar from '../../components/Calendar/SessionCalendar';
+import useCancelBooking from '../../hooks/useCancelBooking';
+import CancellationModal from '../../components/Booking/CancellationModal';
 
 const MySessions = () => {
   const [myBookings, setMyBookings] = useState([]);
@@ -20,8 +22,39 @@ const MySessions = () => {
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
   const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
   const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
-  const [selectedCancelBookingIds, setSelectedCancelBookingIds] = useState([]);
-  const [isCancelling, setIsCancelling] = useState(false);
+
+  // Use shared cancellation hook
+  const { cancelError, isCancelling, cancelBookings, resetError } = useCancelBooking({
+    showToast,
+    onSuccess: (results) => {
+      // Update local state
+      setMyBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Close modal
+      setShowCancelBookingModal(false);
+      setCancelBookingSessionId(null);
+      setCancelBookingBookings([]);
+    },
+    onPartialSuccess: (results) => {
+      // Update for successful ones
+      setMyBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Remove successful from modal list
+      setCancelBookingBookings(prev => prev.filter(b =>
+        !results.successful.includes(b.bookingId || b._id)
+      ));
+
+      // Keep modal open to show errors
+    },
+  });
 
   // Session details modal state
   const [selectedSession, setSelectedSession] = useState(null);
@@ -48,7 +81,7 @@ const MySessions = () => {
   // Transform bookings to sessions format
   const getSessionsFromBookings = () => {
     const bookedSessions = myBookings.filter(b => b.status === 'booked' && b.session);
-    const upcomingBookings = bookedSessions.filter(b => 
+    const upcomingBookings = bookedSessions.filter(b =>
       b.session?.date && new Date(b.session.date) >= startOfDay(new Date())
     );
 
@@ -74,7 +107,7 @@ const MySessions = () => {
   const getFilteredSessions = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     return sessions.filter(session => {
       const sessionDate = new Date(session.date);
 
@@ -126,29 +159,29 @@ const MySessions = () => {
   // Get reservations for a specific session
   const getReservationsForSession = (sessionId) => {
     if (!myBookings || myBookings.length === 0) return [];
-    
-    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-      ? sessionId.toString() 
+
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString
+      ? sessionId.toString()
       : String(sessionId);
-    
+
     return myBookings.filter(b => {
       if (!b || b.status !== 'booked') return false;
-      
-      const bookingSessionId = b.sessionId 
-        ? (typeof b.sessionId === 'object' && b.sessionId._id 
-            ? String(b.sessionId._id) 
-            : String(b.sessionId))
+
+      const bookingSessionId = b.sessionId
+        ? (typeof b.sessionId === 'object' && b.sessionId._id
+          ? String(b.sessionId._id)
+          : String(b.sessionId))
         : null;
-      
-      const sessionObjId = b.session 
+
+      const sessionObjId = b.session
         ? (b.session._id ? String(b.session._id) : String(b.session))
         : null;
-      
+
       return bookingSessionId === normalizedSessionId || sessionObjId === normalizedSessionId;
     }).map(booking => {
       const climber = booking.climber || booking.climberId;
       let climberName = 'Неизвестен';
-      
+
       if (climber) {
         if (typeof climber === 'object' && climber.firstName && climber.lastName) {
           climberName = `${climber.firstName} ${climber.lastName}`;
@@ -156,7 +189,7 @@ const MySessions = () => {
           climberName = climber.name;
         }
       }
-      
+
       return {
         climberName,
         bookingId: booking._id || booking.id,
@@ -176,21 +209,21 @@ const MySessions = () => {
     if (session.status !== 'active') {
       return { backgroundColor: '#99a1af', color: 'white' };
     }
-    
+
     const targetGroups = session.targetGroups || [];
-    
+
     const groupColors = {
       beginner: '#DCFCE7',      // green-100
       experienced: '#FFEDD5',   // orange-100
       advanced: '#FEE2E2',      // red-100
     };
-    
+
     const textColors = {
       beginner: '#15803D',    // green-700
       experienced: '#C2410C', // orange-700
       advanced: '#B91C1C',    // red-700
     };
-    
+
     let primaryGroup = null;
     if (targetGroups.includes('beginner')) {
       primaryGroup = 'beginner';
@@ -199,11 +232,11 @@ const MySessions = () => {
     } else if (targetGroups.includes('advanced')) {
       primaryGroup = 'advanced';
     }
-    
+
     if (!primaryGroup) {
       return { backgroundColor: '#FFEDD5', color: '#C2410C' };
     }
-    
+
     return { backgroundColor: groupColors[primaryGroup], color: textColors[primaryGroup] };
   };
 
@@ -246,8 +279,8 @@ const MySessions = () => {
                   >
                     ←
                   </button>
-                  <Button 
-                    variant="secondary" 
+                  <Button
+                    variant="secondary"
                     onClick={goToToday}
                     className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
                   >
@@ -275,432 +308,258 @@ const MySessions = () => {
 
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
 
-        {/* Desktop Calendar Section */}
-        {sessions.length > 0 && (
-          <div className="hidden md:block mb-6">
-            <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-              <div className="flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-2">
-                {/* Month title on top row */}
-                <h2 className="text-base font-medium text-neutral-950 text-center w-full">
-                  {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                </h2>
-                {/* Buttons next to each other */}
-                <div className="flex flex-row items-center gap-2 justify-center w-full">
-                  <button
-                    onClick={() => navigateDate('prev')}
-                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  >
-                    Предишен
-                  </button>
-                  <Button 
-                    variant="secondary" 
-                    onClick={goToToday}
-                    className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
-                  >
-                    Днес
-                  </Button>
-                  <button
-                    onClick={() => navigateDate('next')}
-                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  >
-                    Следващ
-                  </button>
+          {/* Desktop Calendar Section */}
+          {sessions.length > 0 && (
+            <div className="hidden md:block mb-6">
+              <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
+                <div className="flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-2">
+                  {/* Month title on top row */}
+                  <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                  </h2>
+                  {/* Buttons next to each other */}
+                  <div className="flex flex-row items-center gap-2 justify-center w-full">
+                    <button
+                      onClick={() => navigateDate('prev')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      Предишен
+                    </button>
+                    <Button
+                      variant="secondary"
+                      onClick={goToToday}
+                      className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                    >
+                      Днес
+                    </Button>
+                    <button
+                      onClick={() => navigateDate('next')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      Следващ
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="px-6 pb-6">
-                <SessionCalendar
-                  sessions={sessions}
-                  currentDate={currentDate}
-                  onSessionClick={handleSessionClick}
-                  getSessionColor={getSessionColor}
-                />
+                <div className="px-6 pb-6">
+                  <SessionCalendar
+                    sessions={sessions}
+                    currentDate={currentDate}
+                    onSessionClick={handleSessionClick}
+                    getSessionColor={getSessionColor}
+                  />
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Sessions List */}
+          <SessionList
+            sessions={sessions}
+            getFilteredSessions={getFilteredSessions}
+            hasActiveFilters={hasActiveFilters}
+            clearAllFilters={clearAllFilters}
+            getBookedCount={getBookedCount}
+            getBulgarianDayName={getBulgarianDayName}
+            formatTime={formatTime}
+            getEndTime={getEndTime}
+            mode="public"
+            userBookings={myBookings}
+            showReservationsInfo={true}
+            onCancelBooking={(sessionId, reservations) => {
+              // Показва popup за потвърждение
+              setCancelBookingSessionId(sessionId);
+              setCancelBookingBookings(reservations);
+              setShowCancelBookingModal(true);
+            }}
+          />
+
+          {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
+            <Card>
+              <div className="text-center py-12">
+                <p className="text-gray-600 text-lg mb-2">Няма предстоящи резервации</p>
+                <p className="text-gray-500 text-sm">Вашите резервации ще се появят тук</p>
               </div>
             </Card>
-          </div>
-        )}
+          )}
 
-        {/* Sessions List */}
-        <SessionList
-          sessions={sessions}
-          getFilteredSessions={getFilteredSessions}
-          hasActiveFilters={hasActiveFilters}
-          clearAllFilters={clearAllFilters}
-          getBookedCount={getBookedCount}
-          getBulgarianDayName={getBulgarianDayName}
-          formatTime={formatTime}
-          getEndTime={getEndTime}
-          mode="public"
-          userBookings={myBookings}
-          showReservationsInfo={true}
-          onCancelBooking={(sessionId, reservations) => {
-            // Показва popup за потвърждение
-            setCancelBookingSessionId(sessionId);
-            setCancelBookingBookings(reservations);
-            setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
-            setShowCancelBookingModal(true);
-          }}
-        />
 
-        {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
-          <Card>
-            <div className="text-center py-12">
-              <p className="text-gray-600 text-lg mb-2">Няма предстоящи резервации</p>
-              <p className="text-gray-500 text-sm">Вашите резервации ще се появят тук</p>
-            </div>
-          </Card>
-        )}
-        
-
-        {/* Cancel Booking Confirmation Modal - Модерен дизайн */}
-        {showCancelBookingModal && cancelBookingSessionId && (
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-            onClick={(e) => {
-              if (e.target === e.currentTarget && !isCancelling) {
-                setShowCancelBookingModal(false);
-                setCancelBookingSessionId(null);
-                setCancelBookingBookings([]);
-                setSelectedCancelBookingIds([]);
-              }
+          {/* Cancel Booking Modal - Using Shared Component */}
+          <CancellationModal
+            isOpen={showCancelBookingModal}
+            onClose={() => {
+              setShowCancelBookingModal(false);
+              setCancelBookingSessionId(null);
+              setCancelBookingBookings([]);
+              resetError();
             }}
-          >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-[#0f172b]">Отмени резервация</h2>
-                  <button
-                    onClick={() => {
-                      setShowCancelBookingModal(false);
-                      setCancelBookingSessionId(null);
-                      setCancelBookingBookings([]);
-                      setSelectedCancelBookingIds([]);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                    disabled={isCancelling}
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                {/* Session Info */}
-                {(() => {
-                  const session = sessions.find(s => s._id === cancelBookingSessionId);
-                  if (!session) return null;
-                  return (
-                    <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-                      <div className="font-semibold text-[#0f172b] mb-1">{session.title || 'Тренировка'}</div>
-                      <div className="text-sm text-[#64748b]">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                    </div>
-                  );
-                })()}
+            session={sessions.find(s => s._id === cancelBookingSessionId)}
+            bookings={cancelBookingBookings}
+            onConfirm={async (selectedIds) => {
+              await cancelBookings(selectedIds, cancelBookingBookings);
+            }}
+            error={cancelError}
+            isLoading={isCancelling}
+          />
 
-                {/* Reservations List */}
-                {cancelBookingBookings.length > 0 ? (
-                  <>
-                    <div className="mb-4">
-                      <p className="text-sm text-[#64748b] mb-3">
-                        {cancelBookingBookings.length === 1 
-                          ? 'Избери резервация за отменяне:' 
-                          : 'Избери резервации за отменяне:'}
-                      </p>
-                      <div className="space-y-2">
-                        {cancelBookingBookings.map((reservation) => {
-                          const isSelected = selectedCancelBookingIds.includes(reservation.bookingId);
-                          return (
-                            <label
-                              key={reservation.bookingId}
-                              className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'border-red-500 bg-red-50 shadow-sm'
-                                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                              }`}
-                            >
-                              <div className="relative flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    setSelectedCancelBookingIds(prev => 
-                                      prev.includes(reservation.bookingId)
-                                        ? prev.filter(id => id !== reservation.bookingId)
-                                        : [...prev, reservation.bookingId]
-                                    );
-                                  }}
-                                  className="w-5 h-5 text-red-500 border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
-                                  disabled={isCancelling}
-                                />
-                              </div>
-                              <span className="ml-3 text-base font-medium text-[#0f172b]">
-                                {reservation.climberName}
+
+          {/* Session Details Modal */}
+          {showSessionModal && selectedSession && (
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowSessionModal(false);
+                  setSelectedSession(null);
+                }
+              }}
+            >
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
+                <div className="px-6 py-5 border-b border-gray-100">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-[#0f172b]">Детайли за тренировка</h2>
+                    <button
+                      onClick={() => {
+                        setShowSessionModal(false);
+                        setSelectedSession(null);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                  {/* Session Info */}
+                  <div className="mb-6 space-y-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-[#0f172b] mb-2">{selectedSession.title || 'Тренировка'}</h3>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[#64748b]">Дата и час:</span>
+                        <span className="text-[#0f172b]">
+                          {format(new Date(selectedSession.date), 'EEEE, d MMMM yyyy', { locale: bg })}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[#64748b]">Час:</span>
+                        <span className="text-[#0f172b]">
+                          {formatTime(selectedSession.date)} - {getEndTime(selectedSession.date, selectedSession.durationMinutes)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[#64748b]">Продължителност:</span>
+                        <span className="text-[#0f172b]">{selectedSession.durationMinutes} минути</span>
+                      </div>
+
+                      {selectedSession.targetGroups && selectedSession.targetGroups.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {selectedSession.targetGroups.map((group) => {
+                            const groupLabels = {
+                              beginner: 'Начинаещи',
+                              experienced: 'Деца с опит',
+                              advanced: 'Напреднали',
+                            };
+                            const groupColors = {
+                              beginner: 'bg-green-100 text-green-700',
+                              experienced: 'bg-blue-100 text-blue-700',
+                              advanced: 'bg-red-100 text-red-700',
+                            };
+                            return (
+                              <span
+                                key={group}
+                                className={`px-2 py-1 rounded-md text-xs font-medium ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
+                              >
+                                {groupLabels[group] || group}
                               </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-[#64748b] mb-6 text-center py-4">
-                    Няма налични резервации за отменяне.
-                  </p>
-                )}
-
-                <div className="flex gap-3 pt-4 border-t border-gray-100">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setShowCancelBookingModal(false);
-                      setCancelBookingSessionId(null);
-                      setCancelBookingBookings([]);
-                      setSelectedCancelBookingIds([]);
-                    }}
-                    disabled={isCancelling}
-                    className="flex-1"
-                  >
-                    Отказ
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      if (selectedCancelBookingIds.length === 0) {
-                        showToast('Моля, изберете поне една резервация за отменяне', 'error');
-                        return;
-                      }
-
-                      setIsCancelling(true);
-                      const results = {
-                        successful: [],
-                        failed: []
-                      };
-
-                      try {
-                        // Отменя всички избрани резервации
-                        for (const bookingId of selectedCancelBookingIds) {
-                          try {
-                            await bookingsAPI.cancel(bookingId);
-                            results.successful.push(bookingId);
-                          } catch (error) {
-                            results.failed.push({
-                              bookingId,
-                              reason: error.response?.data?.error?.message || 'Грешка при отмяна'
-                            });
-                          }
-                        }
-                        
-                        // Update local state for successful cancellations instead of full page reload
-                        if (results.successful.length > 0) {
-                          setMyBookings(prev => prev.map(booking => 
-                            results.successful.includes(booking._id)
-                              ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
-                              : booking
-                          ));
-                          
-                          showToast(
-                            results.successful.length === 1
-                              ? 'Резервацията е отменена успешно'
-                              : `${results.successful.length} резервации са отменени успешно`,
-                            'success'
-                          );
-                        }
-
-                        if (results.failed.length > 0) {
-                          showToast(
-                            `Неуспешна отмяна на ${results.failed.length} резервации`,
-                            'error'
-                          );
-                        }
-                      } catch (error) {
-                        showToast(
-                          error.response?.data?.error?.message || 'Грешка при отменяне на резервация',
-                          'error'
-                        );
-                      } finally {
-                        // Always close modal and clear state
-                        setShowCancelBookingModal(false);
-                        setCancelBookingSessionId(null);
-                        setCancelBookingBookings([]);
-                        setSelectedCancelBookingIds([]);
-                        setIsCancelling(false);
-                      }
-                    }}
-                    disabled={isCancelling || selectedCancelBookingIds.length === 0}
-                    variant="danger"
-                    className="flex-1"
-                  >
-                    {isCancelling ? 'Отменяне...' : 'Отмени'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Session Details Modal */}
-        {showSessionModal && selectedSession && (
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setShowSessionModal(false);
-                setSelectedSession(null);
-              }
-            }}
-          >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-              <div className="px-6 py-5 border-b border-gray-100">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-[#0f172b]">Детайли за тренировка</h2>
-                  <button
-                    onClick={() => {
-                      setShowSessionModal(false);
-                      setSelectedSession(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-                {/* Session Info */}
-                <div className="mb-6 space-y-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#0f172b] mb-2">{selectedSession.title || 'Тренировка'}</h3>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#64748b]">Дата и час:</span>
-                      <span className="text-[#0f172b]">
-                        {format(new Date(selectedSession.date), 'EEEE, d MMMM yyyy', { locale: bg })}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#64748b]">Час:</span>
-                      <span className="text-[#0f172b]">
-                        {formatTime(selectedSession.date)} - {getEndTime(selectedSession.date, selectedSession.durationMinutes)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#64748b]">Продължителност:</span>
-                      <span className="text-[#0f172b]">{selectedSession.durationMinutes} минути</span>
-                    </div>
-                    
-                    {selectedSession.targetGroups && selectedSession.targetGroups.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {selectedSession.targetGroups.map((group) => {
-                          const groupLabels = {
-                            beginner: 'Начинаещи',
-                            experienced: 'Деца с опит',
-                            advanced: 'Напреднали',
-                          };
-                          const groupColors = {
-                            beginner: 'bg-green-100 text-green-700',
-                            experienced: 'bg-blue-100 text-blue-700',
-                            advanced: 'bg-red-100 text-red-700',
-                          };
-                          return (
-                            <span
-                              key={group}
-                              className={`px-2 py-1 rounded-md text-xs font-medium ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
-                            >
-                              {groupLabels[group] || group}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                    
-                    {selectedSession.description && (
-                      <div className="flex items-start gap-2">
-                        <span className="font-medium text-[#64748b] shrink-0">Описание:</span>
-                        <span className="text-[#0f172b]">{selectedSession.description}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Reservations Info */}
-                {(() => {
-                  const reservations = getReservationsForSession(selectedSession._id);
-                  return (
-                    <div className="border-t border-gray-100 pt-4">
-                      {reservations.length > 0 ? (
-                        <div className="space-y-2">
-                          {reservations.map((reservation) => (
-                            <div
-                              key={reservation.bookingId}
-                              className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium text-[#0f172b]">
-                                  {reservation.climberName}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
-                      ) : null}
-                    </div>
-                  );
-                })()}
-              </div>
+                      )}
 
-              <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-                {(() => {
-                  const reservations = getReservationsForSession(selectedSession._id);
-                  const hasReservations = reservations.length > 0;
-                  
-                  return (
-                    <>
-                      {hasReservations && (
+                      {selectedSession.description && (
+                        <div className="flex items-start gap-2">
+                          <span className="font-medium text-[#64748b] shrink-0">Описание:</span>
+                          <span className="text-[#0f172b]">{selectedSession.description}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Reservations Info */}
+                  {(() => {
+                    const reservations = getReservationsForSession(selectedSession._id);
+                    return (
+                      <div className="border-t border-gray-100 pt-4">
+                        {reservations.length > 0 ? (
+                          <div className="space-y-2">
+                            {reservations.map((reservation) => (
+                              <div
+                                key={reservation.bookingId}
+                                className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="text-sm font-medium text-[#0f172b]">
+                                    {reservation.climberName}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+                  {(() => {
+                    const reservations = getReservationsForSession(selectedSession._id);
+                    const hasReservations = reservations.length > 0;
+
+                    return (
+                      <>
+                        {hasReservations && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={() => {
+                              setShowSessionModal(false);
+                              setSelectedSession(null);
+                              // Trigger cancel booking flow
+                              setCancelBookingSessionId(selectedSession._id);
+                              setCancelBookingBookings(reservations);
+                              setShowCancelBookingModal(true);
+                            }}
+                            className="flex-1"
+                          >
+                            Отмени
+                          </Button>
+                        )}
                         <Button
                           type="button"
-                          variant="danger"
                           onClick={() => {
                             setShowSessionModal(false);
                             setSelectedSession(null);
-                            // Trigger cancel booking flow
-                            setCancelBookingSessionId(selectedSession._id);
-                            setCancelBookingBookings(reservations);
-                            setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
-                            setShowCancelBookingModal(true);
                           }}
-                          className="flex-1"
+                          className={hasReservations ? "flex-1" : "w-full"}
                         >
-                          Отмени
+                          Затвори
                         </Button>
-                      )}
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setShowSessionModal(false);
-                          setSelectedSession(null);
-                        }}
-                        className={hasReservations ? "flex-1" : "w-full"}
-                      >
-                        Затвори
-                      </Button>
-                    </>
-                  );
-                })()}
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </div>
     </div>

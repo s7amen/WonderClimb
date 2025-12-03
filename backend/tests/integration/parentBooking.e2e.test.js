@@ -14,7 +14,7 @@ describe('Parent Booking E2E Tests', () => {
   let session;
   let futureSession;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     // Create parent user
     parentUser = new User({
       email: 'parent@booking.com',
@@ -103,6 +103,17 @@ describe('Parent Booking E2E Tests', () => {
     });
 
     it('should reject duplicate booking', async () => {
+      // Create first booking
+      await request(app)
+        .post('/api/v1/bookings')
+        .set('Authorization', `Bearer ${parentToken}`)
+        .send({
+          sessionId: session._id.toString(),
+          climberId: climber._id.toString(),
+        })
+        .expect(201);
+
+      // Try to create duplicate booking
       await request(app)
         .post('/api/v1/bookings')
         .set('Authorization', `Bearer ${parentToken}`)
@@ -151,6 +162,14 @@ describe('Parent Booking E2E Tests', () => {
 
   describe('GET /api/v1/parents/me/bookings', () => {
     it('should return bookings for parent\'s children', async () => {
+      // Create a booking first
+      await Booking.create({
+        sessionId: session._id,
+        climberId: climber._id,
+        bookedById: parentUser._id,
+        status: 'booked',
+      });
+
       const response = await request(app)
         .get('/api/v1/parents/me/bookings')
         .set('Authorization', `Bearer ${parentToken}`)

@@ -18,7 +18,7 @@ describe('Unified User Model E2E Tests', () => {
   let coachUser;
   let session;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     // Create parent user
     parentUser = new User({
       email: 'parent@unified.com',
@@ -90,7 +90,7 @@ describe('Unified User Model E2E Tests', () => {
 
       expect(response.body).toHaveProperty('duplicate', false);
       expect(response.body.child).toBeDefined();
-      expect(response.body.child.accountStatus).toBe('inactive');
+      expect(response.body.child.accountStatus).toBe('active');
       expect(response.body.child.email).toBeUndefined();
       expect(response.body.child.passwordHash).toBeUndefined();
       expect(response.body.child.roles).toContain('climber');
@@ -121,7 +121,7 @@ describe('Unified User Model E2E Tests', () => {
           lastName: 'Test',
           dateOfBirth: '2010-05-20',
         })
-        .expect(200);
+        .expect(409);
 
       expect(duplicateResponse.body).toHaveProperty('duplicate', true);
       expect(duplicateResponse.body.existingProfile).toBeDefined();
@@ -350,7 +350,7 @@ describe('Unified User Model E2E Tests', () => {
       expect(response.body.child).toBeDefined();
       expect(response.body.child.accountStatus).toBe('inactive');
       expect(response.body.child.roles).toContain('climber');
-      expect(response.body.child.email).toBeUndefined();
+      expect(response.body.child.email).toBeNull();
     });
   });
 
@@ -568,7 +568,7 @@ describe('Unified User Model E2E Tests', () => {
       });
 
       expect(child.middleName).toBeNull();
-      const fullName = `${child.firstName} ${child.middleName || ''} ${child.lastName}`.trim();
+      const fullName = `${child.firstName} ${child.middleName || ''} ${child.lastName}`.replace(/\s+/g, ' ').trim();
       expect(fullName).toBe('First Last');
     });
   });

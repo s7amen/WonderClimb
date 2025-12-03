@@ -1,0 +1,368 @@
+﻿
+> wonderclimb-backend@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration/unifiedUserModel.e2e.test.js
+
+{"level":30,"time":1764709747472,"pid":16128,"hostname":"Stamen","msg":"Competitions routes loaded, Competition model:"}
+node.exe : (node:16128) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:16128) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1764709748440,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748440,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748441,"pid":16128,"hostname":"Stamen","path":"/me/climbers","method":"POST","originalUrl":"/api/v1/parents/me/climbers","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748442,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748442,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748442,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748442,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","path":"/me/climbers","msg":"Creating child for parent"}
+{"level":30,"time":1764709748459,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b68b","linkId":"692f5574fdfe658165e0b68e","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748459,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b68b","msg":"Child User created and linked to parent"}
+{"level":30,"time":1764709748462,"pid":16128,"hostname":"Stamen","req":{"id":1,"method":"POST","url":"/api/v1/parents/me/climbers","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":36,"msg":"request completed"}
+{"level":30,"time":1764709748482,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748482,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748482,"pid":16128,"hostname":"Stamen","path":"/me/climbers","method":"POST","originalUrl":"/api/v1/parents/me/climbers","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748483,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748484,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748484,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748484,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","path":"/me/climbers","msg":"Creating child for parent"}
+{"level":30,"time":1764709748492,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b699","linkId":"692f5574fdfe658165e0b69c","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748492,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b699","msg":"Child User created and linked to parent"}
+{"level":30,"time":1764709748492,"pid":16128,"hostname":"Stamen","req":{"id":2,"method":"POST","url":"/api/v1/parents/me/climbers","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":12,"msg":"request completed"}
+{"level":30,"time":1764709748498,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748498,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748498,"pid":16128,"hostname":"Stamen","path":"/me/climbers","method":"POST","originalUrl":"/api/v1/parents/me/climbers","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748499,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748499,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748499,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748499,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","path":"/me/climbers","msg":"Creating child for parent"}
+{"level":50,"time":1764709748505,"pid":16128,"hostname":"Stamen","error":{"statusCode":409},"parentId":"692f5574fdfe658165e0b682","climberData":{"firstName":"Duplicate","lastName":"Test","dateOfBirth":"2010-05-20"},"msg":"Error creating child for parent"}
+{"level":40,"time":1764709748506,"pid":16128,"hostname":"Stamen","req":{"id":3,"method":"POST","url":"/api/v1/parents/me/climbers","headers":{"content-type":"application/json"}},"res":{"statusCode":409},"responseTime":10,"msg":"request completed"}
+{"level":30,"time":1764709748518,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748518,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748518,"pid":16128,"hostname":"Stamen","path":"/me/climbers","method":"POST","originalUrl":"/api/v1/parents/me/climbers","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748519,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748519,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748519,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748519,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","path":"/me/climbers","msg":"Creating child for parent"}
+{"level":30,"time":1764709748527,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6a9","linkId":"692f5574fdfe658165e0b6ac","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748527,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6a9","msg":"Child User created and linked to parent"}
+{"level":30,"time":1764709748528,"pid":16128,"hostname":"Stamen","req":{"id":4,"method":"POST","url":"/api/v1/parents/me/climbers","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":12,"msg":"request completed"}
+{"level":30,"time":1764709748537,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748537,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748537,"pid":16128,"hostname":"Stamen","path":"/me/climbers","method":"POST","originalUrl":"/api/v1/parents/me/climbers","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748538,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709748538,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748538,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748538,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","path":"/me/climbers","msg":"Creating child for parent"}
+{"level":30,"time":1764709748554,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6af","linkId":"692f5574fdfe658165e0b6b2","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748555,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6af","msg":"Child User created and linked to parent"}
+{"level":30,"time":1764709748555,"pid":16128,"hostname":"Stamen","req":{"id":5,"method":"POST","url":"/api/v1/parents/me/climbers","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":20,"msg":"request completed"}
+{"level":30,"time":1764709748571,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748571,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748571,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6bc/link-existing","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748572,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748572,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748572,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6bc/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748579,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6bc","linkId":"692f5574fdfe658165e0b6c2","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748579,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6bc","msg":"Existing child profile linked to parent"}
+{"level":30,"time":1764709748579,"pid":16128,"hostname":"Stamen","req":{"id":6,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6bc/link-existing","headers":{}},"res":{"statusCode":200},"responseTime":9,"msg":"request completed"}
+{"level":30,"time":1764709748595,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748595,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748595,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6cd/link-existing","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748596,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748596,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748596,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748604,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6cd","linkId":"692f5574fdfe658165e0b6d3","msg":"Parent-climber link created"}
+{"level":30,"time":1764709748604,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6cd","msg":"Existing child profile linked to parent"}
+{"level":30,"time":1764709748604,"pid":16128,"hostname":"Stamen","req":{"id":7,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6cd/link-existing","headers":{}},"res":{"statusCode":200},"responseTime":10,"msg":"request completed"}
+{"level":30,"time":1764709748609,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748609,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748609,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6cd/link-existing","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748610,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748610,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748610,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6cd/link-existing","method":"POST","msg":"Role check"}
+{"level":50,"time":1764709748612,"pid":16128,"hostname":"Stamen","error":{"statusCode":409},"parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6cd","msg":"Error linking existing child to parent"}
+{"level":40,"time":1764709748613,"pid":16128,"hostname":"Stamen","req":{"id":8,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6cd/link-existing","headers":{}},"res":{"statusCode":409},"responseTime":6,"msg":"request completed"}
+{"level":30,"time":1764709748694,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748694,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748694,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6e1/link-existing","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748695,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","msg":"Token decoded"}
+{"level":30,"time":1764709748695,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748695,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6e1/link-existing","method":"POST","msg":"Role check"}
+{"level":50,"time":1764709748701,"pid":16128,"hostname":"Stamen","error":{"statusCode":409},"parentId":"692f5574fdfe658165e0b682","childId":"692f5574fdfe658165e0b6e1","msg":"Error linking existing child to parent"}
+{"level":40,"time":1764709748701,"pid":16128,"hostname":"Stamen","req":{"id":9,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6e1/link-existing","headers":{}},"res":{"statusCode":409},"responseTime":8,"msg":"request completed"}
+{"level":30,"time":1764709748715,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","msg":"Token decoded"}
+{"level":30,"time":1764709748715,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748715,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6f0/activate","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748716,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","msg":"Token decoded"}
+{"level":30,"time":1764709748716,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748716,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b6f0/activate","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748717,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6f0","normalizedParentId":"692f5574fdfe658165e0b682","normalizedClimberId":"692f5574fdfe658165e0b6f0","parentIdType":"string","climberIdType":"string","msg":"Checking parent-climber link"}
+{"level":30,"time":1764709748719,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5574fdfe658165e0b6f0","linkFound":true,"linkId":"692f5574fdfe658165e0b6f2","linkParentId":"692f5574fdfe658165e0b682","linkClimberId":"692f5574fdfe658165e0b6f0","msg":"Parent-climber link check result"}
+{"level":30,"time":1764709748791,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b6f0","email":"activate@test.com","activatedBy":"692f5574fdfe658165e0b682","msg":"Climber profile activated"}
+{"level":30,"time":1764709748791,"pid":16128,"hostname":"Stamen","req":{"id":10,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b6f0/activate","headers":{"content-type":"application/json"}},"res":{"statusCode":200},"responseTime":77,"msg":"request completed"}
+{"level":30,"time":1764709748807,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b700/activate","msg":"Token decoded"}
+{"level":30,"time":1764709748807,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b700/activate","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748807,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5574fdfe658165e0b700/activate","method":"POST","originalUrl":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b700/activate","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709748808,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b700/activate","msg":"Token decoded"}
+{"level":30,"time":1764709748808,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5574fdfe658165e0b700/activate","method":"POST","msg":"Before role check"}
+{"level":30,"time":1764709748808,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5574fdfe658165e0b700/activate","method":"POST","msg":"Role check"}
+{"level":40,"time":1764709748808,"pid":16128,"hostname":"Stamen","req":{"id":11,"method":"POST","url":"/api/v1/parents/me/climbers/692f5574fdfe658165e0b700/activate","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":2,"msg":"request completed"}
+{"level":40,"time":1764709748883,"pid":16128,"hostname":"Stamen","req":{"id":12,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":401},"responseTime":3,"msg":"request completed"}
+{"level":40,"time":1764709748889,"pid":16128,"hostname":"Stamen","req":{"id":13,"method":"POST","url":"/api/v1/auth/login","headers":{"content-type":"application/json"}},"res":{"statusCode":401},"responseTime":3,"msg":"request completed"}
+{"level":30,"time":1764709748907,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children","msg":"Token decoded"}
+{"level":30,"time":1764709748907,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/children","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748908,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children","msg":"Token decoded"}
+{"level":30,"time":1764709748908,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748909,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children","msg":"Token decoded"}
+{"level":30,"time":1764709748909,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748910,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children","msg":"Token decoded"}
+{"level":30,"time":1764709748910,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748912,"pid":16128,"hostname":"Stamen","adminId":"692f5574fdfe658165e0b684","childId":"692f5574fdfe658165e0b722","msg":"Child created by admin"}
+{"level":30,"time":1764709748913,"pid":16128,"hostname":"Stamen","req":{"id":14,"method":"POST","url":"/api/v1/admin/children","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":7,"msg":"request completed"}
+{"level":30,"time":1764709748924,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","msg":"Token decoded"}
+{"level":30,"time":1764709748924,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748925,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","msg":"Token decoded"}
+{"level":30,"time":1764709748925,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748926,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","msg":"Token decoded"}
+{"level":30,"time":1764709748926,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","method":"POST","msg":"Role check"}
+{"level":30,"time":1764709748927,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","msg":"Token decoded"}
+{"level":30,"time":1764709748927,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin"],"hasRequiredRole":true,"path":"/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","method":"POST","msg":"Role check"}
+{"level":40,"time":1764709748930,"pid":16128,"hostname":"Stamen","req":{"id":15,"method":"POST","url":"/api/v1/admin/children/692f5574fdfe658165e0b72c/link-parent/692f5574fdfe658165e0b682","headers":{}},"res":{"statusCode":404},"responseTime":7,"msg":"request completed"}
+{"level":30,"time":1764709749006,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","roles":["admin"],"rolesType":"object","rolesIsArray":true,"path":"/climbers","msg":"Token decoded"}
+{"level":30,"time":1764709749006,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b684","email":"admin@unified.com","userRoles":["admin"],"userRolesRaw":["admin"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","coach"],"hasRequiredRole":true,"path":"/climbers","method":"GET","msg":"Role check"}
+{"level":30,"time":1764709749049,"pid":16128,"hostname":"Stamen","req":{"id":16,"method":"GET","url":"/api/v1/admin/climbers","headers":{}},"res":{"statusCode":200},"responseTime":45,"msg":"request completed"}
+{"level":30,"time":1764709749137,"pid":16128,"hostname":"Stamen","userId":"692f5575fdfe658165e0b745","email":"linked@test.com","activatedBy":"692f5574fdfe658165e0b682","msg":"Climber profile activated"}
+{"level":30,"time":1764709749149,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/","msg":"Token decoded"}
+{"level":30,"time":1764709749150,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","userRoles":["climber"],"sessionId":"692f5574fdfe658165e0b688","climberId":"692f5575fdfe658165e0b755","path":"/","msg":"POST /bookings - Creating booking(s)"}
+{"level":30,"time":1764709749156,"pid":16128,"hostname":"Stamen","msg":"Default settings document created"}
+{"level":50,"time":1764709749156,"pid":16128,"hostname":"Stamen","error":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","sessionId":"692f5574fdfe658165e0b688","climberId":"692f5575fdfe658165e0b755","bookedById":"692f5574fdfe658165e0b682","msg":"Error creating booking"}
+{"level":50,"time":1764709749156,"pid":16128,"hostname":"Stamen","err":{"type":"Object","message":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","stack":""},"path":"/api/v1/bookings","method":"POST","statusCode":404,"msg":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░"}
+{"level":40,"time":1764709749157,"pid":16128,"hostname":"Stamen","req":{"id":17,"method":"POST","url":"/api/v1/bookings","headers":{"content-type":"application/json"}},"res":{"statusCode":404},"responseTime":9,"msg":"request completed"}
+{"level":30,"time":1764709749173,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b686","email":"coach@unified.com","roles":["coach"],"rolesType":"object","rolesIsArray":true,"path":"/","msg":"Token decoded"}
+{"level":30,"time":1764709749173,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b686","email":"coach@unified.com","userRoles":["coach"],"userRolesRaw":["coach"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["coach","admin"],"hasRequiredRole":true,"path":"/","method":"POST","msg":"Role check"}
+{"level":50,"time":1764709749174,"pid":16128,"hostname":"Stamen","error":"Session not found","sessionId":"692f5574fdfe658165e0b688","climberId":"692f5575fdfe658165e0b765","status":"present","markedById":"692f5574fdfe658165e0b686","msg":"Error recording attendance"}
+{"level":50,"time":1764709749174,"pid":16128,"hostname":"Stamen","err":{"type":"Object","message":"Session not found","stack":""},"path":"/api/v1/attendance","method":"POST","statusCode":404,"msg":"Session not found"}
+{"level":40,"time":1764709749175,"pid":16128,"hostname":"Stamen","req":{"id":18,"method":"POST","url":"/api/v1/attendance","headers":{"content-type":"application/json"}},"res":{"statusCode":404},"responseTime":4,"msg":"request completed"}
+{"level":30,"time":1764709749307,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7ab/link","msg":"Token decoded"}
+{"level":30,"time":1764709749307,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5575fdfe658165e0b7ab/link","method":"DELETE","msg":"Role check"}
+{"level":30,"time":1764709749307,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5575fdfe658165e0b7ab/link","method":"DELETE","originalUrl":"/api/v1/parents/me/climbers/692f5575fdfe658165e0b7ab/link","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709749308,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7ab/link","msg":"Token decoded"}
+{"level":30,"time":1764709749308,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7ab/link","method":"DELETE","msg":"Before role check"}
+{"level":30,"time":1764709749308,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5575fdfe658165e0b7ab/link","method":"DELETE","msg":"Role check"}
+{"level":30,"time":1764709749308,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5575fdfe658165e0b7ab","normalizedParentId":"692f5574fdfe658165e0b682","normalizedClimberId":"692f5575fdfe658165e0b7ab","parentIdType":"string","climberIdType":"string","msg":"Checking parent-climber link"}
+{"level":30,"time":1764709749310,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5575fdfe658165e0b7ab","linkFound":true,"linkId":"692f5575fdfe658165e0b7ad","linkParentId":"692f5574fdfe658165e0b682","linkClimberId":"692f5575fdfe658165e0b7ab","msg":"Parent-climber link check result"}
+{"level":30,"time":1764709749313,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5575fdfe658165e0b7ab","msg":"Parent-climber link removed"}
+{"level":30,"time":1764709749313,"pid":16128,"hostname":"Stamen","req":{"id":19,"method":"DELETE","url":"/api/v1/parents/me/climbers/692f5575fdfe658165e0b7ab/link","headers":{}},"res":{"statusCode":200},"responseTime":7,"msg":"request completed"}
+{"level":30,"time":1764709749327,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7bb/link","msg":"Token decoded"}
+{"level":30,"time":1764709749327,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5575fdfe658165e0b7bb/link","method":"DELETE","msg":"Role check"}
+{"level":30,"time":1764709749327,"pid":16128,"hostname":"Stamen","path":"/me/climbers/692f5575fdfe658165e0b7bb/link","method":"DELETE","originalUrl":"/api/v1/parents/me/climbers/692f5575fdfe658165e0b7bb/link","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709749328,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7bb/link","msg":"Token decoded"}
+{"level":30,"time":1764709749328,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/climbers/692f5575fdfe658165e0b7bb/link","method":"DELETE","msg":"Before role check"}
+{"level":30,"time":1764709749328,"pid":16128,"hostname":"Stamen","userId":"692f5574fdfe658165e0b682","email":"parent@unified.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/climbers/692f5575fdfe658165e0b7bb/link","method":"DELETE","msg":"Role check"}
+{"level":30,"time":1764709749328,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5575fdfe658165e0b7bb","normalizedParentId":"692f5574fdfe658165e0b682","normalizedClimberId":"692f5575fdfe658165e0b7bb","parentIdType":"string","climberIdType":"string","msg":"Checking parent-climber link"}
+{"level":30,"time":1764709749329,"pid":16128,"hostname":"Stamen","parentId":"692f5574fdfe658165e0b682","climberId":"692f5575fdfe658165e0b7bb","linkFound":true,"linkId":"692f5575fdfe658165e0b7bd","linkParentId":"692f5574fdfe658165e0b682","linkClimberId":"692f5575fdfe658165e0b7bb","msg":"Parent-climber link check result"}
+{"level":40,"time":1764709749331,"pid":16128,"hostname":"Stamen","req":{"id":20,"method":"DELETE","url":"/api/v1/parents/me/climbers/692f5575fdfe658165e0b7bb/link","headers":{}},"res":{"statusCode":400},"responseTime":5,"msg":"request completed"}
+FAIL tests/integration/unifiedUserModel.e2e.test.js
+  Unified User Model E2E Tests
+    Creating child User with inactive status
+      ├ù should create child User with accountStatus inactive and no email/password (67 ms)
+    Duplicate checking (firstName + lastName + dateOfBirth)
+      ├ù should detect duplicate child profile (35 ms)
+      ÔêÜ should allow different children with same name but different dateOfBirth (49 ms)
+    Linking to existing child profile
+      ÔêÜ should link existing child profile to parent (27 ms)
+    Preventing duplicate link to same parent
+      ÔêÜ should prevent linking same child to same parent twice (30 ms)
+    Preventing link if child already linked to another parent
+      ÔêÜ should prevent linking child that is already linked to another parent (87 ms)
+    Activating child account with data validation
+      ÔêÜ should activate child account and update profile data (91 ms)
+      ÔêÜ should validate email format during activation (14 ms)
+    Inactive accounts cannot login
+      ÔêÜ should reject login for inactive account (81 ms)
+    Password comparison with null passwordHash
+      ÔêÜ should handle password comparison when passwordHash is null (8 ms)
+    Admin creating children without parents
+      ├ù should allow admin to create child without parent (15 ms)
+    Admin linking children to parents
+      ├ù should allow admin to link child to parent (19 ms)
+    Querying climbers (show all, not just active)
+      ÔêÜ should return all climbers regardless of accountStatus (121 ms)
+    Parent-child relationships
+      ÔêÜ should maintain parent-child link after activation (83 ms)
+    Bookings with User instead of Climber
+      ├ù should create booking for User with climber role (19 ms)
+    Attendance with User instead of Climber
+      ├ù should record attendance for User with climber role (17 ms)
+    Multiple parents per child via ParentInfo
+      ÔêÜ should allow multiple ParentInfo records for same child (13 ms)
+    Three-name structure
+      ÔêÜ should handle firstName, middleName, lastName correctly (7 ms)
+      ├ù should handle missing middleName (9 ms)
+    Photo and club membership fields
+      ÔêÜ should store photo and photoHistory (11 ms)
+      ÔêÜ should store club membership information (15 ms)
+    Manual removal of ParentClimberLink
+      ÔêÜ should allow removing ParentClimberLink for activated child (86 ms)
+      ÔêÜ should prevent removing link for inactive child (18 ms)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Creating child User with inactive status ÔÇ║ should create child User with 
+accountStatus inactive and no email/password
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "inactive"
+    Received: "active"
+
+    [0m [90m 91 |[39m       expect(response[33m.[39mbody)[33m.[39mtoHaveProperty([32m'duplicate'[39m[33m,[39m 
+[36mfalse[39m)[33m;[39m
+     [90m 92 |[39m       expect(response[33m.[39mbody[33m.[39mchild)[33m.[39mtoBeDefined()[33m;[39m
+    [31m[1m>[22m[39m[90m 93 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39maccountStatus)[33m.[39mtoBe([32m'inactive'[39m)[33m;[39m
+     [90m    |[39m                                                 [31m[1m^[22m[39m
+     [90m 94 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39memail)[33m.[39mtoBeUndefined()[33m;[39m
+     [90m 95 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39mpasswordHash)[33m.[39mtoBeUndefined()[33m;[39m
+     [90m 96 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39mroles)[33m.[39mtoContain([32m'climber'[39m)[33m;[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:93:49)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Duplicate checking (firstName + lastName + dateOfBirth) ÔÇ║ should detect 
+duplicate child profile
+
+    expected 200 "OK", got 409 "Conflict"
+
+    [0m [90m 122 |[39m           dateOfBirth[33m:[39m [32m'2010-05-20'[39m[33m,[39m
+     [90m 123 |[39m         })
+    [31m[1m>[22m[39m[90m 124 |[39m         [33m.[39mexpect([35m200[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 125 |[39m
+     [90m 126 |[39m       
+expect(duplicateResponse[33m.[39mbody)[33m.[39mtoHaveProperty([32m'duplicate'[39m[33m,[39m 
+[36mtrue[39m)[33m;[39m
+     [90m 127 |[39m       
+expect(duplicateResponse[33m.[39mbody[33m.[39mexistingProfile)[33m.[39mtoBeDefined()[33m;[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:124:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Admin creating children without parents ÔÇ║ should allow admin to create child 
+without parent
+
+    expect(received).toBeUndefined()
+
+    Received: null
+
+    [0m [90m 351 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39maccountStatus)[33m.[39mtoBe([32m'inactive'[39m)[33m;[39m
+     [90m 352 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39mroles)[33m.[39mtoContain([32m'climber'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 353 |[39m       
+expect(response[33m.[39mbody[33m.[39mchild[33m.[39memail)[33m.[39mtoBeUndefined()[33m;[39m
+     [90m     |[39m                                         [31m[1m^[22m[39m
+     [90m 354 |[39m     })[33m;[39m
+     [90m 355 |[39m   })[33m;[39m
+     [90m 356 |[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:353:41)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Admin linking children to parents ÔÇ║ should allow admin to link child to parent
+
+    expected 200 "OK", got 404 "Not Found"
+
+    [0m [90m 367 |[39m         
+[33m.[39mpost([32m`/api/v1/admin/children/${child._id}/link-parent/${parentUser._id}`[39m)
+     [90m 368 |[39m         [33m.[39m[36mset[39m([32m'Authorization'[39m[33m,[39m [32m`Bearer 
+${adminToken}`[39m)
+    [31m[1m>[22m[39m[90m 369 |[39m         [33m.[39mexpect([35m200[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 370 |[39m
+     [90m 371 |[39m       expect(response[33m.[39mbody[33m.[39mlink)[33m.[39mtoBeDefined()[33m;[39m
+     [90m 372 |[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:369:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Bookings with User instead of Climber ÔÇ║ should create booking for User with 
+climber role
+
+    expected 201 "Created", got 404 "Not Found"
+
+    [0m [90m 465 |[39m           climberId[33m:[39m child[33m.[39m_id[33m.[39mtoString()[33m,[39m
+     [90m 466 |[39m         })
+    [31m[1m>[22m[39m[90m 467 |[39m         [33m.[39mexpect([35m201[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 468 |[39m
+     [90m 469 |[39m       expect(response[33m.[39mbody[33m.[39mbooking[33m.[39mclimberId[33m.[39mtoString())[33
+m.[39mtoBe(child[33m.[39m_id[33m.[39mtoString())[33m;[39m
+     [90m 470 |[39m     })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:467:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Attendance with User instead of Climber ÔÇ║ should record attendance for User with 
+climber role
+
+    expected 201 "Created", got 404 "Not Found"
+
+    [0m [90m 502 |[39m           status[33m:[39m [32m'present'[39m[33m,[39m
+     [90m 503 |[39m         })
+    [31m[1m>[22m[39m[90m 504 |[39m         [33m.[39mexpect([35m201[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 505 |[39m
+     [90m 506 |[39m       expect(response[33m.[39mbody[33m.[39mattendance[33m.[39mclimberId[33m.[39mtoString())
+[33m.[39mtoBe(child[33m.[39m_id[33m.[39mtoString())[33m;[39m
+     [90m 507 |[39m     })[33m;[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:504:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Unified User Model E2E Tests ÔÇ║ Three-name structure ÔÇ║ should handle missing middleName
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "First Last"
+    Received: "First  Last"
+
+    [0m [90m 570 |[39m       expect(child[33m.[39mmiddleName)[33m.[39mtoBeNull()[33m;[39m
+     [90m 571 |[39m       [36mconst[39m fullName [33m=[39m [32m`${child.firstName} ${child.middleName || ''} 
+${child.lastName}`[39m[33m.[39mtrim()[33m;[39m
+    [31m[1m>[22m[39m[90m 572 |[39m       expect(fullName)[33m.[39mtoBe([32m'First Last'[39m)[33m;[39m
+     [90m     |[39m                        [31m[1m^[22m[39m
+     [90m 573 |[39m     })[33m;[39m
+     [90m 574 |[39m   })[33m;[39m
+     [90m 575 |[39m[0m
+
+      at Object.<anonymous> (tests/integration/unifiedUserModel.e2e.test.js:572:24)
+
+Test Suites: 1 failed, 1 total
+Tests:       7 failed, 16 passed, 23 total
+Snapshots:   0 total
+Time:        4.17 s, estimated 6 s
+Ran all test suites matching /tests\\integration\\unifiedUserModel.e2e.test.js/i.

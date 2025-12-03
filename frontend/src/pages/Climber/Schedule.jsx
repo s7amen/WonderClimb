@@ -9,6 +9,8 @@ import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { useAuth } from '../../context/AuthContext';
 import { getUserFullName } from '../../utils/userUtils';
+import useCancelBooking from '../../hooks/useCancelBooking';
+import CancellationModal from '../../components/Booking/CancellationModal';
 
 const Schedule = () => {
   const { user, loading: authLoading } = useAuth();
@@ -44,9 +46,39 @@ const Schedule = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [sessionToCancel, setSessionToCancel] = useState(null);
   const [bookingsToCancel, setBookingsToCancel] = useState([]);
-  const [selectedBookingIds, setSelectedBookingIds] = useState([]);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState(null);
+
+  // Use shared cancellation hook
+  const { cancelError, isCancelling, cancelBookings, resetError } = useCancelBooking({
+    showToast,
+    onSuccess: (results) => {
+      // Update local state
+      setMyBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Close modal
+      setShowCancelModal(false);
+      setSessionToCancel(null);
+      setBookingsToCancel([]);
+    },
+    onPartialSuccess: (results) => {
+      // Update for successful ones
+      setMyBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Remove successful from modal list
+      setBookingsToCancel(prev => prev.filter(b =>
+        !results.successful.includes(b._id)
+      ));
+
+      // Keep modal open to show errors
+    },
+  });
 
   const [bookingData, setBookingData] = useState({
     climberId: '',
@@ -429,96 +461,9 @@ const Schedule = () => {
 
     setSessionToCancel(sessionId);
     setBookingsToCancel(bookings);
-
-    if (bookings.length === 1) {
-      // Single booking - show direct confirmation
-      setSelectedBookingIds([bookings[0]._id]);
-      setShowCancelModal(true);
-    } else {
-      // Multiple bookings - show selection modal
-      setSelectedBookingIds([]);
-      setShowCancelModal(true);
-    }
+    setShowCancelModal(true);
   };
 
-  // Confirm cancel booking
-  const confirmCancelBooking = async () => {
-    if (selectedBookingIds.length === 0) {
-      setCancelError('Моля, изберете поне една резервация за отмяна');
-      return;
-    }
-
-    setIsCancelling(true);
-    setCancelError(null);
-
-    const results = {
-      successful: [],
-      failed: []
-    };
-
-    try {
-      for (const bookingId of selectedBookingIds) {
-        try {
-          await bookingsAPI.cancel(bookingId);
-          results.successful.push(bookingId);
-        } catch (error) {
-          results.failed.push({
-            bookingId,
-            reason: error.response?.data?.error?.message || 'Грешка при отмяна'
-          });
-        }
-      }
-
-      // Update local state for successful cancellations instead of full page reload
-      if (results.successful.length > 0) {
-        setMyBookings(prev => prev.map(booking =>
-          results.successful.includes(booking._id)
-            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
-            : booking
-        ));
-
-        const cancelledCount = results.successful.length;
-        showToast(
-          `Успешно отменени ${cancelledCount} резервации`,
-          'success'
-        );
-      }
-
-      if (results.failed.length > 0) {
-        const failedDetails = results.failed.map(item => {
-          const booking = bookingsToCancel.find(b => b._id === item.bookingId);
-          const climber = booking?.climber;
-          const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-          return `${climberName}: ${item.reason || 'Грешка'}`;
-        }).join(', ');
-
-        // If all failed, show error in modal
-        if (results.successful.length === 0) {
-          setCancelError(`Неуспешна отмяна: ${failedDetails}`);
-        } else {
-          // If partial success, show toast for errors
-          showToast(
-            `Неуспешна отмяна на ${results.failed.length} резервации`,
-            'error'
-          );
-        }
-      }
-    } catch (error) {
-      setCancelError('Грешка при отмяна на резервации');
-      console.error('Cancel booking error:', error);
-    } finally {
-      setIsCancelling(false);
-
-      // Close modal only if there were successful cancellations
-      // If all failed, keep modal open to show error
-      if (results.successful.length > 0) {
-        setShowCancelModal(false);
-        setSessionToCancel(null);
-        setBookingsToCancel([]);
-        setSelectedBookingIds([]);
-      }
-    }
-  };
 
   const allClimbers = [
     ...(selfClimber ? [{
@@ -1170,111 +1115,23 @@ const Schedule = () => {
         );
       })()}
 
-      {/* Cancel Booking Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Отмяна на резервация</h2>
-
-            {cancelError && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                {cancelError}
-              </div>
-            )}
-
-            {sessionToCancel && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Тренировка:</h3>
-                {(() => {
-                  const session = availableSessions.find(s => s._id === sessionToCancel);
-                  if (!session) return null;
-                  return (
-                    <div className="p-2 bg-gray-50 rounded">
-                      <div className="font-medium">{session.title}</div>
-                      <div className="text-sm text-gray-600">
-                        {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {bookingsToCancel.length > 1 ? (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Изберете за кои катерачи да се отмени резервацията:</h3>
-                <div className="space-y-2">
-                  {bookingsToCancel.map((booking) => {
-                    const climber = booking.climber;
-                    const climberName = climber ? `${climber.firstName} ${climber.lastName}` : 'Катерач';
-                    const isSelected = selectedBookingIds.includes(booking._id);
-                    return (
-                      <label
-                        key={booking._id}
-                        className="flex items-center gap-2 p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedBookingIds([...selectedBookingIds, booking._id]);
-                            } else {
-                              setSelectedBookingIds(selectedBookingIds.filter(id => id !== booking._id));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{climberName}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : bookingsToCancel.length === 1 ? (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Катерач:</h3>
-                {bookingsToCancel[0]?.climber && (
-                  <div className="text-sm text-gray-700">
-                    {bookingsToCancel[0].climber.firstName} {bookingsToCancel[0].climber.lastName}
-                  </div>
-                )}
-              </div>
-            ) : null}
-
-            <div className="mb-4 p-3 bg-yellow-50 rounded-md">
-              <p className="text-sm text-gray-700">
-                Сигурни ли сте, че искате да отмените резервацията?
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setShowCancelModal(false);
-                  setSessionToCancel(null);
-                  setBookingsToCancel([]);
-                  setSelectedBookingIds([]);
-                  setCancelError(null);
-                }}
-                disabled={isCancelling}
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                onClick={confirmCancelBooking}
-                disabled={isCancelling || selectedBookingIds.length === 0}
-              >
-                {isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      {/* Cancel Booking Modal - Using Shared Component */}
+      <CancellationModal
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setSessionToCancel(null);
+          setBookingsToCancel([]);
+          resetError();
+        }}
+        session={availableSessions.find(s => s._id === sessionToCancel)}
+        bookings={bookingsToCancel}
+        onConfirm={async (selectedIds) => {
+          await cancelBookings(selectedIds, bookingsToCancel);
+        }}
+        error={cancelError}
+        isLoading={isCancelling}
+      />
 
       {/* Bulk Booking Confirmation Modal */}
       {showBulkConfirmation && (
@@ -1345,7 +1202,8 @@ const Schedule = () => {
             </div>
           </Card>
         </div>
-      )}
+      )
+      }
 
       {/* Schedule View */}
       <div>
@@ -1802,7 +1660,7 @@ const Schedule = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 

@@ -1,32 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI, competitionsAPI } from '../../services/api';
+import { sessionsAPI, bookingsAPI, competitionsAPI } from '../../services/api';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfDay } from 'date-fns';
 import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
-import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/UI/Toast';
+import BaseModal from '../../components/UI/BaseModal';
+import BookingModal from '../../components/UI/BookingModal';
+import LoginModal from '../../components/UI/LoginModal';
 
 const Calendar = () => {
-  const { user, login, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { showToast, ToastComponent } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month');
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [children, setChildren] = useState([]);
-  const [selfClimber, setSelfClimber] = useState(null);
-  const [selectedClimberIds, setSelectedClimberIds] = useState([]);
-  const [showBookingConfirmation, setShowBookingConfirmation] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [loginError, setLoginError] = useState('');
+
+  // Modal states
+  const [selectedSession, setSelectedSession] = useState(null); // For details view
+  const [bookingSession, setBookingSession] = useState(null); // For booking modal
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   const [userBookings, setUserBookings] = useState([]);
   const [selectedFilters, setSelectedFilters] = useState(() => {
     const defaultFilters = ['beginner', 'experienced', 'advanced', 'competition'];
@@ -40,7 +38,6 @@ const Calendar = () => {
 
   useEffect(() => {
     if (isAuthenticated && user && (user.roles?.includes('climber') || user.roles?.includes('admin'))) {
-      fetchChildren();
       fetchUserBookings();
       // Add 'reserved' to filters if not already present
       setSelectedFilters(prev => {
@@ -52,10 +49,6 @@ const Calendar = () => {
         return prev;
       });
     } else {
-      // Clear children when logged out
-      setChildren([]);
-      setSelfClimber(null);
-      setSelectedClimberIds([]);
       setUserBookings([]);
       // Remove 'reserved' from filters when logged out
       setSelectedFilters(prev => {
@@ -65,29 +58,6 @@ const Calendar = () => {
       });
     }
   }, [user, isAuthenticated, currentDate, view]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    setIsLoggingIn(true);
-
-    try {
-      const result = await login(loginData.email, loginData.password);
-      
-      if (result.success) {
-        setShowLogin(false);
-        setLoginData({ email: '', password: '' });
-        showToast('Успешно влизане', 'success');
-        // User state will be updated by AuthContext, useEffect will handle fetching children
-      } else {
-        setLoginError(result.error || 'Влизането неуспешно');
-      }
-    } catch (error) {
-      setLoginError('Грешка при влизане');
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
 
   const fetchSessions = async () => {
     try {
@@ -128,20 +98,20 @@ const Calendar = () => {
               endDate: endDate.toISOString(),
             }).catch(() => ({ data: { competitions: [] } })),
           ]);
-          
+
           // Format sessions to match calendar format
           const formattedSessions = (sessionsResponse.data.sessions || []).map(session => ({
             ...session,
             type: 'session',
           }));
-          
+
           // Format competitions to match calendar format
           const formattedCompetitions = (competitionsResponse.data.competitions || []).map(competition => ({
             ...competition,
             type: 'competition',
             date: competition.date || competition.startDate,
           }));
-          
+
           // Merge and sort by date
           allEvents = [...formattedSessions, ...formattedCompetitions].sort(
             (a, b) => new Date(a.date) - new Date(b.date)
@@ -161,18 +131,18 @@ const Calendar = () => {
               endDate: endDate.toISOString(),
             }).catch(() => ({ data: { competitions: [] } })),
           ]);
-          
+
           const formattedSessions = (sessionsResponse.data.sessions || []).map(session => ({
             ...session,
             type: 'session',
           }));
-          
+
           const formattedCompetitions = (competitionsResponse.data.competitions || []).map(competition => ({
             ...competition,
             type: 'competition',
             date: competition.date || competition.startDate,
           }));
-          
+
           allEvents = [...formattedSessions, ...formattedCompetitions].sort(
             (a, b) => new Date(a.date) - new Date(b.date)
           );
@@ -186,29 +156,6 @@ const Calendar = () => {
       showToast('Грешка при зареждане на календара', 'error');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchChildren = async () => {
-    try {
-      // Get current user from localStorage to ensure we have the latest data
-      const currentUser = JSON.parse(localStorage.getItem('user')) || user;
-      
-      const [childrenRes, selfRes] = await Promise.all([
-        parentClimbersAPI.getAll().catch(() => ({ data: { climbers: [] } })),
-        currentUser?.roles?.includes('climber') 
-          ? myClimberAPI.getProfile().catch(() => ({ data: { climber: null } }))
-          : Promise.resolve({ data: { climber: null } }),
-      ]);
-
-      const filteredChildren = childrenRes.data.climbers?.filter(c => c.accountStatus === 'active') || [];
-      setChildren(filteredChildren);
-      
-      if (selfRes.data?.climber) {
-        setSelfClimber(selfRes.data.climber);
-      }
-    } catch (error) {
-      console.error('Error fetching children:', error);
     }
   };
 
@@ -230,14 +177,14 @@ const Calendar = () => {
 
       const bookingsRes = await bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } }));
       const allBookings = bookingsRes.data.bookings || [];
-      
+
       // Filter bookings to only include those in the current view date range
       const filteredBookings = allBookings.filter(booking => {
         if (!booking.session || !booking.session.date) return false;
         const bookingDate = new Date(booking.session.date);
         return bookingDate >= startDate && bookingDate <= endDate && booking.status === 'booked';
       });
-      
+
       setUserBookings(filteredBookings);
     } catch (error) {
       console.error('Error fetching user bookings:', error);
@@ -259,7 +206,7 @@ const Calendar = () => {
 
       // Check if session matches any selected filter
       let matchesFilter = false;
-      
+
       // Check competition filter
       if (session.type === 'competition') {
         matchesFilter = selectedFilters.has('competition');
@@ -302,18 +249,18 @@ const Calendar = () => {
     setSelectedFilters(prev => {
       // Get available filter types based on authentication
       const baseFilterTypes = ['beginner', 'experienced', 'advanced', 'competition'];
-      const allFilterTypes = isAuthenticated 
+      const allFilterTypes = isAuthenticated
         ? [...baseFilterTypes, 'reserved']
         : baseFilterTypes;
-      
+
       // Check if all available filters are selected
       const allSelected = allFilterTypes.every(type => prev.has(type));
-      
+
       // If all filters are active and we click one, deactivate all others and activate only the clicked one
       if (allSelected) {
         return new Set([filterType]);
       }
-      
+
       // Otherwise, normal toggle behavior
       const newFilters = new Set(prev);
       if (newFilters.has(filterType)) {
@@ -411,11 +358,11 @@ const Calendar = () => {
   const darkenColor = (hex, amount = 0.2) => {
     const rgb = hexToRgb(hex);
     if (!rgb) return hex;
-    
+
     const darkerR = Math.max(0, Math.round(rgb.r * (1 - amount)));
     const darkerG = Math.max(0, Math.round(rgb.g * (1 - amount)));
     const darkerB = Math.max(0, Math.round(rgb.b * (1 - amount)));
-    
+
     return `rgb(${darkerR}, ${darkerG}, ${darkerB})`;
   };
 
@@ -424,33 +371,33 @@ const Calendar = () => {
     if (session.type === 'competition') {
       return { backgroundColor: '#3b82f6', color: 'white' }; // blue-500
     }
-    
+
     if (session.status !== 'active') {
       return { backgroundColor: '#99a1af', color: 'white' };
     }
-    
+
     // Get base color from targetGroups - using exact Tailwind colors from labels
     const targetGroups = session.targetGroups || [];
-    
+
     // Exact Tailwind colors from "Подходящо за" labels background colors:
     // beginner: bg-green-100 (#DCFCE7)
     // experienced: bg-orange-100 (#FFEDD5)
     // advanced: bg-red-100 (#FEE2E2)
-    
+
     // Using exact background colors from labels for first group
     const groupColors = {
       beginner: '#DCFCE7',      // green-100 (exact from bg-green-100)
       experienced: '#FFEDD5',   // orange-100 (exact from bg-orange-100)
       advanced: '#FEE2E2',      // red-100 (exact from bg-red-100)
     };
-    
+
     // Darker shades for second group of same type
     const darkerGroupColors = {
       beginner: '#86EFAC',      // green-300 (darker than green-100)
       experienced: '#FDBA74',   // orange-300 (darker than orange-100)
       advanced: '#FCA5A5',      // red-300 (darker than red-100)
     };
-    
+
     // Find the primary group (priority: beginner < experienced < advanced)
     let primaryGroup = null;
     if (targetGroups.includes('beginner')) {
@@ -460,18 +407,18 @@ const Calendar = () => {
     } else if (targetGroups.includes('advanced')) {
       primaryGroup = 'advanced';
     }
-    
+
     if (!primaryGroup) {
       // Default orange if no target groups
       return { backgroundColor: '#FFEDD5', color: '#C2410C' }; // orange-100 with orange-700 text
     }
-    
+
     // Generate darker shade for second group of same type with different title
     // Use title hash to consistently assign colors
     if (session.title) {
       const titleHash = hashString(session.title);
       const isSecondGroup = (titleHash % 2) === 1; // Alternate between two shades
-      
+
       if (isSecondGroup) {
         // Use darker shade for second group with darker text for contrast
         const textColors = {
@@ -482,7 +429,7 @@ const Calendar = () => {
         return { backgroundColor: darkerGroupColors[primaryGroup], color: textColors[primaryGroup] };
       }
     }
-    
+
     // First group uses light background with darker text for contrast
     const textColors = {
       beginner: '#15803D',    // green-700
@@ -492,62 +439,13 @@ const Calendar = () => {
     return { backgroundColor: groupColors[primaryGroup], color: textColors[primaryGroup] };
   };
 
-  const handleBooking = async () => {
-    if (!selectedSession || selectedClimberIds.length === 0) {
-      showToast('Моля, изберете поне едно дете', 'error');
-      return;
-    }
-
-    setIsBooking(true);
-    try {
-      await bookingsAPI.create({
-        sessionId: selectedSession._id,
-        climberIds: selectedClimberIds,
-      });
-
-      showToast('Часът е запазен успешно', 'success');
-      
-      // Optimistically update session booked count
-      setSessions(prev => prev.map(s => {
-        if (s._id === selectedSession._id) {
-          return {
-            ...s,
-            bookedCount: (s.bookedCount || 0) + selectedClimberIds.length
-          };
-        }
-        return s;
-      }));
-      
-      // Refresh bookings to show the new booking
-      await fetchUserBookings();
-      
-      setShowBookingConfirmation(false);
-      setSelectedSession(null);
-      setSelectedClimberIds([]);
-    } catch (error) {
-      showToast(error.response?.data?.error?.message || 'Грешка при запазване на час', 'error');
-    } finally {
-      setIsBooking(false);
-    }
+  const handleBookingSuccess = async () => {
+    // Refresh sessions to update booked counts
+    await fetchSessions();
+    // Refresh user bookings to show the new booking
+    await fetchUserBookings();
+    setBookingSession(null);
   };
-
-  const toggleClimberSelection = (climberId) => {
-    setSelectedClimberIds(prev => 
-      prev.includes(climberId)
-        ? prev.filter(id => id !== climberId)
-        : [...prev, climberId]
-    );
-  };
-
-  const allClimbers = [
-    ...(selfClimber ? [{ 
-      _id: selfClimber._id, 
-      firstName: 'За мен', 
-      lastName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(), 
-      isSelf: true 
-    }] : []),
-    ...children.map(c => ({ ...c, isSelf: false })),
-  ];
 
   const renderMonthViewMobile = () => {
     const monthStart = startOfMonth(currentDate);
@@ -559,7 +457,7 @@ const Calendar = () => {
         {days.map((day) => {
           const daySessions = getSessionsForDate(day);
           const isToday = isSameDay(day, new Date());
-          
+
           if (daySessions.length === 0) return null;
 
           return (
@@ -575,20 +473,20 @@ const Calendar = () => {
                   const colorStyle = getSessionColor(event);
                   const isBooked = hasBooking(event._id);
                   return (
-                  <div
-                    key={event._id}
-                    onClick={() => setSelectedSession(event)}
-                    className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
-                    style={colorStyle}
-                  >
-                    <div className="font-medium text-sm">
-                      {isBooked && '✓ '}
-                      {event.type === 'competition' && '🏆 '}
-                      {event.type === 'competition' 
-                        ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
-                        : `${format(new Date(event.date), 'HH:mm')} - ${event.title}`}
+                    <div
+                      key={event._id}
+                      onClick={() => setSelectedSession(event)}
+                      className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
+                      style={colorStyle}
+                    >
+                      <div className="font-medium text-sm">
+                        {isBooked && '✓ '}
+                        {event.type === 'competition' && '🏆 '}
+                        {event.type === 'competition'
+                          ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
+                          : `${format(new Date(event.date), 'HH:mm')} - ${event.title}`}
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -617,7 +515,7 @@ const Calendar = () => {
         <div className="md:hidden">
           {renderMonthViewMobile()}
         </div>
-        
+
         {/* Desktop Grid View */}
         <div className="hidden md:grid md:grid-cols-7 gap-1">
           {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
@@ -647,19 +545,19 @@ const Calendar = () => {
                     const colorStyle = getSessionColor(event);
                     const isBooked = hasBooking(event._id);
                     return (
-                    <div
-                      key={event._id}
-                      onClick={() => setSelectedSession(event)}
-                      className={`text-xs p-1 rounded-[10px] cursor-pointer truncate text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
-                      style={colorStyle}
-                      title={event.title}
-                    >
-                      {isBooked && '✓ '}
-                      {event.type === 'competition' && '🏆 '}
-                      {event.type === 'competition' 
-                        ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
-                        : `${format(new Date(event.date), 'HH:mm')} ${event.title}`}
-                    </div>
+                      <div
+                        key={event._id}
+                        onClick={() => setSelectedSession(event)}
+                        className={`text-xs p-1 rounded-[10px] cursor-pointer truncate text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
+                        style={colorStyle}
+                        title={event.title}
+                      >
+                        {isBooked && '✓ '}
+                        {event.type === 'competition' && '🏆 '}
+                        {event.type === 'competition'
+                          ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
+                          : `${format(new Date(event.date), 'HH:mm')} ${event.title}`}
+                      </div>
                     );
                   })}
                   {daySessions.length > 3 && (
@@ -701,20 +599,20 @@ const Calendar = () => {
                     const colorStyle = getSessionColor(event);
                     const isBooked = hasBooking(event._id);
                     return (
-                    <div
-                      key={event._id}
-                      onClick={() => setSelectedSession(event)}
-                      className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
-                      style={colorStyle}
-                    >
-                      <div className="font-medium text-sm">
-                        {isBooked && '✓ '}
-                        {event.type === 'competition' && '🏆 '}
-                        {event.type === 'competition' 
-                          ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
-                          : `${format(new Date(event.date), 'HH:mm')} - ${event.title}`}
+                      <div
+                        key={event._id}
+                        onClick={() => setSelectedSession(event)}
+                        className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
+                        style={colorStyle}
+                      >
+                        <div className="font-medium text-sm">
+                          {isBooked && '✓ '}
+                          {event.type === 'competition' && '🏆 '}
+                          {event.type === 'competition'
+                            ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
+                            : `${format(new Date(event.date), 'HH:mm')} - ${event.title}`}
+                        </div>
                       </div>
-                    </div>
                     );
                   })
                 )}
@@ -737,7 +635,7 @@ const Calendar = () => {
         <div className="md:hidden">
           {renderWeekViewMobile()}
         </div>
-        
+
         {/* Desktop Grid View */}
         <div className="hidden md:grid md:grid-cols-7 gap-4">
           {days.map((day) => {
@@ -757,21 +655,21 @@ const Calendar = () => {
                     const colorStyle = getSessionColor(event);
                     const isBooked = hasBooking(event._id);
                     return (
-                    <div
-                      key={event._id}
-                      onClick={() => setSelectedSession(event)}
-                      className={`p-2 rounded-[10px] cursor-pointer text-sm text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
-                      style={colorStyle}
-                    >
-                      <div className="font-medium">
-                        {isBooked && '✓ '}
-                        {event.type === 'competition' && '🏆 '}
-                        {event.type === 'competition' 
-                          ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''}`
-                          : format(new Date(event.date), 'HH:mm')}
+                      <div
+                        key={event._id}
+                        onClick={() => setSelectedSession(event)}
+                        className={`p-2 rounded-[10px] cursor-pointer text-sm text-white relative ${isBooked ? 'ring-2 ring-black' : ''}`}
+                        style={colorStyle}
+                      >
+                        <div className="font-medium">
+                          {isBooked && '✓ '}
+                          {event.type === 'competition' && '🏆 '}
+                          {event.type === 'competition'
+                            ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''}`
+                            : format(new Date(event.date), 'HH:mm')}
+                        </div>
+                        <div className="text-xs">{event.title}</div>
                       </div>
-                      <div className="text-xs">{event.title}</div>
-                    </div>
                     );
                   })}
                   {daySessions.length === 0 && (
@@ -803,41 +701,41 @@ const Calendar = () => {
               .map((session) => {
                 const isBooked = hasBooking(session._id);
                 return (
-                <Card key={session._id} className={isBooked ? 'ring-2 ring-black' : ''}>
-                  <div
-                    onClick={() => setSelectedSession(session)}
-                    className="cursor-pointer"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold">
-                            {isBooked && '✓ '}
-                            {session.title}
-                          </h3>
+                  <Card key={session._id} className={isBooked ? 'ring-2 ring-black' : ''}>
+                    <div
+                      onClick={() => setSelectedSession(session)}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-semibold">
+                              {isBooked && '✓ '}
+                              {session.title}
+                            </h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {format(new Date(session.date), 'h:mm a')} -{' '}
+                            {format(
+                              new Date(new Date(session.date).getTime() + session.durationMinutes * 60000),
+                              'h:mm a'
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Capacity: {session.capacity} | Duration: {session.durationMinutes} min
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {format(new Date(session.date), 'h:mm a')} -{' '}
-                          {format(
-                            new Date(new Date(session.date).getTime() + session.durationMinutes * 60000),
-                            'h:mm a'
-                          )}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Capacity: {session.capacity} | Duration: {session.durationMinutes} min
-                        </p>
+                        <span
+                          className={`px-2 py-1 text-xs rounded ${session.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}
+                        >
+                          {session.status}
+                        </span>
                       </div>
-                      <span
-                        className={`px-2 py-1 text-xs rounded ${
-                          session.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {session.status}
-                      </span>
                     </div>
-                  </div>
-                </Card>
-              )})}
+                  </Card>
+                )
+              })}
           </div>
         )}
       </div>
@@ -897,8 +795,8 @@ const Calendar = () => {
 
       <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => navigateDate('prev')}
             className="w-full sm:w-auto bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
           >
@@ -910,16 +808,16 @@ const Calendar = () => {
               {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
               {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
             </h2>
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={goToToday}
               className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
             >
               Днес
             </Button>
           </div>
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             onClick={() => navigateDate('next')}
             className="w-full sm:w-auto bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
           >
@@ -938,36 +836,33 @@ const Calendar = () => {
               const isFilterable = item.isFilterable !== false;
               const isSelected = selectedFilters.has(item.type);
               const isClickable = isFilterable;
-              
+
               return (
-                <div 
-                  key={item.type} 
+                <div
+                  key={item.type}
                   className={`flex items-center gap-2 ${isClickable ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                   onClick={() => isClickable && toggleFilter(item.type)}
                   title={isClickable ? (isSelected ? 'Кликнете за премахване от филтъра' : 'Кликнете за добавяне към филтъра') : ''}
                 >
                   {item.isReserved ? (
                     <div
-                      className={`w-6 h-6 rounded-[6px] border-2 bg-white flex items-center justify-center transition-all ${
-                        isFilterable && !isSelected ? 'opacity-40 border-gray-400' : 'border-black'
-                      }`}
+                      className={`w-6 h-6 rounded-[6px] border-2 bg-white flex items-center justify-center transition-all ${isFilterable && !isSelected ? 'opacity-40 border-gray-400' : 'border-black'
+                        }`}
                     >
                       <span className={`text-xs ${isFilterable && !isSelected ? 'text-gray-400' : 'text-black'}`}>✓</span>
                     </div>
                   ) : (
                     <div
-                      className={`w-6 h-6 rounded-[6px] flex items-center justify-center text-xs font-medium transition-all ${
-                        isFilterable && !isSelected ? 'opacity-40' : ''
-                      }`}
+                      className={`w-6 h-6 rounded-[6px] flex items-center justify-center text-xs font-medium transition-all ${isFilterable && !isSelected ? 'opacity-40' : ''
+                        }`}
                       style={{ backgroundColor: item.backgroundColor, color: item.color }}
                     >
                       {item.type === 'competition' && '🏆'}
                     </div>
                   )}
-                  <span 
-                    className={`text-sm text-neutral-950 ${
-                      isFilterable && !isSelected ? 'opacity-40' : ''
-                    }`}
+                  <span
+                    className={`text-sm text-neutral-950 ${isFilterable && !isSelected ? 'opacity-40' : ''
+                      }`}
                   >
                     {item.label}
                   </span>
@@ -978,275 +873,101 @@ const Calendar = () => {
         </div>
       </Card>
 
-      {selectedSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-base font-medium text-neutral-950 pr-2">{selectedSession.title}</h2>
-              <button
-                onClick={() => setSelectedSession(null)}
-                className="text-[#4a5565] hover:text-[#35383d] text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className="space-y-2 text-sm text-[#4a5565]">
-              <p><strong className="text-neutral-950">Дата:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}</p>
-              {selectedSession.type === 'competition' ? (
-                <>
-                  <p><strong className="text-neutral-950">Място:</strong> {selectedSession.location}</p>
-                  <p><strong className="text-neutral-950">Спорт:</strong> {selectedSession.sport}</p>
-                  {selectedSession.groups && (
-                    <p><strong className="text-neutral-950">Групи:</strong> {selectedSession.groups}</p>
-                  )}
-                  <p><strong className="text-neutral-950">Ранг:</strong> {selectedSession.rank}</p>
-                  {selectedSession.sourceUrl && (
-                    <p>
-                      <strong className="text-neutral-950">Източник:</strong>{' '}
-                      <a href={selectedSession.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                        БФКА календар
-                      </a>
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <p><strong className="text-neutral-950">Продължителност:</strong> {selectedSession.durationMinutes} минути</p>
-                  <p><strong className="text-neutral-950">Капацитет:</strong> {selectedSession.capacity}</p>
-                  <p><strong className="text-neutral-950">Статус:</strong> {selectedSession.status === 'active' ? 'Активна' : 'Отменена'}</p>
-                  {selectedSession.description && (
-                    <p><strong className="text-neutral-950">Описание:</strong> {selectedSession.description}</p>
-                  )}
-                  {selectedSession.coachIds && selectedSession.coachIds.length > 0 && (
-                    <p>
-                      <strong className="text-neutral-950">Треньори:</strong>{' '}
-                      {selectedSession.coachIds.map(c => 
-                        c.firstName && c.lastName 
-                          ? `${c.firstName} ${c.middleName || ''} ${c.lastName}`.trim()
-                          : c.name || c.email || 'Неизвестен'
-                      ).join(', ')}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Booking section - only for active sessions (not competitions) */}
-            {selectedSession.type !== 'competition' && selectedSession.status === 'active' && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                {!isAuthenticated ? (
-                  <div>
-                    <p className="text-sm text-[#4a5565] mb-4">
-                      Моля, влезте в профила си или се{' '}
-                      <Link 
-                        to="/register" 
-                        className="text-[#ff6900] hover:text-[#f54900] underline font-medium"
-                        onClick={() => setSelectedSession(null)}
-                      >
-                        регистрирайте
-                      </Link>
-                      , за да резервирате час
-                    </p>
-                    <Button
-                      onClick={() => setShowLogin(true)}
-                      className="w-full bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px]"
-                    >
-                      Влез
-                    </Button>
-                  </div>
-                ) : allClimbers.length > 0 ? (
-                  <>
-                    <h3 className="text-sm font-medium text-neutral-950 mb-3">Избери дете (деца):</h3>
-                    <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
-                      {allClimbers.map((climber) => (
-                        <label
-                          key={climber._id}
-                          className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedClimberIds.includes(climber._id)}
-                            onChange={() => toggleClimberSelection(climber._id)}
-                            className="w-4 h-4 text-[#ff6900] border-gray-300 rounded focus:ring-[#ff6900]"
-                          />
-                          <span className="ml-2 text-sm text-neutral-950">
-                            {climber.firstName} {climber.lastName}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <Button
-                      onClick={() => {
-                        if (selectedClimberIds.length === 0) {
-                          showToast('Моля, изберете поне едно дете', 'error');
-                          return;
-                        }
-                        setShowBookingConfirmation(true);
-                      }}
-                      disabled={selectedClimberIds.length === 0 || isBooking}
-                      className="w-full bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isBooking ? 'Запазване...' : 'Запази час'}
-                    </Button>
-                  </>
-                ) : (
-                  <div>
-                    <p className="text-sm text-[#4a5565] mb-4">
-                      Моля, добавете дете в профила си, за да резервирате час
-                    </p>
-                    <Button
-                      onClick={() => {
-                        window.location.href = '/parent/profile';
-                      }}
-                      className="w-full bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px] flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Добави дете
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="mt-4 flex gap-2">
-              <button
+      {/* Session Details Modal */}
+      <BaseModal
+        isOpen={!!selectedSession}
+        onClose={() => setSelectedSession(null)}
+        title={selectedSession?.title}
+        size="lg"
+        footer={
+          <div className="flex flex-col sm:flex-row gap-2 justify-end w-full">
+            {selectedSession?.type !== 'competition' && selectedSession?.status === 'active' && (
+              <Button
+                variant="primary"
                 onClick={() => {
-                  setSelectedSession(null);
-                  setSelectedClimberIds([]);
-                  setShowBookingConfirmation(false);
+                  if (!isAuthenticated) {
+                    setShowLoginModal(true);
+                  } else {
+                    setBookingSession(selectedSession);
+                    setSelectedSession(null);
+                  }
                 }}
-                className="px-4 py-2 bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] font-medium transition-colors"
+                className="w-full sm:w-auto"
               >
-                Затвори
-              </button>
-            </div>
-          </Card>
-        </div>
-      )}
+                {!isAuthenticated ? 'Влез за да запазиш' : 'Запази час'}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedSession(null)}
+              className="w-full sm:w-auto"
+            >
+              Затвори
+            </Button>
+          </div>
+        }
+      >
+        {selectedSession && (
+          <div className="space-y-4 text-sm text-[#4a5565]">
+            <p><strong className="text-neutral-950">Дата:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}</p>
+            {selectedSession.type === 'competition' ? (
+              <>
+                <p><strong className="text-neutral-950">Място:</strong> {selectedSession.location}</p>
+                <p><strong className="text-neutral-950">Спорт:</strong> {selectedSession.sport}</p>
+                {selectedSession.groups && (
+                  <p><strong className="text-neutral-950">Групи:</strong> {selectedSession.groups}</p>
+                )}
+                <p><strong className="text-neutral-950">Ранг:</strong> {selectedSession.rank}</p>
+                {selectedSession.sourceUrl && (
+                  <p>
+                    <strong className="text-neutral-950">Източник:</strong>{' '}
+                    <a href={selectedSession.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                      БФКА календар
+                    </a>
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p><strong className="text-neutral-950">Продължителност:</strong> {selectedSession.durationMinutes} минути</p>
+                <p><strong className="text-neutral-950">Капацитет:</strong> {selectedSession.capacity}</p>
+                <p><strong className="text-neutral-950">Статус:</strong> {selectedSession.status === 'active' ? 'Активна' : 'Отменена'}</p>
+                {selectedSession.description && (
+                  <p><strong className="text-neutral-950">Описание:</strong> {selectedSession.description}</p>
+                )}
+                {selectedSession.coachIds && selectedSession.coachIds.length > 0 && (
+                  <p>
+                    <strong className="text-neutral-950">Треньори:</strong>{' '}
+                    {selectedSession.coachIds.map(c =>
+                      c.firstName && c.lastName
+                        ? `${c.firstName} ${c.middleName || ''} ${c.lastName}`.trim()
+                        : c.name || c.email || 'Неизвестен'
+                    ).join(', ')}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </BaseModal>
+
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={!!bookingSession}
+        onClose={() => setBookingSession(null)}
+        sessions={bookingSession ? [bookingSession] : []}
+        onBookingSuccess={handleBookingSuccess}
+      />
 
       {/* Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <Card className="max-w-md w-full border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-medium text-neutral-950">Влез в профила си</h3>
-              <button
-                onClick={() => {
-                  setShowLogin(false);
-                  setLoginError('');
-                  setLoginData({ email: '', password: '' });
-                }}
-                className="text-[#4a5565] hover:text-[#35383d] text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleLogin}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-950 mb-1">
-                    Имейл
-                  </label>
-                  <Input
-                    type="email"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    required
-                    className="w-full"
-                    placeholder="ваш@имейл.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-950 mb-1">
-                    Парола
-                  </label>
-                  <Input
-                    type="password"
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    required
-                    className="w-full"
-                    placeholder="••••••••"
-                  />
-                </div>
-                {loginError && (
-                  <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                    {loginError}
-                  </div>
-                )}
-              </div>
-              <div className="mt-6 flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={isLoggingIn}
-                  className="flex-1 bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px] disabled:opacity-50"
-                >
-                  {isLoggingIn ? 'Влизане...' : 'Влез'}
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLogin(false);
-                    setLoginError('');
-                    setLoginData({ email: '', password: '' });
-                  }}
-                  disabled={isLoggingIn}
-                  className="px-4 py-2 bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] font-medium transition-colors disabled:opacity-50"
-                >
-                  Отказ
-                </button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
-
-      {/* Booking Confirmation Modal */}
-      {showBookingConfirmation && selectedSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <Card className="max-w-md w-full border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-            <h3 className="text-lg font-medium text-neutral-950 mb-4">Потвърждение</h3>
-            <div className="space-y-2 text-sm text-[#4a5565] mb-6">
-              <p>
-                <strong className="text-neutral-950">Тренировка:</strong> {selectedSession.title}
-              </p>
-              <p>
-                <strong className="text-neutral-950">Дата и час:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}
-              </p>
-              <p>
-                <strong className="text-neutral-950">Избрани деца:</strong>
-              </p>
-              <ul className="list-disc list-inside ml-2">
-                {allClimbers
-                  .filter(c => selectedClimberIds.includes(c._id))
-                  .map(climber => (
-                    <li key={climber._id}>{climber.firstName} {climber.lastName}</li>
-                  ))}
-              </ul>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleBooking}
-                disabled={isBooking}
-                className="flex-1 bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] rounded-[10px] disabled:opacity-50"
-              >
-                {isBooking ? 'Запазване...' : 'Потвърди'}
-              </Button>
-              <button
-                onClick={() => setShowBookingConfirmation(false)}
-                disabled={isBooking}
-                className="px-4 py-2 bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] font-medium transition-colors disabled:opacity-50"
-              >
-                Отказ
-              </button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={() => {
+          setShowLoginModal(false);
+          fetchUserBookings();
+        }}
+      />
 
       <ToastComponent />
     </div>

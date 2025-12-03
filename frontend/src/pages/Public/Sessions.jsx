@@ -16,6 +16,8 @@ import SessionList from '../../components/Sessions/SessionList';
 import { getUserFullName, getUserDisplayName } from '../../utils/userUtils';
 import ScrollToTop from '../../components/UI/ScrollToTop';
 import PWAInstallButton from '../../components/UI/PWAInstallButton';
+import useCancelBooking from '../../hooks/useCancelBooking';
+import CancellationModal from '../../components/Booking/CancellationModal';
 
 const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
@@ -48,7 +50,64 @@ const Sessions = () => {
 
   // Cancel booking state
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
-  
+  const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
+  const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
+
+  // Use shared cancellation hook
+  const { cancelError, isCancelling, cancelBookings, resetError } = useCancelBooking({
+    showToast,
+    onSuccess: (results) => {
+      // Update local state for successful cancellations
+      setUserBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Update session booked counts
+      setSessions(prev => prev.map(s => {
+        if (s._id === cancelBookingSessionId) {
+          return {
+            ...s,
+            bookedCount: Math.max(0, (s.bookedCount || 0) - results.successful.length)
+          };
+        }
+        return s;
+      }));
+
+      // Close modal on full success
+      setShowCancelBookingModal(false);
+      setCancelBookingSessionId(null);
+      setCancelBookingBookings([]);
+    },
+    onPartialSuccess: (results) => {
+      // Update for successful ones
+      setUserBookings(prev => prev.map(booking =>
+        results.successful.includes(booking._id)
+          ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
+          : booking
+      ));
+
+      // Remove successful from modal list
+      setCancelBookingBookings(prev => prev.filter(b =>
+        !results.successful.includes(b.bookingId || b._id)
+      ));
+
+      // Update session counts
+      setSessions(prev => prev.map(s => {
+        if (s._id === cancelBookingSessionId) {
+          return {
+            ...s,
+            bookedCount: Math.max(0, (s.bookedCount || 0) - results.successful.length)
+          };
+        }
+        return s;
+      }));
+
+      // Keep modal open to show errors
+    },
+  });
+
   // Add child modal state
   const [showAddChildModal, setShowAddChildModal] = useState(false);
   const [addChildFormData, setAddChildFormData] = useState({
@@ -59,10 +118,6 @@ const Sessions = () => {
   });
   const [addChildLoading, setAddChildLoading] = useState(false);
   const [foundExistingProfile, setFoundExistingProfile] = useState(null);
-  const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
-  const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
-  const [selectedCancelBookingIds, setSelectedCancelBookingIds] = useState([]);
-  const [isCancelling, setIsCancelling] = useState(false);
 
   // Sticky button state for mobile
   const [isSticky, setIsSticky] = useState(false);
@@ -82,18 +137,18 @@ const Sessions = () => {
 
   const saveFilters = () => {
     if (!user?.id) return;
-    
+
     const filtersToSave = {
       selectedDays,
       selectedTimes,
       selectedTitles,
       selectedTargetGroups,
       selectedAgeGroups,
-      defaultSelectedClimberIds: defaultSelectedClimberIds.map(id => 
+      defaultSelectedClimberIds: defaultSelectedClimberIds.map(id =>
         typeof id === 'object' && id?.toString ? id.toString() : String(id)
       ),
     };
-    
+
     const key = getSavedFiltersKey();
     if (key) {
       localStorage.setItem(key, JSON.stringify(filtersToSave));
@@ -103,15 +158,15 @@ const Sessions = () => {
 
   const loadSavedFilters = () => {
     if (!user?.id) return;
-    
+
     const key = getSavedFiltersKey();
     if (!key) return;
-    
+
     try {
       const savedFilters = localStorage.getItem(key);
       if (savedFilters) {
         const filters = JSON.parse(savedFilters);
-        
+
         if (filters.selectedDays) setSelectedDays(filters.selectedDays);
         if (filters.selectedTimes) setSelectedTimes(filters.selectedTimes);
         if (filters.selectedTitles) setSelectedTitles(filters.selectedTitles);
@@ -168,7 +223,7 @@ const Sessions = () => {
     const handleResize = () => {
       setIsSticky(window.innerWidth < 768);
     };
-    
+
     handleResize(); // Check on mount
     window.addEventListener('resize', handleResize);
 
@@ -193,7 +248,7 @@ const Sessions = () => {
   const fetchUserData = async () => {
     try {
       const userRoles = user?.roles || [];
-      
+
       // Fetch linked children if user has admin or climber role
       // Climbers can have children linked to them
       if (userRoles.includes('admin') || userRoles.includes('climber')) {
@@ -201,7 +256,7 @@ const Sessions = () => {
           const childrenRes = await parentClimbersAPI.getAll();
           // Filter by accountStatus - show active children or children without accountStatus (treat as active)
           const allClimbers = childrenRes.data.climbers || [];
-          const filteredChildren = allClimbers.filter(c => 
+          const filteredChildren = allClimbers.filter(c =>
             c.accountStatus === 'active' || c.accountStatus === null || c.accountStatus === undefined
           );
           setChildren(filteredChildren);
@@ -240,12 +295,12 @@ const Sessions = () => {
       setLoading(true);
       const today = startOfDay(new Date());
       const endDate = addDays(today, daysToShow);
-      
+
       const response = await sessionsAPI.getAvailable({
         startDate: today.toISOString(),
         endDate: endDate.toISOString(),
       });
-      
+
       // Filter out competitions - only show training sessions
       const allSessions = response.data.sessions || [];
       const trainingSessions = allSessions.filter(session => session.type !== 'competition');
@@ -289,13 +344,13 @@ const Sessions = () => {
   const bookSession = async (sessionId, climberIds = null) => {
     try {
       setBookingLoading(true);
-      
+
       const userRoles = user?.roles || [];
       const hasAdminRole = userRoles.includes('admin');
       const hasClimberRole = userRoles.includes('climber');
-      
+
       let bookingData;
-      
+
       if ((hasClimberRole || hasAdminRole) && climberIds && climberIds.length > 0) {
         // Booking for children
         bookingData = {
@@ -317,7 +372,7 @@ const Sessions = () => {
         if (successful && successful.length > 0) {
           const successNames = successful.map(s => s.climberName).join(', ');
           showToast(`Успешно резервирано за: ${successNames}`, 'success');
-          
+
           // Optimistically update session booked count
           setSessions(prev => prev.map(s => {
             if (s._id === sessionId) {
@@ -338,7 +393,7 @@ const Sessions = () => {
         }
       } else {
         showToast('Сесията е резервирана успешно', 'success');
-        
+
         // Optimistically update session booked count
         setSessions(prev => prev.map(s => {
           if (s._id === sessionId) {
@@ -350,12 +405,12 @@ const Sessions = () => {
           return s;
         }));
       }
-      
+
       // Refresh user bookings to show reservation info
       if (isAuthenticated) {
         await fetchUserBookings();
       }
-      
+
       // Close modal
       setShowBookingModal(false);
       setSelectedSessionId(null);
@@ -373,7 +428,7 @@ const Sessions = () => {
   const handleBookingModalSubmit = async (e) => {
     e.preventDefault();
     if (!selectedSessionId) return;
-    
+
     if (selectedClimberIds.length === 0) {
       showToast('Моля, изберете поне един катерач', 'error');
       return;
@@ -388,7 +443,7 @@ const Sessions = () => {
       const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
       return idStr === 'self';
     });
-    
+
     // Save selected climber for this session (use first selected if multiple)
     if (climberIds.length > 0) {
       setSelectedClimberForSession({
@@ -501,7 +556,7 @@ const Sessions = () => {
       };
 
       const response = await parentClimbersAPI.create(childData);
-      
+
       // Check if duplicate found
       if (response.data.duplicate && response.data.existingProfile) {
         setFoundExistingProfile(response.data.existingProfile);
@@ -514,7 +569,7 @@ const Sessions = () => {
       setShowAddChildModal(false);
       setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
       setFoundExistingProfile(null);
-      
+
       // Refresh children list
       await fetchUserData();
     } catch (error) {
@@ -541,7 +596,7 @@ const Sessions = () => {
       setShowAddChildModal(false);
       setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
       setFoundExistingProfile(null);
-      
+
       // Refresh children list
       await fetchUserData();
     } catch (error) {
@@ -586,7 +641,7 @@ const Sessions = () => {
   const getFilteredSessions = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     return sessions.filter(session => {
       // Filter out competitions
       if (session.type === 'competition') {
@@ -629,7 +684,7 @@ const Sessions = () => {
           return false;
         }
         // Check if session has at least one of the selected target groups
-        const hasMatchingGroup = selectedTargetGroups.some(group => 
+        const hasMatchingGroup = selectedTargetGroups.some(group =>
           session.targetGroups.includes(group)
         );
         if (!hasMatchingGroup) {
@@ -643,7 +698,7 @@ const Sessions = () => {
           return false;
         }
         // Check if session has at least one of the selected age groups
-        const hasMatchingAgeGroup = selectedAgeGroups.some(ageGroup => 
+        const hasMatchingAgeGroup = selectedAgeGroups.some(ageGroup =>
           session.ageGroups.includes(ageGroup)
         );
         if (!hasMatchingAgeGroup) {
@@ -658,11 +713,11 @@ const Sessions = () => {
   const groupSessionsByDay = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     const days = eachDayOfInterval({ start: today, end: viewEndDate });
-    
+
     const filteredSessions = getFilteredSessions();
-    
+
     const grouped = {};
     days.forEach(day => {
       const dayKey = format(day, 'yyyy-MM-dd');
@@ -675,14 +730,14 @@ const Sessions = () => {
     filteredSessions.forEach(session => {
       const sessionDate = new Date(session.date);
       const dayKey = format(sessionDate, 'yyyy-MM-dd');
-      
+
       if (grouped[dayKey]) {
         grouped[dayKey].sessions.push(session);
       }
     });
 
     Object.keys(grouped).forEach(dayKey => {
-      grouped[dayKey].sessions.sort((a, b) => 
+      grouped[dayKey].sessions.sort((a, b) =>
         new Date(a.date) - new Date(b.date)
       );
     });
@@ -692,33 +747,33 @@ const Sessions = () => {
 
   const toggleFilter = (filterType, value) => {
     if (filterType === 'day') {
-      setSelectedDays(prev => 
-        prev.includes(value) 
+      setSelectedDays(prev =>
+        prev.includes(value)
           ? prev.filter(d => d !== value)
           : [...prev, value]
       );
     } else if (filterType === 'time') {
-      setSelectedTimes(prev => 
-        prev.includes(value) 
+      setSelectedTimes(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'title') {
       // Single select - replace current selection or deselect if same value
-      setSelectedTitles(prev => 
-        prev.includes(value) 
+      setSelectedTitles(prev =>
+        prev.includes(value)
           ? [] // Deselect if same value clicked
           : [value] // Replace with new selection (single select)
       );
     } else if (filterType === 'targetGroup') {
-      setSelectedTargetGroups(prev => 
-        prev.includes(value) 
+      setSelectedTargetGroups(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'ageGroup') {
-      setSelectedAgeGroups(prev => 
-        prev.includes(value) 
+      setSelectedAgeGroups(prev =>
+        prev.includes(value)
           ? prev.filter(a => a !== value)
           : [...prev, value]
       );
@@ -810,132 +865,131 @@ const Sessions = () => {
 
         {/* Main Content - Schedule */}
         <div className="flex-1 min-w-0">
-            {/* Bulk Actions */}
-            {isAuthenticated && selectedSessionIds.length > 0 && (
-              <>
-                {/* Mobile sticky button - always visible at bottom */}
-                <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
-                  <Button
-                    onClick={handleBulkBook}
-                    disabled={isBulkBooking}
-                    variant="primary"
-                    className="w-full text-sm py-3 flex items-center justify-center gap-2"
-                  >
-                    {isBulkBooking ? (
-                      'Запазване...'
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        {`Запази всички маркирани (${selectedSessionIds.length})`}
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {/* Desktop fixed button - centered */}
+          {/* Bulk Actions */}
+          {isAuthenticated && selectedSessionIds.length > 0 && (
+            <>
+              {/* Mobile sticky button - always visible at bottom */}
+              <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
                 <Button
                   onClick={handleBulkBook}
                   disabled={isBulkBooking}
                   variant="primary"
-                  className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
+                  className="w-full text-sm py-3 flex items-center justify-center gap-2"
                 >
                   {isBulkBooking ? (
                     'Запазване...'
                   ) : (
                     <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                       </svg>
                       {`Запази всички маркирани (${selectedSessionIds.length})`}
                     </>
                   )}
                 </Button>
+              </div>
+              {/* Desktop fixed button - centered */}
+              <Button
+                onClick={handleBulkBook}
+                disabled={isBulkBooking}
+                variant="primary"
+                className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
+              >
+                {isBulkBooking ? (
+                  'Запазване...'
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    {`Запази всички маркирани (${selectedSessionIds.length})`}
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+
+          {/* Маркирай всички бутон - точно над графика в дясно */}
+          <div className="flex justify-end items-center gap-2 mb-1">
+            {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
+              <>
+                <button
+                  type="button"
+                  onClick={selectAllFilteredSessions}
+                  className="text-xs md:text-sm text-[#ff6900] hover:opacity-80 transition-opacity underline"
+                >
+                  Маркирай всички тренировки
+                </button>
+                {selectedSessionIds.length > 0 && (
+                  <>
+                    <span className="text-[#cad5e2] text-xs">|</span>
+                    <button
+                      type="button"
+                      onClick={clearAllSelectedSessions}
+                      className="text-xs md:text-sm text-[#45556c] hover:opacity-80 transition-opacity underline"
+                    >
+                      Изчисти всички
+                    </button>
+                  </>
+                )}
               </>
             )}
+          </div>
 
-            {/* Маркирай всички бутон - точно над графика в дясно */}
-            <div className="flex justify-end items-center gap-2 mb-1">
-              {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
-                <>
-                  <button
-                    type="button"
-                    onClick={selectAllFilteredSessions}
-                    className="text-xs md:text-sm text-[#ff6900] hover:opacity-80 transition-opacity underline"
-                  >
-                    Маркирай всички тренировки
-                  </button>
-                  {selectedSessionIds.length > 0 && (
-                    <>
-                      <span className="text-[#cad5e2] text-xs">|</span>
-                      <button
-                        type="button"
-                        onClick={clearAllSelectedSessions}
-                        className="text-xs md:text-sm text-[#45556c] hover:opacity-80 transition-opacity underline"
-                      >
-                        Изчисти всички
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+          {/* Sessions List */}
+          <SessionList
+            sessions={sessions}
+            getFilteredSessions={getFilteredSessions}
+            hasActiveFilters={hasActiveFilters}
+            clearAllFilters={clearAllFilters}
+            getBookedCount={getBookedCount}
+            getBulgarianDayName={getBulgarianDayName}
+            formatTime={formatTime}
+            getEndTime={getEndTime}
+            mode="public"
+            onReserve={handleBookClick}
+            onSelect={isAuthenticated ? toggleSessionSelection : undefined}
+            selectedSessionIds={selectedSessionIds}
+            user={user}
+            children={children}
+            selectedClimberForSession={selectedClimberForSession}
+            userBookings={userBookings}
+            onCancelBooking={(sessionId, reservations) => {
+              // Показва popup за потвърждение
+              setCancelBookingSessionId(sessionId);
+              setCancelBookingBookings(reservations);
+              setShowCancelBookingModal(true);
+            }}
+          />
 
-            {/* Sessions List */}
-            <SessionList
-              sessions={sessions}
-              getFilteredSessions={getFilteredSessions}
-              hasActiveFilters={hasActiveFilters}
-              clearAllFilters={clearAllFilters}
-              getBookedCount={getBookedCount}
-              getBulgarianDayName={getBulgarianDayName}
-              formatTime={formatTime}
-              getEndTime={getEndTime}
-              mode="public"
-              onReserve={handleBookClick}
-              onSelect={isAuthenticated ? toggleSessionSelection : undefined}
-              selectedSessionIds={selectedSessionIds}
-              user={user}
-              children={children}
-              selectedClimberForSession={selectedClimberForSession}
-              userBookings={userBookings}
-              onCancelBooking={(sessionId, reservations) => {
-                // Показва popup за потвърждение
-                setCancelBookingSessionId(sessionId);
-                setCancelBookingBookings(reservations);
-                setSelectedCancelBookingIds(reservations.map(r => r.bookingId));
-                setShowCancelBookingModal(true);
-              }}
-            />
+          {/* Spacer for sticky button on mobile (at bottom) */}
+          {selectedSessionIds.length > 0 && (
+            <div className="h-[80px] md:hidden" />
+          )}
 
-            {/* Spacer for sticky button on mobile (at bottom) */}
-            {selectedSessionIds.length > 0 && (
-              <div className="h-[80px] md:hidden" />
-            )}
+          {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
+            <Card>
+              <div className="text-center py-12">
+                <p className="text-gray-600 text-lg">Няма налични сесии в момента</p>
+              </div>
+            </Card>
+          )}
 
-            {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
-              <Card>
-                <div className="text-center py-12">
-                  <p className="text-gray-600 text-lg">Няма налични сесии в момента</p>
-                </div>
-              </Card>
-            )}
-            
-            {getFilteredSessions().length === 0 && !loading && sessions.length > 0 && (
-              <Card>
-                <div className="text-center py-12">
-                  <p className="text-gray-600 text-lg mb-2">Няма намерени тренировки с избраните филтри</p>
-                  <p className="text-gray-500 text-sm mb-4">Моля, опитайте с други филтри или премахнете филтрите</p>
-                  <button
-                    type="button"
-                    onClick={clearAllFilters}
-                    className="px-4 py-2 text-sm text-white bg-[#ea7038] hover:opacity-90 rounded-lg font-medium transition-colors"
-                  >
-                    Премахни всички филтри
-                  </button>
-                </div>
-              </Card>
-            )}
+          {getFilteredSessions().length === 0 && !loading && sessions.length > 0 && (
+            <Card>
+              <div className="text-center py-12">
+                <p className="text-gray-600 text-lg mb-2">Няма намерени тренировки с избраните филтри</p>
+                <p className="text-gray-500 text-sm mb-4">Моля, опитайте с други филтри или премахнете филтрите</p>
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-4 py-2 text-sm text-white bg-[#ea7038] hover:opacity-90 rounded-lg font-medium transition-colors"
+                >
+                  Премахни всички филтри
+                </button>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -975,8 +1029,8 @@ const Sessions = () => {
 
             // Update sessions state optimistically
             setSessions(prev => prev.map(session => {
-              const sessionId = typeof session._id === 'object' && session._id?.toString 
-                ? session._id.toString() 
+              const sessionId = typeof session._id === 'object' && session._id?.toString
+                ? session._id.toString()
                 : String(session._id);
               if (sessionUpdates[sessionId]) {
                 return {
@@ -992,7 +1046,7 @@ const Sessions = () => {
           if (isAuthenticated) {
             await fetchUserBookings();
           }
-          
+
           // Clear selected sessions for bulk booking
           setSelectedSessionIds([]);
           setBulkBookingClimberIds([]);
@@ -1010,8 +1064,8 @@ const Sessions = () => {
                 <h2 className="text-xl font-semibold text-[#0f172b]">
                   {foundExistingProfile ? 'Свържи съществуващ профил' : 'Добави дете'}
                 </h2>
-              <button
-                onClick={() => {
+                <button
+                  onClick={() => {
                     setShowAddChildModal(false);
                     setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
                     setFoundExistingProfile(null);
@@ -1022,10 +1076,10 @@ const Sessions = () => {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-              </button>
+                </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {foundExistingProfile ? (
                 <div>
@@ -1043,7 +1097,7 @@ const Sessions = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="mb-4 p-3 bg-blue-50 rounded-md">
                     <p className="text-sm text-gray-700">
                       Искате ли да свържете този профил към вашия акаунт?
@@ -1174,216 +1228,31 @@ const Sessions = () => {
         </div>
       )}
 
-      {/* Cancel Booking Confirmation Modal - Модерен дизайн */}
-      {showCancelBookingModal && cancelBookingSessionId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">Отмени резервация</h2>
-                <button
-                  onClick={() => {
-                    setShowCancelBookingModal(false);
-                    setCancelBookingSessionId(null);
-                    setCancelBookingBookings([]);
-                    setSelectedCancelBookingIds([]);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                  disabled={isCancelling}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {/* Session Info */}
-              {(() => {
-                const session = sessions.find(s => s._id === cancelBookingSessionId);
-                if (!session) return null;
-                return (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-                    <div className="font-semibold text-[#0f172b] mb-1">{session.title || 'Тренировка'}</div>
-                    <div className="text-sm text-[#64748b]">
-                      {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Reservations List */}
-              {cancelBookingBookings.length > 0 ? (
-                <>
-              <div className="mb-4">
-                    <p className="text-sm text-[#64748b] mb-3">
-                      {cancelBookingBookings.length === 1 
-                        ? 'Избери резервация за отменяне:' 
-                        : 'Избери резервации за отменяне:'}
-                    </p>
-                    <div className="space-y-2">
-                      {cancelBookingBookings.map((reservation) => {
-                        const isSelected = selectedCancelBookingIds.includes(reservation.bookingId);
-                    return (
-                          <label
-                            key={reservation.bookingId}
-                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                              isSelected
-                                ? 'border-red-500 bg-red-50 shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="relative flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => {
-                                  setSelectedCancelBookingIds(prev => 
-                                    prev.includes(reservation.bookingId)
-                                      ? prev.filter(id => id !== reservation.bookingId)
-                                      : [...prev, reservation.bookingId]
-                                  );
-                                }}
-                                className="w-5 h-5 text-red-500 border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
-                                disabled={isCancelling}
-                              />
-                      </div>
-                            <span className="ml-3 text-base font-medium text-[#0f172b]">
-                              {reservation.climberName}
-                            </span>
-                          </label>
-                    );
-                  })}
-                </div>
-              </div>
-                </>
-              ) : (
-                <p className="text-sm text-[#64748b] mb-6 text-center py-4">
-                  Няма налични резервации за отменяне.
-                </p>
-              )}
-
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                    setShowCancelBookingModal(false);
-                    setCancelBookingSessionId(null);
-                    setCancelBookingBookings([]);
-                    setSelectedCancelBookingIds([]);
-                  }}
-                  disabled={isCancelling}
-                  className="flex-1 flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Отказ
-              </Button>
-              <Button
-                type="button"
-                  onClick={async () => {
-                    if (selectedCancelBookingIds.length === 0) {
-                      showToast('Моля, изберете поне една резервация за отменяне', 'error');
-                      return;
-                    }
-
-                    setIsCancelling(true);
-                    const results = {
-                      successful: [],
-                      failed: []
-                    };
-
-                    try {
-                      // Отменя всички избрани резервации
-                      for (const bookingId of selectedCancelBookingIds) {
-                        try {
-                          await bookingsAPI.cancel(bookingId);
-                          results.successful.push(bookingId);
-                        } catch (error) {
-                          results.failed.push({
-                            bookingId,
-                            reason: error.response?.data?.error?.message || 'Грешка при отмяна'
-                          });
-                        }
-                      }
-                      
-                      // Update local state for successful cancellations instead of full page reload
-                      if (results.successful.length > 0) {
-                        setUserBookings(prev => prev.map(booking => 
-                          results.successful.includes(booking._id)
-                            ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
-                            : booking
-                        ));
-                        
-                        // Optimistically update session booked counts
-                        setSessions(prev => prev.map(s => {
-                          if (s._id === cancelBookingSessionId) {
-                            return {
-                              ...s,
-                              bookedCount: Math.max(0, (s.bookedCount || 0) - results.successful.length)
-                            };
-                          }
-                          return s;
-                        }));
-                        
-                        showToast(
-                          results.successful.length === 1
-                            ? 'Резервацията е отменена успешно'
-                            : `${results.successful.length} резервации са отменени успешно`,
-                          'success'
-                        );
-                      }
-
-                      if (results.failed.length > 0) {
-                        showToast(
-                          `Неуспешна отмяна на ${results.failed.length} резервации`,
-                          'error'
-                        );
-                      }
-                    } catch (error) {
-                      showToast(
-                        error.response?.data?.error?.message || 'Грешка при отменяне на резервация',
-                        'error'
-                      );
-                    } finally {
-                      // Always close modal and clear state
-                      setShowCancelBookingModal(false);
-                      setCancelBookingSessionId(null);
-                      setCancelBookingBookings([]);
-                      setSelectedCancelBookingIds([]);
-                      setIsCancelling(false);
-                    }
-                  }}
-                  disabled={isCancelling || selectedCancelBookingIds.length === 0}
-                  variant="danger"
-                  className="flex-1 flex items-center justify-center gap-2"
-                >
-                  {isCancelling ? (
-                    'Отменяне...'
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Отмени
-                    </>
-                  )}
-              </Button>
-            </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Cancellation Modal - Using Shared Component */}
+      <CancellationModal
+        isOpen={showCancelBookingModal}
+        onClose={() => {
+          setShowCancelBookingModal(false);
+          setCancelBookingSessionId(null);
+          setCancelBookingBookings([]);
+          resetError();
+        }}
+        session={sessions.find(s => s._id === cancelBookingSessionId)}
+        bookings={cancelBookingBookings}
+        onConfirm={async (selectedIds) => {
+          const result = await cancelBookings(selectedIds, cancelBookingBookings);
+          // Modal will stay open if there are failures (handled by hook)
+        }}
+        error={cancelError}
+        isLoading={isCancelling}
+      />
 
       {/* Scroll to Top Button */}
       <ScrollToTop />
 
       {/* Sticky PWA Install Icon - Mobile Only */}
-      <PWAInstallButton 
-        variant="sticky" 
+      <PWAInstallButton
+        variant="sticky"
         hideWhenBulkBooking={selectedSessionIds.length > 0}
       />
 

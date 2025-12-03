@@ -6,12 +6,13 @@ import { bg } from 'date-fns/locale';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { parentClimbersAPI, bookingsAPI, sessionsAPI } from '../../services/api';
-import ConfirmDialog from '../../components/UI/ConfirmDialog';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import { CalendarIcon as CalendarSvgIcon, ClockIcon, PersonIcon, ListIcon } from '../../components/Sessions/SessionIcons';
 import { useSynchronizedWidths } from '../../hooks/useSynchronizedWidths';
 import SessionCalendar from '../../components/Calendar/SessionCalendar';
+import useCancelBooking from '../../hooks/useCancelBooking';
+import CancellationModal from '../../components/Booking/CancellationModal';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -24,172 +25,47 @@ const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [bookingsToCancel, setBookingsToCancel] = useState([]);
-  const [selectedBookingIds, setSelectedBookingIds] = useState([]);
-  const [dateToCancel, setDateToCancel] = useState(null);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState(null);
-  const { showToast, ToastComponent } = useToast();
+  // Cancel booking modal state
+  const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
+  const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
+  const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
 
-  const hasFetchedRef = useRef(false);
-  const userIdRef = useRef(null);
+  // Use shared cancellation hook
+  const { cancelError, isCancelling, cancelBookings, resetError } = useCancelBooking({
+    showToast,
+    onSuccess: (results) => {
+      // Update local state for successful cancellations
+      fetchData(); // Refresh data to update UI
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    const currentUserId = user?._id || user?.id;
-    if (userIdRef.current !== currentUserId) {
-      hasFetchedRef.current = false;
-      userIdRef.current = currentUserId;
-    }
-    
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-    
-    let isMounted = true;
+      // Close modal
+      setShowCancelBookingModal(false);
+      setCancelBookingSessionId(null);
+      setCancelBookingBookings([]);
+    },
+    onPartialSuccess: (results) => {
+      // Refresh data to update UI for successful ones
+      fetchData();
 
-    const loadData = async () => {
-      try {
-        await fetchData();
-      } catch (error) {
-        if (isMounted) {
-          console.error('Error in loadData:', error);
-        }
-      }
-    };
+      // Remove successful from modal list
+      setCancelBookingBookings(prev => prev.filter(b =>
+        !results.successful.includes(b.bookingId || b._id)
+      ));
 
-    loadData();
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, user]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const today = startOfDay(new Date());
-      const endDate = addDays(today, 365); // Load sessions for next year for calendar view
-      
-      const [sessionsRes, childrenRes, bookingsRes] = await Promise.all([
-        sessionsAPI.getAvailable({
-          startDate: today.toISOString(),
-          endDate: endDate.toISOString(),
-        }).catch(() => ({ data: { sessions: [] } })),
-        parentClimbersAPI.getAll().catch(() => ({ data: { climbers: [] } })),
-        bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } })),
-      ]);
-
-      setChildren(childrenRes.data.climbers || []);
-      
-      // Get all upcoming bookings (for calendar view - all future bookings)
-      // For list view, we'll filter to 7 days in the rendering
-      const now = startOfDay(new Date());
-      const allBookings = bookingsRes.data.bookings || [];
-      const upcomingBookings = allBookings.filter(booking => {
-        if (booking.status !== 'booked' || !booking.session?.date) return false;
-        const sessionDate = startOfDay(new Date(booking.session.date));
-        return sessionDate >= now;
-      });
-      
-      // Sort by date
-      upcomingBookings.sort((a, b) => 
-        new Date(a.session.date) - new Date(b.session.date)
-      );
-      
-      setBookings(upcomingBookings);
-    } catch (error) {
-      if (error.response?.status === 429) {
-        showToast('Твърде много заявки. Моля, изчакайте малко преди да опитате отново.', 'error');
-      } else {
-        showToast('Грешка при зареждане на данни', 'error');
-      }
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      // Keep modal open to show errors
+    },
+  });
 
   const handleCancelBooking = (dateGroup) => {
-    setDateToCancel(dateGroup.date);
-    setBookingsToCancel(dateGroup.bookings);
-    setSelectedBookingIds(dateGroup.bookings.map(b => b._id));
-    setShowCancelDialog(true);
-  };
+    // Prepare bookings for the modal
+    const bookingsForModal = dateGroup.bookings.map(b => ({
+      ...b,
+      bookingId: b._id,
+      climberName: b.climber ? `${b.climber.firstName} ${b.climber.lastName || ''}`.trim() : 'Катерач'
+    }));
 
-  const confirmCancelBooking = async () => {
-    if (selectedBookingIds.length === 0) return;
-
-    try {
-      setIsCancelling(true);
-      setCancelError(null); // Clear previous error
-      
-      // Cancel each booking individually to handle errors separately
-      const results = {
-        successful: [],
-        failed: []
-      };
-
-      for (const bookingId of selectedBookingIds) {
-        try {
-          await bookingsAPI.cancel(bookingId);
-          results.successful.push(bookingId);
-        } catch (error) {
-          results.failed.push({
-            bookingId,
-            reason: error.response?.data?.error?.message || 'Грешка при отмяна'
-          });
-        }
-      }
-
-      // Update local state for successful cancellations
-      if (results.successful.length > 0) {
-        await fetchData();
-        showToast('Резервациите са отменени успешно', 'success');
-      }
-
-      // Handle failed cancellations
-      if (results.failed.length > 0) {
-        // Show error details in dialog
-        const errorDetails = results.failed.map(f => {
-          const booking = bookingsToCancel.find(b => b._id === f.bookingId);
-          if (booking && booking.climber) {
-            const climber = booking.climber;
-            const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
-            return `${climberName}: ${f.reason || 'Грешка'}`;
-          }
-          return f.reason || 'Грешка';
-        }).join('\n');
-        
-        // Show error in dialog - keep dialog open, no toast
-        setCancelError(errorDetails);
-        // Don't close dialog, don't show toast - keep dialog open to show error
-      } else {
-        // All successful, close dialog
-        setShowCancelDialog(false);
-        setBookingsToCancel([]);
-        setSelectedBookingIds([]);
-        setDateToCancel(null);
-        setCancelError(null);
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.error?.message || 'Грешка при отменяне на резервации';
-      
-      // Show all errors in dialog, no toast - keep dialog open
-      setCancelError(errorMessage);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
-  const cancelCancelBooking = () => {
-    setShowCancelDialog(false);
-    setBookingsToCancel([]);
-    setSelectedBookingIds([]);
-    setDateToCancel(null);
-    setCancelError(null);
+    setCancelBookingSessionId(dateGroup.sessions?.[0]?.session?._id); // Just need a session ID context if any
+    setCancelBookingBookings(bookingsForModal);
+    setShowCancelBookingModal(true);
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -244,7 +120,7 @@ const Dashboard = () => {
   // Get sessions from bookings (for calendar view - shows all future bookings)
   const getSessionsFromBookings = () => {
     const bookedSessions = bookings.filter(b => b.status === 'booked' && b.session);
-    
+
     // Group bookings by session to get unique sessions
     const sessionsMap = new Map();
     bookedSessions.forEach(booking => {
@@ -268,7 +144,7 @@ const Dashboard = () => {
     const now = startOfDay(new Date());
     const sevenDaysFromNow = addDays(now, 7);
     const days = eachDayOfInterval({ start: now, end: sevenDaysFromNow });
-    
+
     const grouped = {};
     days.forEach(day => {
       const dayKey = format(day, 'yyyy-MM-dd');
@@ -283,7 +159,7 @@ const Dashboard = () => {
     filteredBookings.forEach(booking => {
       const sessionId = booking.session?._id;
       if (!sessionId) return;
-      
+
       if (!sessionsMap.has(sessionId)) {
         sessionsMap.set(sessionId, {
           session: booking.session,
@@ -297,7 +173,7 @@ const Dashboard = () => {
     sessionsMap.forEach(({ session, bookings }) => {
       const sessionDate = new Date(session.date);
       const dayKey = format(sessionDate, 'yyyy-MM-dd');
-      
+
       if (grouped[dayKey]) {
         grouped[dayKey].sessions.push({
           session,
@@ -308,7 +184,7 @@ const Dashboard = () => {
 
     // Sort sessions within each day by time
     Object.keys(grouped).forEach(dayKey => {
-      grouped[dayKey].sessions.sort((a, b) => 
+      grouped[dayKey].sessions.sort((a, b) =>
         new Date(a.session.date) - new Date(b.session.date)
       );
     });
@@ -320,25 +196,25 @@ const Dashboard = () => {
   const groupBookingsByClimber = () => {
     const filteredBookings = getFilteredBookingsForList();
     const grouped = {};
-    
+
     filteredBookings.forEach(booking => {
       const climber = booking.climber || booking.climberId;
       if (!climber) return;
-      
+
       const climberId = typeof climber === 'object' && climber._id ? climber._id : climber;
       const climberKey = String(climberId);
-      
+
       if (!grouped[climberKey]) {
         grouped[climberKey] = {
           climber: typeof climber === 'object' ? climber : null,
           sessions: []
         };
       }
-      
+
       // Group by session
       const sessionId = booking.session?._id;
       if (!sessionId) return;
-      
+
       const existingSession = grouped[climberKey].sessions.find(s => s.session._id === sessionId);
       if (existingSession) {
         existingSession.bookings.push(booking);
@@ -349,11 +225,11 @@ const Dashboard = () => {
         });
       }
     });
-    
+
     // Sort sessions within each group by date
     return Object.values(grouped).map(group => ({
       ...group,
-      sessions: group.sessions.sort((a, b) => 
+      sessions: group.sessions.sort((a, b) =>
         new Date(a.session.date) - new Date(b.session.date)
       )
     }));
@@ -366,7 +242,7 @@ const Dashboard = () => {
     return sessionBookings.map(booking => {
       const climber = booking.climber || booking.climberId;
       let climberName = 'Неизвестен';
-      
+
       if (climber) {
         if (typeof climber === 'object' && climber.firstName && climber.lastName) {
           climberName = `${climber.firstName} ${climber.lastName}`;
@@ -374,7 +250,7 @@ const Dashboard = () => {
           climberName = climber.name;
         }
       }
-      
+
       return {
         climberName,
         bookingId: booking._id || booking.id,
@@ -407,21 +283,21 @@ const Dashboard = () => {
     if (session.status !== 'active') {
       return { bg: '#99a1af', border: '#99a1af', backgroundColor: '#99a1af', color: 'white' };
     }
-    
+
     const targetGroups = session.targetGroups || [];
-    
+
     const groupColors = {
       beginner: '#DCFCE7',      // green-100
       experienced: '#FFEDD5',   // orange-100
       advanced: '#FEE2E2',      // red-100
     };
-    
+
     const textColors = {
       beginner: '#15803D',    // green-700
       experienced: '#C2410C', // orange-700
       advanced: '#B91C1C',    // red-700
     };
-    
+
     let primaryGroup = null;
     if (targetGroups.includes('beginner')) {
       primaryGroup = 'beginner';
@@ -430,13 +306,13 @@ const Dashboard = () => {
     } else if (targetGroups.includes('advanced')) {
       primaryGroup = 'advanced';
     }
-    
+
     if (!primaryGroup) {
       const bg = '#FFEDD5';
       const border = '#C2410C';
       return { bg, border, backgroundColor: bg, color: '#C2410C' };
     }
-    
+
     const bg = groupColors[primaryGroup];
     const border = textColors[primaryGroup];
     return { bg, border, backgroundColor: bg, color: textColors[primaryGroup] };
@@ -445,29 +321,29 @@ const Dashboard = () => {
   // Get reservations for a session
   const getReservationsForSession = (sessionId) => {
     if (!bookings || bookings.length === 0) return [];
-    
-    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-      ? sessionId.toString() 
+
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString
+      ? sessionId.toString()
       : String(sessionId);
-    
+
     return bookings.filter(b => {
       if (!b || b.status !== 'booked') return false;
-      
-      const bookingSessionId = b.sessionId 
-        ? (typeof b.sessionId === 'object' && b.sessionId._id 
-            ? String(b.sessionId._id) 
-            : String(b.sessionId))
+
+      const bookingSessionId = b.sessionId
+        ? (typeof b.sessionId === 'object' && b.sessionId._id
+          ? String(b.sessionId._id)
+          : String(b.sessionId))
         : null;
-      
-      const sessionObjId = b.session 
+
+      const sessionObjId = b.session
         ? (b.session._id ? String(b.session._id) : String(b.session))
         : null;
-      
+
       return bookingSessionId === normalizedSessionId || sessionObjId === normalizedSessionId;
     }).map(booking => {
       const climber = booking.climber || booking.climberId;
       let climberName = 'Неизвестен';
-      
+
       if (climber) {
         if (typeof climber === 'object' && climber.firstName && climber.lastName) {
           climberName = `${climber.firstName} ${climber.lastName}`;
@@ -475,7 +351,7 @@ const Dashboard = () => {
           climberName = climber.name;
         }
       }
-      
+
       return {
         climberName,
         bookingId: booking._id || booking.id,
@@ -509,79 +385,25 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col lg:flex-row h-full">
       <ToastComponent />
-      <ConfirmDialog
-        isOpen={showCancelDialog}
-        onClose={cancelCancelBooking}
-        onConfirm={confirmCancelBooking}
-        title="Отмяна на резервация"
-        message={bookingsToCancel.length === 1 ? 'Сигурни ли сте, че искате да отмените резервацията?' : null}
-        confirmText={isCancelling ? 'Отмяна...' : 'Потвърди отмяна'}
-        cancelText="Отказ"
-        variant="danger"
-        errorMessage={cancelError}
-        disabled={isCancelling || selectedBookingIds.length === 0}
-      >
-        {dateToCancel && bookingsToCancel.length > 0 && (() => {
-          const firstBooking = bookingsToCancel[0];
-          const sessionDate = new Date(firstBooking.session.date);
-          const sessionDateObj = startOfDay(sessionDate);
 
-          return (
-            <div className="mb-4">
-              <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-2">Тренировка:</h3>
-              <div className="p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)]">
-                <div className="text-sm sm:text-[16px] font-medium text-neutral-950">{firstBooking.session.title}</div>
-                <div className="text-sm text-[#4a5565] mt-1">
-                  {`${getBulgarianDayName(sessionDateObj)}, ${format(sessionDateObj, 'dd.MM.yyyy')} - ${formatTime(sessionDate)} - ${getEndTime(sessionDate, firstBooking.session.durationMinutes)}`}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+      {/* Cancel Booking Modal - Using Shared Component */}
+      <CancellationModal
+        isOpen={showCancelBookingModal}
+        onClose={() => {
+          setShowCancelBookingModal(false);
+          setCancelBookingSessionId(null);
+          setCancelBookingBookings([]);
+          resetError();
+        }}
+        session={cancelBookingBookings.length > 0 ? cancelBookingBookings[0].session : null}
+        bookings={cancelBookingBookings}
+        onConfirm={async (selectedIds) => {
+          await cancelBookings(selectedIds, cancelBookingBookings);
+        }}
+        error={cancelError}
+        isLoading={isCancelling}
+      />
 
-        {bookingsToCancel.length > 1 && (
-          <div className="mb-4">
-            <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-3">Изберете за кои катерачи да се отмени резервацията:</h3>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {bookingsToCancel.map((booking) => {
-                const climber = booking.climber;
-                const climberName = climber ? `${climber.firstName} ${climber.lastName || ''}`.trim() : 'Катерач';
-                const isSelected = selectedBookingIds.includes(booking._id);
-                return (
-                  <label
-                    key={booking._id}
-                    className="flex items-center gap-3 p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)] cursor-pointer hover:bg-[#e8e8ea] transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedBookingIds([...selectedBookingIds, booking._id]);
-                        } else {
-                          setSelectedBookingIds(selectedBookingIds.filter(id => id !== booking._id));
-                        }
-                      }}
-                      className="w-4 h-4 text-orange-brand border-gray-300 rounded focus:ring-orange-brand"
-                    />
-                    <span className="text-sm sm:text-[16px] text-neutral-950">{climberName}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {bookingsToCancel.length === 1 && bookingsToCancel[0]?.climber && (
-          <div className="mb-4">
-            <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-2">Катерач:</h3>
-            <div className="text-sm sm:text-[16px] text-[#4a5565]">
-              {bookingsToCancel[0].climber.firstName} {bookingsToCancel[0].climber.lastName || ''}
-            </div>
-          </div>
-        )}
-      </ConfirmDialog>
-      
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-6">
@@ -600,22 +422,20 @@ const Dashboard = () => {
                 <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setViewMode('calendar')}
-                    className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                      viewMode === 'calendar'
-                        ? 'bg-[#ea7a24] text-white'
-                        : 'text-[#4a5565] hover:bg-gray-50'
-                    }`}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${viewMode === 'calendar'
+                      ? 'bg-[#ea7a24] text-white'
+                      : 'text-[#4a5565] hover:bg-gray-50'
+                      }`}
                   >
                     <CalendarSvgIcon />
                     Календар
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                      viewMode === 'list'
-                        ? 'bg-[#ea7a24] text-white'
-                        : 'text-[#4a5565] hover:bg-gray-50'
-                    }`}
+                    className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${viewMode === 'list'
+                      ? 'bg-[#ea7a24] text-white'
+                      : 'text-[#4a5565] hover:bg-gray-50'
+                      }`}
                   >
                     <ListIcon />
                     Списък
@@ -630,22 +450,20 @@ const Dashboard = () => {
                     <div className="bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-1 flex gap-2 w-full sm:w-auto">
                       <button
                         onClick={() => setGroupBy('date')}
-                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                          groupBy === 'date'
-                            ? 'bg-[#ea7a24] text-white'
-                            : 'text-[#4a5565] hover:bg-gray-50'
-                        }`}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${groupBy === 'date'
+                          ? 'bg-[#ea7a24] text-white'
+                          : 'text-[#4a5565] hover:bg-gray-50'
+                          }`}
                       >
                         <CalendarSvgIcon />
                         По дата
                       </button>
                       <button
                         onClick={() => setGroupBy('climber')}
-                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${
-                          groupBy === 'climber'
-                            ? 'bg-[#ea7a24] text-white'
-                            : 'text-[#4a5565] hover:bg-gray-50'
-                        }`}
+                        className={`flex-1 sm:flex-none px-4 py-2 rounded-[8px] text-sm font-normal flex items-center justify-center gap-2 transition-colors ${groupBy === 'climber'
+                          ? 'bg-[#ea7a24] text-white'
+                          : 'text-[#4a5565] hover:bg-gray-50'
+                          }`}
                       >
                         <PersonIcon />
                         По катерачи
@@ -816,7 +634,7 @@ const Dashboard = () => {
                                                 <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
                                                   <ClockIcon />
                                                 </div>
-                                                <span 
+                                                <span
                                                   ref={createMeasurementCallback('time')}
                                                   className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
                                                   style={widths.time && widths.time > 0 ? { minWidth: `${widths.time}px` } : {}}
@@ -827,7 +645,7 @@ const Dashboard = () => {
                                                 {session.title && (
                                                   <>
                                                     <span className="text-[#cad5e2] shrink-0">|</span>
-                                                    <span 
+                                                    <span
                                                       ref={createMeasurementCallback('title')}
                                                       className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
                                                       style={widths.title && widths.title > 0 ? { minWidth: `${widths.title}px` } : {}}
@@ -839,7 +657,7 @@ const Dashboard = () => {
                                               </div>
                                               {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
                                               {session.targetGroups && session.targetGroups.length > 0 && (
-                                                <div 
+                                                <div
                                                   ref={createMeasurementCallback('targetGroups')}
                                                   className="flex items-center gap-2 shrink-0"
                                                   style={widths.targetGroups && widths.targetGroups > 0 ? { minWidth: `${widths.targetGroups}px` } : {}}
@@ -873,7 +691,7 @@ const Dashboard = () => {
 
                                             {/* Cancel Button */}
                                             {reservations.length > 0 && (
-                                              <div 
+                                              <div
                                                 ref={createMeasurementCallback('buttons')}
                                                 className="flex flex-row items-center justify-end gap-2 shrink-0 self-center"
                                                 style={widths.buttons && widths.buttons > 0 ? { minWidth: `${widths.buttons}px` } : {}}
@@ -919,7 +737,7 @@ const Dashboard = () => {
                                                     className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
                                                   >
                                                     <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                      <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                      <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
                                                     </svg>
                                                     {reservation.climberName}
                                                   </span>
@@ -930,62 +748,62 @@ const Dashboard = () => {
                                         )}
                                       </div>
 
-                                        {/* Mobile Layout */}
-                                        <div className="md:hidden flex gap-4">
-                                          {/* Left side - Content */}
-                                          <div className="flex-1 min-w-0">
-                                            {/* 2. Часът и заглавието - могат да wrap-ват на два реда */}
-                                            <div className="mb-2">
-                                              <div className="flex items-center gap-2 mb-1 transition-colors duration-200 group-hover:text-[#ff6900] flex-wrap">
-                                                <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
-                                                  <ClockIcon />
+                                      {/* Mobile Layout */}
+                                      <div className="md:hidden flex gap-4">
+                                        {/* Left side - Content */}
+                                        <div className="flex-1 min-w-0">
+                                          {/* 2. Часът и заглавието - могат да wrap-ват на два реда */}
+                                          <div className="mb-2">
+                                            <div className="flex items-center gap-2 mb-1 transition-colors duration-200 group-hover:text-[#ff6900] flex-wrap">
+                                              <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
+                                                <ClockIcon />
+                                              </div>
+                                              <span className="text-sm leading-6 text-[#0f172b] font-normal">
+                                                {timeStr} - {endTimeStr}
+                                              </span>
+                                              {/* Заглавието - може да wrap-ва на нов ред */}
+                                              {session.title && (
+                                                <>
+                                                  <span className="text-[#cad5e2] shrink-0">|</span>
+                                                  <span className="text-sm leading-6 text-[#0f172b] font-normal">
+                                                    {session.title}
+                                                  </span>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Target Groups и Capacity - на втори ред за mobile, могат да wrap-ват */}
+                                          {session.targetGroups && session.targetGroups.length > 0 && (
+                                            <div className="mb-2 flex items-center gap-2 flex-wrap">
+                                              {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <span className="text-[#cad5e2]">|</span>
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                  {session.targetGroups.map((group) => {
+                                                    const groupLabels = {
+                                                      beginner: 'Начинаещи',
+                                                      experienced: 'Деца с опит',
+                                                      advanced: 'Напреднали',
+                                                    };
+                                                    const groupColors = {
+                                                      beginner: 'bg-green-100 text-green-700',
+                                                      experienced: 'bg-blue-100 text-blue-700',
+                                                      advanced: 'bg-red-100 text-red-700',
+                                                    };
+                                                    return (
+                                                      <span
+                                                        key={group}
+                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap shrink-0 ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
+                                                      >
+                                                        {groupLabels[group] || group}
+                                                      </span>
+                                                    );
+                                                  })}
                                                 </div>
-                                                <span className="text-sm leading-6 text-[#0f172b] font-normal">
-                                                  {timeStr} - {endTimeStr}
-                                                </span>
-                                                {/* Заглавието - може да wrap-ва на нов ред */}
-                                                {session.title && (
-                                                  <>
-                                                    <span className="text-[#cad5e2] shrink-0">|</span>
-                                                    <span className="text-sm leading-6 text-[#0f172b] font-normal">
-                                                      {session.title}
-                                                    </span>
-                                                  </>
-                                                )}
                                               </div>
                                             </div>
-
-                                            {/* Target Groups и Capacity - на втори ред за mobile, могат да wrap-ват */}
-                                            {session.targetGroups && session.targetGroups.length > 0 && (
-                                              <div className="mb-2 flex items-center gap-2 flex-wrap">
-                                                {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                  <span className="text-[#cad5e2]">|</span>
-                                                  <div className="flex items-center gap-1 flex-wrap">
-                                                    {session.targetGroups.map((group) => {
-                                                      const groupLabels = {
-                                                        beginner: 'Начинаещи',
-                                                        experienced: 'Деца с опит',
-                                                        advanced: 'Напреднали',
-                                                      };
-                                                      const groupColors = {
-                                                        beginner: 'bg-green-100 text-green-700',
-                                                        experienced: 'bg-blue-100 text-blue-700',
-                                                        advanced: 'bg-red-100 text-red-700',
-                                                      };
-                                                      return (
-                                                        <span
-                                                          key={group}
-                                                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap shrink-0 ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
-                                                        >
-                                                          {groupLabels[group] || group}
-                                                        </span>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            )}
+                                          )}
 
                                           {/* Reservations */}
                                           {reservations.length > 0 && (
@@ -1012,7 +830,7 @@ const Dashboard = () => {
                                                       className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
                                                     >
                                                       <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
                                                       </svg>
                                                       {reservation.climberName}
                                                     </span>
@@ -1104,7 +922,7 @@ const Dashboard = () => {
                                                 <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
                                                   <ClockIcon />
                                                 </div>
-                                                <span 
+                                                <span
                                                   ref={createMeasurementCallback('time')}
                                                   className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
                                                   style={widths.time && widths.time > 0 ? { minWidth: `${widths.time}px` } : {}}
@@ -1115,7 +933,7 @@ const Dashboard = () => {
                                                 {session.title && (
                                                   <>
                                                     <span className="text-[#cad5e2] shrink-0">|</span>
-                                                    <span 
+                                                    <span
                                                       ref={createMeasurementCallback('title')}
                                                       className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
                                                       style={widths.title && widths.title > 0 ? { minWidth: `${widths.title}px` } : {}}
@@ -1127,7 +945,7 @@ const Dashboard = () => {
                                               </div>
                                               {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
                                               {session.targetGroups && session.targetGroups.length > 0 && (
-                                                <div 
+                                                <div
                                                   ref={createMeasurementCallback('targetGroups')}
                                                   className="flex items-center gap-2 shrink-0"
                                                   style={widths.targetGroups && widths.targetGroups > 0 ? { minWidth: `${widths.targetGroups}px` } : {}}
@@ -1161,7 +979,7 @@ const Dashboard = () => {
 
                                             {/* Cancel Button */}
                                             {reservations.length > 0 && (
-                                              <div 
+                                              <div
                                                 ref={createMeasurementCallback('buttons')}
                                                 className="flex flex-row items-center justify-end gap-2 shrink-0 self-center"
                                                 style={widths.buttons && widths.buttons > 0 ? { minWidth: `${widths.buttons}px` } : {}}
@@ -1207,7 +1025,7 @@ const Dashboard = () => {
                                                       className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
                                                     >
                                                       <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
                                                       </svg>
                                                       {reservation.climberName}
                                                     </span>
@@ -1299,7 +1117,7 @@ const Dashboard = () => {
                                                         className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
                                                       >
                                                         <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                          <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                                                          <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
                                                         </svg>
                                                         {reservation.climberName}
                                                       </span>
@@ -1351,7 +1169,7 @@ const Dashboard = () => {
               className="inline-flex items-center gap-2 bg-[#ea7a24] text-white text-sm font-normal py-2 px-4 rounded-[10px] hover:bg-[#d96a1a] transition-colors"
             >
               <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 2H5V4H3V2ZM7 2H9V4H7V2ZM11 2H13V4H11V2ZM3 6H5V8H3V6ZM7 6H9V8H7V6ZM11 6H13V8H11V6ZM3 10H5V12H3V10ZM7 10H9V12H7V10ZM11 10H13V12H11V10Z" fill="currentColor"/>
+                <path d="M3 2H5V4H3V2ZM7 2H9V4H7V2ZM11 2H13V4H11V2ZM3 6H5V8H3V6ZM7 6H9V8H7V6ZM11 6H13V8H11V6ZM3 10H5V12H3V10ZM7 10H9V12H7V10ZM11 10H13V12H11V10Z" fill="currentColor" />
               </svg>
               Всички запазени часове
             </Link>
@@ -1376,7 +1194,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <div className="bg-[#eddcca] rounded-full w-9 h-9 flex items-center justify-center">
               <svg className="w-5 h-5 text-[#35383d]" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10ZM10 12.5C6.66 12.5 0 14.175 0 17.5V20H20V17.5C20 14.175 13.34 12.5 10 12.5Z" fill="currentColor"/>
+                <path d="M10 10C12.7614 10 15 7.76142 15 5C15 2.23858 12.7614 0 10 0C7.23858 0 5 2.23858 5 5C5 7.76142 7.23858 10 10 10ZM10 12.5C6.66 12.5 0 14.175 0 17.5V20H20V17.5C20 14.175 13.34 12.5 10 12.5Z" fill="currentColor" />
               </svg>
             </div>
             <div>
@@ -1390,7 +1208,7 @@ const Dashboard = () => {
           <div className="bg-[#f3f3f5] rounded-[10px] p-4 space-y-3">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4 text-neutral-950" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
               </svg>
               <p className="text-sm font-normal text-neutral-950">Моите деца</p>
             </div>
@@ -1418,7 +1236,7 @@ const Dashboard = () => {
           <div className="bg-[#f3f3f5] rounded-[10px] p-4">
             <div className="flex items-center gap-2 mb-2">
               <svg className="w-4 h-4 text-neutral-950" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor"/>
+                <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor" />
               </svg>
               <p className="text-sm font-normal text-neutral-950">Общо резервации</p>
             </div>
@@ -1434,7 +1252,7 @@ const Dashboard = () => {
               className="w-full bg-[#adb933] text-white text-base font-normal py-3 px-4 rounded-[10px] hover:bg-[#9db02a] transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 2V6M14 2V6M3 10H17M5 4H15C16.1046 4 17 4.89543 17 6V18C17 19.1046 16.1046 20 15 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6 2V6M14 2V6M3 10H17M5 4H15C16.1046 4 17 4.89543 17 6V18C17 19.1046 16.1046 20 15 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Запази час
             </button>
@@ -1443,7 +1261,7 @@ const Dashboard = () => {
               className="w-full bg-[#ea7a24] text-white text-base font-normal py-3 px-4 rounded-[10px] hover:bg-[#d96a1a] transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
               Добави дете
             </button>
@@ -1453,7 +1271,7 @@ const Dashboard = () => {
 
       {/* Session Details Modal */}
       {showSessionModal && selectedSession && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1479,14 +1297,14 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Session Info */}
               <div className="mb-6 space-y-3">
                 <div>
                   <h3 className="text-lg font-semibold text-[#0f172b] mb-2">{selectedSession.title || 'Тренировка'}</h3>
                 </div>
-                
+
                 <div className="space-y-2 text-sm">
                   {selectedSession.targetGroups && selectedSession.targetGroups.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1579,7 +1397,7 @@ const Dashboard = () => {
               {(() => {
                 const reservations = getReservationsForSession(selectedSession._id);
                 const hasReservations = reservations.length > 0;
-                
+
                 // Get bookings for this session
                 const sessionBookings = bookings.filter(b => {
                   if (!b || b.status !== 'booked' || !b.session) return false;
@@ -1587,7 +1405,7 @@ const Dashboard = () => {
                   const sessionId = selectedSession._id;
                   return String(bookingSessionId) === String(sessionId);
                 });
-                
+
                 return (
                   <>
                     {hasReservations && sessionBookings.length > 0 && (

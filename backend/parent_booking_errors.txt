@@ -1,0 +1,133 @@
+﻿
+> wonderclimb-backend@0.1.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration/parentBooking.e2e.test.js
+
+{"level":30,"time":1764709403866,"pid":16652,"hostname":"Stamen","msg":"Competitions routes loaded, Competition model:"}
+node.exe : (node:16652) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:16652) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1764709404834,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/","msg":"Token decoded"}
+{"level":30,"time":1764709404835,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","userRoles":["climber"],"sessionId":"692f541c9c34093869cf6c39","climberId":"692f541c9c34093869cf6c35","path":"/","msg":"POST /bookings - Creating booking(s)"}
+{"level":30,"time":1764709404840,"pid":16652,"hostname":"Stamen","bookedById":"692f541c9c34093869cf6c31","climberId":"692f541c9c34093869cf6c35","userRoles":["climber"],"climberIdStr":"692f541c9c34093869cf6c35","isAdmin":false,"isCoach":false,"isClimber":true,"msg":"Checking booking ownership"}
+{"level":30,"time":1764709404840,"pid":16652,"hostname":"Stamen","parentId":"692f541c9c34093869cf6c31","climberId":"692f541c9c34093869cf6c35","normalizedParentId":"692f541c9c34093869cf6c31","normalizedClimberId":"692f541c9c34093869cf6c35","parentIdType":"string","climberIdType":"string","msg":"Checking parent-climber link"}
+{"level":30,"time":1764709404842,"pid":16652,"hostname":"Stamen","parentId":"692f541c9c34093869cf6c31","climberId":"692f541c9c34093869cf6c35","linkFound":true,"linkId":"692f541c9c34093869cf6c37","linkParentId":"692f541c9c34093869cf6c31","linkClimberId":"692f541c9c34093869cf6c35","msg":"Parent-climber link check result"}
+{"level":30,"time":1764709404842,"pid":16652,"hostname":"Stamen","bookedById":"692f541c9c34093869cf6c31","climberId":"692f541c9c34093869cf6c35","normalizedBookedById":"692f541c9c34093869cf6c31","normalizedClimberId":"692f541c9c34093869cf6c35","isLinked":true,"climberIdStr":"692f541c9c34093869cf6c35","msg":"Climber booking ownership check"}
+{"level":30,"time":1764709404847,"pid":16652,"hostname":"Stamen","bookingId":"692f541c9c34093869cf6c43","sessionId":"692f541c9c34093869cf6c39","climberId":"692f541c9c34093869cf6c35","bookedById":"692f541c9c34093869cf6c31","msg":"Booking created successfully"}
+{"level":30,"time":1764709404854,"pid":16652,"hostname":"Stamen","req":{"id":1,"method":"POST","url":"/api/v1/bookings","headers":{"content-type":"application/json"}},"res":{"statusCode":201},"responseTime":33,"msg":"request completed"}
+{"level":30,"time":1764709404871,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/","msg":"Token decoded"}
+{"level":30,"time":1764709404871,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","userRoles":["climber"],"sessionId":"692f541c9c34093869cf6c39","climberId":"692f541c9c34093869cf6c35","path":"/","msg":"POST /bookings - Creating booking(s)"}
+{"level":30,"time":1764709404877,"pid":16652,"hostname":"Stamen","msg":"Default settings document created"}
+{"level":50,"time":1764709404877,"pid":16652,"hostname":"Stamen","error":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","sessionId":"692f541c9c34093869cf6c39","climberId":"692f541c9c34093869cf6c35","bookedById":"692f541c9c34093869cf6c31","msg":"Error creating booking"}
+{"level":50,"time":1764709404878,"pid":16652,"hostname":"Stamen","err":{"type":"Object","message":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","stack":""},"path":"/api/v1/bookings","method":"POST","statusCode":404,"msg":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░"}
+{"level":40,"time":1764709404878,"pid":16652,"hostname":"Stamen","req":{"id":2,"method":"POST","url":"/api/v1/bookings","headers":{"content-type":"application/json"}},"res":{"statusCode":404},"responseTime":8,"msg":"request completed"}
+{"level":40,"time":1764709404891,"pid":16652,"hostname":"Stamen","req":{"id":3,"method":"POST","url":"/api/v1/bookings","headers":{"content-type":"application/json"}},"res":{"statusCode":401},"responseTime":1,"msg":"request completed"}
+{"level":30,"time":1764709404905,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/","msg":"Token decoded"}
+{"level":30,"time":1764709404906,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","userRoles":["climber"],"sessionId":"692f541c9c34093869cf6c63","climberId":"692f541c9c34093869cf6c35","path":"/","msg":"POST /bookings - Creating booking(s)"}
+{"level":30,"time":1764709404910,"pid":16652,"hostname":"Stamen","msg":"Default settings document created"}
+{"level":50,"time":1764709404910,"pid":16652,"hostname":"Stamen","error":"ðíðÁÐüð©ÐÅÐéð░ ðÁ ð©ðÀð▓Ðèð¢ ð┐ðÁÐÇð©ð¥ð┤ð░ ðÀð░ ÐÇðÁðÀðÁÐÇð▓ð©ÐÇð░ð¢ðÁ","sessionId":"692f541c9c34093869cf6c63","climberId":"692f541c9c34093869cf6c35","bookedById":"692f541c9c34093869cf6c31","msg":"Error creating booking"}
+{"level":50,"time":1764709404910,"pid":16652,"hostname":"Stamen","err":{"type":"Object","message":"ðíðÁÐüð©ÐÅÐéð░ ðÁ ð©ðÀð▓Ðèð¢ ð┐ðÁÐÇð©ð¥ð┤ð░ ðÀð░ ÐÇðÁðÀðÁÐÇð▓ð©ÐÇð░ð¢ðÁ","stack":""},"path":"/api/v1/bookings","method":"POST","statusCode":400,"msg":"ðíðÁÐüð©ÐÅÐéð░ ðÁ ð©ðÀð▓Ðèð¢ ð┐ðÁÐÇð©ð¥ð┤ð░ ðÀð░ ÐÇðÁðÀðÁÐÇð▓ð©ÐÇð░ð¢ðÁ"}
+{"level":40,"time":1764709404911,"pid":16652,"hostname":"Stamen","req":{"id":4,"method":"POST","url":"/api/v1/bookings","headers":{"content-type":"application/json"}},"res":{"statusCode":400},"responseTime":7,"msg":"request completed"}
+{"level":30,"time":1764709404924,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/me/bookings","msg":"Token decoded"}
+{"level":30,"time":1764709404924,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","userRoles":["climber"],"userRolesRaw":["climber"],"userRolesType":"object","userRolesIsArray":true,"requiredRoles":["admin","climber"],"hasRequiredRole":true,"path":"/me/bookings","method":"GET","msg":"Role check"}
+{"level":30,"time":1764709404924,"pid":16652,"hostname":"Stamen","path":"/me/bookings","method":"GET","originalUrl":"/api/v1/parents/me/bookings","baseUrl":"/api/v1/parents","msg":"ParentProfile router - request received"}
+{"level":30,"time":1764709404925,"pid":16652,"hostname":"Stamen","parentId":"692f541c9c34093869cf6c31","msg":"Fetching climbers for parent"}
+{"level":30,"time":1764709404927,"pid":16652,"hostname":"Stamen","parentId":"692f541c9c34093869cf6c31","linksCount":0,"linkIds":[],"msg":"Parent-climber links found"}
+{"level":30,"time":1764709404927,"pid":16652,"hostname":"Stamen","parentId":"692f541c9c34093869cf6c31","climbersCount":0,"climberIds":[],"msg":"Climbers filtered and returned"}
+{"level":30,"time":1764709404930,"pid":16652,"hostname":"Stamen","req":{"id":5,"method":"GET","url":"/api/v1/parents/me/bookings","headers":{}},"res":{"statusCode":200},"responseTime":8,"msg":"request completed"}
+{"level":30,"time":1764709404945,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/692f541c9c34093869cf6c7b","msg":"Token decoded"}
+{"level":30,"time":1764709404961,"pid":16652,"hostname":"Stamen","msg":"Default settings document created"}
+{"level":50,"time":1764709404961,"pid":16652,"hostname":"Stamen","error":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","bookingId":"692f541c9c34093869cf6c7b","userId":"692f541c9c34093869cf6c31","msg":"Error cancelling booking"}
+{"level":50,"time":1764709404961,"pid":16652,"hostname":"Stamen","err":{"type":"Object","message":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░","stack":""},"path":"/api/v1/bookings/692f541c9c34093869cf6c7b","method":"DELETE","statusCode":404,"msg":"ðíðÁÐüð©ÐÅÐéð░ ð¢ðÁ ðÁ ð¢ð░ð╝ðÁÐÇðÁð¢ð░"}
+{"level":40,"time":1764709404961,"pid":16652,"hostname":"Stamen","req":{"id":6,"method":"DELETE","url":"/api/v1/bookings/692f541c9c34093869cf6c7b","headers":{}},"res":{"statusCode":404},"responseTime":18,"msg":"request completed"}
+{"level":30,"time":1764709404975,"pid":16652,"hostname":"Stamen","userId":"692f541c9c34093869cf6c31","email":"parent@booking.com","roles":["climber"],"rolesType":"object","rolesIsArray":true,"path":"/692f541c9c34093869cf6c8d","msg":"Token decoded"}
+{"level":30,"time":1764709404982,"pid":16652,"hostname":"Stamen","msg":"Default settings document created"}
+{"level":50,"time":1764709404982,"pid":16652,"hostname":"Stamen","error":"ðƒðÁÐÇð©ð¥ð┤ÐèÐé ðÀð░ ð¥Ðéð╝ÐÅð¢ð░ ðÁ ð©ðÀÐéðÁð║Ðèð╗","bookingId":"692f541c9c34093869cf6c8d","userId":"692f541c9c34093869cf6c31","msg":"Error cancelling booking"}
+{"level":50,"time":1764709404982,"pid":16652,"hostname":"Stamen","err":{"type":"Object","message":"ðƒðÁÐÇð©ð¥ð┤ÐèÐé ðÀð░ ð¥Ðéð╝ÐÅð¢ð░ ðÁ ð©ðÀÐéðÁð║Ðèð╗","stack":""},"path":"/api/v1/bookings/692f541c9c34093869cf6c8d","method":"DELETE","statusCode":400,"msg":"ðƒðÁÐÇð©ð¥ð┤ÐèÐé ðÀð░ ð¥Ðéð╝ÐÅð¢ð░ ðÁ ð©ðÀÐéðÁð║Ðèð╗"}
+{"level":40,"time":1764709404983,"pid":16652,"hostname":"Stamen","req":{"id":7,"method":"DELETE","url":"/api/v1/bookings/692f541c9c34093869cf6c8d","headers":{}},"res":{"statusCode":400},"responseTime":9,"msg":"request completed"}
+FAIL tests/integration/parentBooking.e2e.test.js
+  Parent Booking E2E Tests
+    POST /api/v1/bookings
+      ÔêÜ should create a booking for parent's child (59 ms)
+      ├ù should reject duplicate booking (21 ms)
+      ÔêÜ should reject booking without authentication (9 ms)
+      ÔêÜ should reject booking for session outside booking horizon (21 ms)
+    GET /api/v1/parents/me/bookings
+      ├ù should return bookings for parent's children (21 ms)
+    DELETE /api/v1/bookings/:bookingId
+      ├ù should cancel a booking within cancellation window (28 ms)
+      ÔêÜ should reject cancellation outside cancellation window (22 ms)
+
+  ÔùÅ Parent Booking E2E Tests ÔÇ║ POST /api/v1/bookings ÔÇ║ should reject duplicate booking
+
+    expected 409 "Conflict", got 404 "Not Found"
+
+    [0m [90m 111 |[39m           climberId[33m:[39m climber[33m.[39m_id[33m.[39mtoString()[33m,[39m
+     [90m 112 |[39m         })
+    [31m[1m>[22m[39m[90m 113 |[39m         [33m.[39mexpect([35m409[39m)[33m;[39m [90m// Conflict[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 114 |[39m     })[33m;[39m
+     [90m 115 |[39m
+     [90m 116 |[39m     it([32m'should reject booking without authentication'[39m[33m,[39m [36masync[39m () 
+[33m=>[39m {[0m
+
+      at Object.<anonymous> (tests/integration/parentBooking.e2e.test.js:113:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  ÔùÅ Parent Booking E2E Tests ÔÇ║ GET /api/v1/parents/me/bookings ÔÇ║ should return bookings for parent's children
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+    [0m [90m 159 |[39m       expect(response[33m.[39mbody[33m.[39mbookings)[33m.[39mtoBeDefined()[33m;[39m
+     [90m 160 |[39m       expect([33mArray[39m[33m.[39misArray(response[33m.[39mbody[33m.[39mbookings))[33m.[3
+9mtoBe([36mtrue[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 161 |[39m       
+expect(response[33m.[39mbody[33m.[39mbookings[33m.[39mlength)[33m.[39mtoBeGreaterThan([35m0[39m)[33m;[39m
+     [90m     |[39m                                             [31m[1m^[22m[39m
+     [90m 162 |[39m     })[33m;[39m
+     [90m 163 |[39m   })[33m;[39m
+     [90m 164 |[39m[0m
+
+      at Object.<anonymous> (tests/integration/parentBooking.e2e.test.js:161:45)
+
+  ÔùÅ Parent Booking E2E Tests ÔÇ║ DELETE /api/v1/bookings/:bookingId ÔÇ║ should cancel a booking within cancellation 
+window
+
+    expected 200 "OK", got 404 "Not Found"
+
+    [0m [90m 176 |[39m         [33m.[39m[36mdelete[39m([32m`/api/v1/bookings/${booking._id}`[39m)
+     [90m 177 |[39m         [33m.[39m[36mset[39m([32m'Authorization'[39m[33m,[39m [32m`Bearer 
+${parentToken}`[39m)
+    [31m[1m>[22m[39m[90m 178 |[39m         [33m.[39mexpect([35m200[39m)[33m;[39m
+     [90m     |[39m          [31m[1m^[22m[39m
+     [90m 179 |[39m
+     [90m 180 |[39m       
+expect(response[33m.[39mbody[33m.[39mbooking[33m.[39mstatus)[33m.[39mtoBe([32m'cancelled'[39m)[33m;[39m
+     [90m 181 |[39m       
+expect(response[33m.[39mbody[33m.[39mbooking[33m.[39mcancelledAt)[33m.[39mtoBeDefined()[33m;[39m[0m
+
+      at Object.<anonymous> (tests/integration/parentBooking.e2e.test.js:178:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 4 passed, 7 total
+Snapshots:   0 total
+Time:        3.169 s, estimated 21 s
+Ran all test suites matching /tests\\integration\\parentBooking.e2e.test.js/i.
