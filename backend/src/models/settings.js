@@ -1,114 +1,81 @@
 import mongoose from 'mongoose';
 
 const settingsSchema = new mongoose.Schema({
-  // Cancellation messages
-  cancellationPeriodExpired: {
-    type: String,
-    default: 'Периодът за отмяна е изтекъл',
-    trim: true,
+  instructorOpenRate: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0,
   },
-  
-  // Booking messages
-  bookingNotFound: {
-    type: String,
-    default: 'Резервацията не е намерена',
-    trim: true,
+  instructorAssistantOpenRate: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0,
   },
-  bookingAlreadyCancelled: {
-    type: String,
-    default: 'Резервацията вече е отменена',
-    trim: true,
+  gymInitialBalance: {
+    type: Number,
+    default: 0,
   },
-  cannotCancelOwnBookings: {
-    type: String,
-    default: 'Можете да отменяте само собствените си резервации',
-    trim: true,
+  trainingInitialBalance: {
+    type: Number,
+    default: 0,
   },
-  alreadyRegistered: {
-    type: String,
-    default: 'Вече е регистриран за тази тренировка',
-    trim: true,
-  },
-  
-  // Session messages
+  // Message fields for user-facing error messages
   sessionNotFound: {
     type: String,
-    default: 'Сесията не е намерена',
-    trim: true,
+    default: 'Тренировката не е намерена',
   },
   sessionNotActive: {
     type: String,
-    default: 'Сесията не е активна',
-    trim: true,
-  },
-  sessionFull: {
-    type: String,
-    default: 'Сесията е пълна',
-    trim: true,
+    default: 'Тренировката не е активна',
   },
   sessionOutsideBookingHorizon: {
     type: String,
-    default: 'Сесията е извън периода за резервиране',
-    trim: true,
+    default: 'Тренировката е извън периода за записване',
   },
   cannotBookPastSessions: {
     type: String,
-    default: 'Не можете да резервирате минали сесии',
-    trim: true,
+    default: 'Не можете да се запишете за минали тренировки',
   },
-  cannotReduceCapacity: {
-    type: String,
-    default: 'Не можете да намалите капацитета под {count} (текущи резервации)',
-    trim: true,
-  },
-  atLeastOneDayRequired: {
-    type: String,
-    default: 'Трябва да изберете поне един ден от седмицата',
-    trim: true,
-  },
-  noValidSessions: {
-    type: String,
-    default: 'Няма валидни сесии за създаване в посочения период',
-    trim: true,
-  },
-  invalidPayoutStatus: {
-    type: String,
-    default: 'Статусът на изплащане трябва да бъде "unpaid" или "paid"',
-    trim: true,
-  },
-  
-  // Climber messages
   climberNotFound: {
     type: String,
     default: 'Катерачът не е намерен',
-    trim: true,
   },
   climberCanOnlyBookForSelf: {
     type: String,
-    default: 'Катерачът може да резервира само за себе си или за свързаните деца',
-    trim: true,
+    default: 'Можете да правите записвания само за себе си и свързаните деца',
   },
   userMustHaveClimberRole: {
     type: String,
-    default: 'Потребителят трябва да има роля катерач за създаване на резервации',
-    trim: true,
+    default: 'Потребителят трябва да има роля "катерач"',
+  },
+  alreadyRegistered: {
+    type: String,
+    default: 'Вече сте записани за тази тренировка',
+  },
+  sessionFull: {
+    type: String,
+    default: 'Тренировката е пълна',
+  },
+  bookingNotFound: {
+    type: String,
+    default: 'Записването не е намерено',
+  },
+  bookingAlreadyCancelled: {
+    type: String,
+    default: 'Записването вече е отменено',
+  },
+  cannotCancelOwnBookings: {
+    type: String,
+    default: 'Можете да отменяте само собствени записвания',
+  },
+  cancellationPeriodExpired: {
+    type: String,
+    default: 'Периодът за отмяна е изтекъл',
   },
 }, {
   timestamps: true,
 });
 
-// Ensure only one settings document exists (singleton pattern)
-settingsSchema.statics.getSettings = async function() {
-  let settings = await this.findOne();
-  if (!settings) {
-    settings = await this.create({});
-  }
-  return settings;
-};
-
 export const Settings = mongoose.model('Settings', settingsSchema);
-
-
-
-
-

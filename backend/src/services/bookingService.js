@@ -36,7 +36,7 @@ const hasCapacity = async (sessionId) => {
  */
 export const createMultipleBookings = async (sessionId, climberIds, bookedById, userRoles = []) => {
   const results = [];
-  
+
   // Verify session exists once
   const session = await Session.findById(sessionId);
   if (!session) {
@@ -112,9 +112,9 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     }
 
     // Verify climber exists and has climber role
-    const climber = await User.findOne({ 
-      _id: climberId, 
-      roles: { $in: ['climber'] } 
+    const climber = await User.findOne({
+      _id: climberId,
+      roles: { $in: ['climber'] }
     });
     if (!climber) {
       const error = new Error(await getMessage('climberNotFound'));
@@ -126,7 +126,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     // Admin and coach can book any climber (bypass ownership checks)
     // Normalize userRoles to ensure it's an array
     const normalizedRoles = Array.isArray(userRoles) ? userRoles : (userRoles ? [userRoles] : []);
-    
+
     logger.info({
       bookedById,
       climberId,
@@ -136,17 +136,17 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
       isCoach: normalizedRoles.includes('coach'),
       isClimber: normalizedRoles.includes('climber'),
     }, 'Checking booking ownership');
-    
+
     if (!normalizedRoles.includes('admin') && !normalizedRoles.includes('coach')) {
       if (normalizedRoles.includes('climber')) {
         // Climbers can book for themselves or their linked children
-        const normalizedClimberId = mongoose.Types.ObjectId.isValid(climberId) 
-          ? new mongoose.Types.ObjectId(climberId).toString() 
+        const normalizedClimberId = mongoose.Types.ObjectId.isValid(climberId)
+          ? new mongoose.Types.ObjectId(climberId).toString()
           : climberId;
-        const normalizedBookedById = mongoose.Types.ObjectId.isValid(bookedById) 
-          ? new mongoose.Types.ObjectId(bookedById).toString() 
+        const normalizedBookedById = mongoose.Types.ObjectId.isValid(bookedById)
+          ? new mongoose.Types.ObjectId(bookedById).toString()
           : bookedById;
-        
+
         // Check if booking for linked child
         const isLinked = await isClimberLinkedToParent(normalizedBookedById, normalizedClimberId);
         logger.info({
@@ -157,7 +157,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
           isLinked,
           climberIdStr: climber._id.toString(),
         }, 'Climber booking ownership check');
-        
+
         if (!isLinked && climber._id.toString() !== normalizedBookedById) {
           const error = new Error(await getMessage('climberCanOnlyBookForSelf'));
           error.statusCode = 403;
@@ -197,6 +197,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
       sessionId,
       climberId,
       bookedById,
+      createdById: bookedById, // Who created the booking
       status: 'booked',
     });
 
@@ -243,7 +244,7 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
     const normalizedUserId = String(userId);
     const normalizedBookedById = String(booking.bookedById);
     const normalizedRoles = Array.isArray(userRoles) ? userRoles : (userRoles ? [userRoles] : []);
-    
+
     // Admins and coaches can cancel any booking, others can only cancel their own
     if (!normalizedRoles.includes('admin') && !normalizedRoles.includes('coach') && normalizedBookedById !== normalizedUserId) {
       const error = new Error(await getMessage('cannotCancelOwnBookings'));
@@ -337,9 +338,9 @@ export const createRecurringBookings = async (climberId, bookedById, userRoles, 
       const sessionTime = sessionDate.toTimeString().substring(0, 5); // HH:MM
 
       return daysOfWeek.includes(sessionDayOfWeek.toLowerCase()) &&
-             (!time || sessionTime === time) &&
-             isWithinBookingHorizon(session.date) &&
-             session.date > now;
+        (!time || sessionTime === time) &&
+        isWithinBookingHorizon(session.date) &&
+        session.date > now;
     });
 
     const results = {

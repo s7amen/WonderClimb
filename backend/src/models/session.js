@@ -28,7 +28,7 @@ const sessionSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ['active', 'cancelled'],
+    enum: ['active', 'cancelled', 'completed'],
     default: 'active',
   },
   coachIds: {
@@ -36,15 +36,39 @@ const sessionSchema = new mongoose.Schema({
     ref: 'User',
     default: [],
   },
-  coachPayoutAmount: {
+  coachFees: [{
+    coachId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ['unpaid', 'paid'],
+      default: 'unpaid',
+    },
+    financeEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'FinanceEntry',
+      default: null,
+    },
+  }],
+  revenueFromPasses: {
     type: Number,
-    default: null,
-    min: 0,
+    default: 0,
   },
-  coachPayoutStatus: {
-    type: String,
-    enum: ['unpaid', 'paid'],
-    default: 'unpaid',
+  revenueFromSingles: {
+    type: Number,
+    default: 0,
+  },
+  revenueTotal: {
+    type: Number,
+    default: 0,
   },
   location: {
     type: String,

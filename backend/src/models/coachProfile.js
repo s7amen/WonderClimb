@@ -8,27 +8,30 @@ const coachProfileSchema = new mongoose.Schema({
     unique: true,
     index: true,
   },
-  defaultRate: {
+  defaultFeePerSession: {
     type: Number,
-    default: null,
+    required: true,
     min: 0,
   },
-  currency: {
-    type: String,
-    default: 'EUR',
-    trim: true,
+  isActive: {
+    type: Boolean,
+    default: true,
   },
   notes: {
     type: String,
-    default: '',
     trim: true,
+  },
+  createdById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  updatedById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
   },
 }, {
   timestamps: true,
 });
 
-// Index on userId (already unique, but explicit)
-coachProfileSchema.index({ userId: 1 }, { unique: true });
-
 export const CoachProfile = mongoose.model('CoachProfile', coachProfileSchema);
-

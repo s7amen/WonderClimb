@@ -5,16 +5,21 @@ import logger from './logging.js';
 export const authenticate = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    let token;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    if (!token) {
       return res.status(401).json({
         error: {
           message: 'Authentication required. Please provide a valid token.',
         },
       });
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     try {
       const decoded = jwt.verify(token, config.jwtSecret);
@@ -26,7 +31,7 @@ export const authenticate = (req, res, next) => {
       if (!decoded.roles) {
         decoded.roles = [];
       }
-      
+
       logger.info({
         userId: decoded.id,
         email: decoded.email,
@@ -35,7 +40,7 @@ export const authenticate = (req, res, next) => {
         rolesIsArray: Array.isArray(decoded.roles),
         path: req.path,
       }, 'Token decoded');
-      
+
       req.user = decoded; // Attach user info to request
       next();
     } catch (tokenError) {
@@ -61,4 +66,3 @@ export const generateToken = (payload) => {
     expiresIn: config.jwtExpiresIn,
   });
 };
-

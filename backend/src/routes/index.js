@@ -16,6 +16,10 @@ import climberPhotosRoutes from './climberPhotos.js';
 import competitionsRoutes from './competitions.js';
 import competitionPublicRoutes from './competitionPublic.js';
 import docsRoutes from './docs.js';
+import gymRoutes from './gym.js';
+import trainingRoutes from './training.js';
+import financeRoutes from './finance.js';
+import productRoutes from './products.js';
 
 const router = express.Router();
 
@@ -49,6 +53,10 @@ router.use('/admin', adminUsersRoutes);
 router.use('/admin', adminSettingsRoutes);
 router.use('/admin', climberPhotosRoutes);
 router.use('/admin/competitions', competitionsRoutes);
+router.use('/gym', gymRoutes); // Gym routes (check-in, passes)
+router.use('/training', trainingRoutes); // Training routes (sessions, attendance, passes)
+router.use('/finance', financeRoutes); // Finance routes (entries, reports) - admin only
+router.use('/products', productRoutes); // Product routes (CRUD)
 router.use('/api/v1', docsRoutes); // API docs
 
 export default router;

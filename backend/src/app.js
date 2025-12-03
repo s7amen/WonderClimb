@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import cors from 'cors';
 import { config } from './config/env.js';
@@ -28,10 +29,10 @@ const corsOptions = {
 
     // In production, check against allowed origins
     const allowedOrigins = process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || [];
-    
+
     // Allow Vercel preview URLs (pattern: *.vercel.app)
     const isVercelPreview = /^https:\/\/.*\.vercel\.app$/.test(origin);
-    
+
     // Check if origin is in allowed list or is a Vercel preview URL
     if (allowedOrigins.includes(origin) || isVercelPreview) {
       logger.info(`CORS allowing origin: ${origin}`);
@@ -59,6 +60,7 @@ app.use(httpLogger);
 app.use(apiRateLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Serve static files (for test page)
 app.use(express.static('public'));
@@ -92,7 +94,7 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);
     });

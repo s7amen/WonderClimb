@@ -30,6 +30,9 @@ const Dashboard = () => {
   const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
   const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
 
+  // Get toast functions from useToast hook
+  const { showToast, ToastComponent } = useToast();
+
   // Use shared cancellation hook
   const { cancelError, isCancelling, cancelBookings, resetError } = useCancelBooking({
     showToast,
@@ -54,6 +57,28 @@ const Dashboard = () => {
       // Keep modal open to show errors
     },
   });
+
+  // Load data on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [childrenRes, bookingsRes] = await Promise.all([
+        parentClimbersAPI.getAll().catch(() => ({ data: { climbers: [] } })),
+        bookingsAPI.getMyBookings().catch(() => ({ data: { bookings: [] } })),
+      ]);
+      setChildren(childrenRes.data.climbers || []);
+      setBookings(bookingsRes.data.bookings || []);
+    } catch (error) {
+      showToast('Грешка при зареждане на данни', 'error');
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCancelBooking = (dateGroup) => {
     // Prepare bookings for the modal

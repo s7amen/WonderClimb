@@ -11,6 +11,7 @@ const bookingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+    index: true,
   },
   bookedById: {
     type: mongoose.Schema.Types.ObjectId,
@@ -23,29 +24,34 @@ const bookingSchema = new mongoose.Schema({
     enum: ['booked', 'cancelled'],
     default: 'booked',
   },
-  cancelledAt: {
-    type: Date,
+  trainingPassId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TrainingPass',
     default: null,
+  },
+  pricingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Pricing',
+    default: null,
+  },
+  amount: {
+    type: Number,
+    default: null,
+  },
+  createdById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  updatedById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
   },
 }, {
   timestamps: true,
 });
 
-// Compound index to prevent duplicate bookings (for active bookings only)
-// Partial index: only applies to bookings with status 'booked'
-bookingSchema.index(
-  { sessionId: 1, climberId: 1 }, 
-  { 
-    unique: true,
-    partialFilterExpression: { status: 'booked' }
-  }
-);
-
-// Index on climberId for parent queries
-bookingSchema.index({ climberId: 1 });
-
-// Index on bookedById for user booking history
-bookingSchema.index({ bookedById: 1 });
+// Compound index to prevent double booking for same session
+bookingSchema.index({ sessionId: 1, climberId: 1 }, { unique: true, partialFilterExpression: { status: 'booked' } });
 
 export const Booking = mongoose.model('Booking', bookingSchema);
-

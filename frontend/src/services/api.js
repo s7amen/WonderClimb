@@ -42,17 +42,64 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Response interceptor to handle errors and token refresh
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 errors (token expired)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        }).catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+          withCredentials: true,
+        });
+
+        const { token: newToken } = response.data;
+        localStorage.setItem('token', newToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        isRefreshing = false;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
     }
-    
+
     // Log 403 errors for debugging
     if (error.response?.status === 403) {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -72,7 +119,7 @@ api.interceptors.response.use(
         userRolesIsArray: Array.isArray(userData?.roles),
         token: localStorage.getItem('token')?.substring(0, 20) + '...',
       });
-      
+
       // Decode token to see what roles are actually in the token
       try {
         const token = localStorage.getItem('token');
@@ -96,7 +143,7 @@ api.interceptors.response.use(
         console.error('Error decoding token:', e);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -105,13 +152,15 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  logout: () => api.post('/auth/logout', {}, { withCredentials: true }),
+  refresh: () => api.post('/auth/refresh', {}, { withCredentials: true }),
 };
 
 // Sessions API
 export const sessionsAPI = {
   // Public - get available sessions (no auth required)
   getAvailable: (params) => api.get('/sessions', { params }),
-  
+
   // Admin - session management
   getById: (id) => api.get(`/admin/sessions/${id}`),
   create: (data) => api.post('/admin/sessions', data),
@@ -120,19 +169,19 @@ export const sessionsAPI = {
   updatePayoutStatus: (id, payoutStatus) => api.patch(`/admin/sessions/${id}/payout-status`, { payoutStatus }),
   getRoster: (sessionId) => api.get(`/admin/sessions/${sessionId}/roster`),
   createManualBooking: (sessionId, climberId) => api.post(`/admin/sessions/${sessionId}/bookings`, { climberId }),
-  
+
   // Admin - get all sessions (using calendar with wide date range)
   getAll: async (startDate, endDate) => {
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const end = endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    return api.get('/admin/calendar', { 
-      params: { view: 'month', startDate: start, endDate: end } 
+    return api.get('/admin/calendar', {
+      params: { view: 'month', startDate: start, endDate: end }
     });
   },
-  
+
   // Admin - calendar
   getCalendar: (params) => api.get('/admin/calendar', { params }),
-  
+
   // Coach - today's sessions
   getTodaysSessions: () => api.get('/coaches/me/sessions/today'),
 };
@@ -224,7 +273,7 @@ export const competitionsAPI = {
   // Public endpoints (no authentication required)
   getCompetitions: (params) => api.get('/competitions', { params }),
   getCompetition: (id) => api.get(`/competitions/${id}`),
-  
+
   // Admin endpoints (require authentication)
   getCompetitionsAdmin: (params) => api.get('/admin/competitions', { params }),
   getCompetitionAdmin: (id) => api.get(`/admin/competitions/${id}`),

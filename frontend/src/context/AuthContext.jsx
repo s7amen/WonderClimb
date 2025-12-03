@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in on mount
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    
+
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -36,11 +36,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login({ email, password });
       const { token, user: userData } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);
-      
+
       return { success: true };
     } catch (error) {
       return {
@@ -53,19 +53,19 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      
+
       // After registration, automatically log in
       const loginResponse = await authAPI.login({
         email: userData.email,
         password: userData.password,
       });
-      
+
       const { token, user: loggedInUser } = loginResponse.data;
       localStorage.setItem('token', token);
       // Use user data from login response (includes roles from DB)
       localStorage.setItem('user', JSON.stringify(loggedInUser));
       setUser(loggedInUser);
-      
+
       return { success: true };
     } catch (error) {
       return {
@@ -75,11 +75,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+
+  const logout = async () => {
+    try {
+      // Call backend to revoke refresh token
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Continue with local logout even if server call fails
+    } finally {
+      // Clear local storage and state
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
+
 
   const updateUser = (updatedUserData) => {
     if (updatedUserData && user) {
