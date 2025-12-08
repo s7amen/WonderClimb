@@ -65,7 +65,7 @@ const Header = () => {
     if (isClimber) {
       return [
         { name: 'Табло', href: '/dashboard/climber' },
-        { name: 'Моя график', href: '/my-sessions' },
+        { name: 'Моят график', href: '/my-sessions' },
         { name: 'График', href: '/sessions' },
         { name: 'Абонаменти', href: '/climber/subscriptions' },
         { name: 'Профил', href: '/profile' },

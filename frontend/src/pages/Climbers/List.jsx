@@ -477,6 +477,14 @@ const Climbers = ({ type }) => {
                           </div>
                         </div>
                       )}
+                      {user.pwaInstalled && (
+                        <div>
+                          <span className="text-sm text-[#4a5565]">App Status:</span>
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            Инсталирано
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -484,10 +492,10 @@ const Climbers = ({ type }) => {
             );
           })
         )}
-      </div>
+      </div >
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
+      < div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden" >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -521,6 +529,9 @@ const Climbers = ({ type }) => {
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Роли
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  App
                 </th>
                 <th
                   className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer transition-colors hover:bg-gray-100"
@@ -591,6 +602,17 @@ const Climbers = ({ type }) => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {user.pwaInstalled ? (
+                        <div className="flex items-center justify-center text-green-600" title={`Инсталирано на ${user.pwaLastUsed ? formatDate(user.pwaLastUsed) : '?'}`}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.accountStatus === 'active'
                           ? 'bg-green-100 text-green-800'
@@ -629,32 +651,34 @@ const Climbers = ({ type }) => {
             </tbody>
           </table>
         </div>
-      </div>
+      </div >
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-4">
-          <Button
-            variant="secondary"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-3 py-1"
-          >
-            Предишна
-          </Button>
-          <span className="text-sm text-gray-600">
-            Страница {page} от {totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1"
-          >
-            Следваща
-          </Button>
-        </div>
-      )}
+      {
+        totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <Button
+              variant="secondary"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1"
+            >
+              Предишна
+            </Button>
+            <span className="text-sm text-gray-600">
+              Страница {page} от {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1"
+            >
+              Следваща
+            </Button>
+          </div>
+        )
+      }
 
       <AddClimberModal
         isOpen={showAddModal}
@@ -670,7 +694,7 @@ const Climbers = ({ type }) => {
         }}
         user={editingUser}
         onSuccess={fetchUsers}
-      /></div>
+      /></div >
   );
 };
 

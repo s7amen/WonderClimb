@@ -27,6 +27,16 @@ export default defineConfig({
             type: 'image/svg+xml',
             purpose: 'any maskable'
           }
+        ],
+        related_applications: [
+          {
+            platform: 'webapp',
+            url: 'https://wonderclimb.fly.dev/manifest.json',
+          },
+          {
+            platform: 'webapp',
+            url: 'http://localhost:5173/manifest.json',
+          }
         ]
       },
       workbox: {

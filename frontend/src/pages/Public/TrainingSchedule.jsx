@@ -48,7 +48,7 @@ const Sessions = () => {
 
   // Cancel booking state
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
-  
+
   // Add child modal state
   const [showAddChildModal, setShowAddChildModal] = useState(false);
   const [addChildFormData, setAddChildFormData] = useState({
@@ -135,7 +135,7 @@ const Sessions = () => {
     const handleResize = () => {
       setIsSticky(window.innerWidth < 768);
     };
-    
+
     handleResize(); // Check on mount
     window.addEventListener('resize', handleResize);
 
@@ -160,7 +160,7 @@ const Sessions = () => {
   const fetchUserData = async () => {
     try {
       const userRoles = user?.roles || [];
-      
+
       // Fetch linked children if user has admin or climber role
       // Climbers can have children linked to them
       if (userRoles.includes('admin') || userRoles.includes('climber')) {
@@ -168,7 +168,7 @@ const Sessions = () => {
           const childrenRes = await parentClimbersAPI.getAll();
           // Filter by accountStatus - show active children or children without accountStatus (treat as active)
           const allClimbers = childrenRes.data.climbers || [];
-          const filteredChildren = allClimbers.filter(c => 
+          const filteredChildren = allClimbers.filter(c =>
             c.accountStatus === 'active' || c.accountStatus === null || c.accountStatus === undefined
           );
           setChildren(filteredChildren);
@@ -207,12 +207,12 @@ const Sessions = () => {
       setLoading(true);
       const today = startOfDay(new Date());
       const endDate = addDays(today, daysToShow);
-      
+
       const response = await sessionsAPI.getAvailable({
         startDate: today.toISOString(),
         endDate: endDate.toISOString(),
       });
-      
+
       // Filter out competitions - only show training sessions
       const allSessions = response.data.sessions || [];
       const trainingSessions = allSessions.filter(session => session.type !== 'competition');
@@ -254,11 +254,11 @@ const Sessions = () => {
     if ((hasClimberRole || hasAdminRole) && children.length > 0) {
       // Ако има избрани катерачи от defaultSelectedClimberIds, показва потвърждение
       if (climberIds.length > 0 || hasSelf) {
-      setPendingBookingSessionId(sessionId);
+        setPendingBookingSessionId(sessionId);
         setPendingBookingClimberIds(climberIds.length > 0 ? climberIds : null);
         setShowSingleBookingConfirmation(true);
-      return;
-    }
+        return;
+      }
 
       // Проверява дали има избран катерач за тази сесия
       const selectedClimberId = selectedClimberForSession[sessionId];
@@ -270,11 +270,11 @@ const Sessions = () => {
         return;
       } else {
         // No child selected, show selection modal
-      setSelectedSessionId(sessionId);
-      // Pre-populate with defaultSelectedClimberIds if available
-      setSelectedClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
-      setShowBookingModal(true);
-      return;
+        setSelectedSessionId(sessionId);
+        // Pre-populate with defaultSelectedClimberIds if available
+        setSelectedClimberIds(defaultSelectedClimberIds.length > 0 ? [...defaultSelectedClimberIds] : []);
+        setShowBookingModal(true);
+        return;
       }
     }
 
@@ -289,9 +289,9 @@ const Sessions = () => {
       }
       // Ако има избрани деца (но не 'self'), показва modal
       if (climberIds.length > 0) {
-      setSelectedSessionId(sessionId);
+        setSelectedSessionId(sessionId);
         setSelectedClimberIds(climberIds);
-      setShowBookingModal(true);
+        setShowBookingModal(true);
         return;
       }
       // Fallback - показва потвърждение
@@ -316,13 +316,13 @@ const Sessions = () => {
   const bookSession = async (sessionId, climberIds = null) => {
     try {
       setBookingLoading(true);
-      
+
       const userRoles = user?.roles || [];
       const hasAdminRole = userRoles.includes('admin');
       const hasClimberRole = userRoles.includes('climber');
-      
+
       let bookingData;
-      
+
       if ((hasClimberRole || hasAdminRole) && climberIds && climberIds.length > 0) {
         // Booking for children
         bookingData = {
@@ -344,7 +344,7 @@ const Sessions = () => {
         if (successful && successful.length > 0) {
           const successNames = successful.map(s => s.climberName).join(', ');
           showToast(`Успешно резервирано за: ${successNames}`, 'success');
-          
+
           // Optimistically update session booked count
           setSessions(prev => prev.map(s => {
             if (s._id === sessionId) {
@@ -365,7 +365,7 @@ const Sessions = () => {
         }
       } else {
         showToast('Сесията е резервирана успешно', 'success');
-        
+
         // Optimistically update session booked count
         setSessions(prev => prev.map(s => {
           if (s._id === sessionId) {
@@ -377,12 +377,12 @@ const Sessions = () => {
           return s;
         }));
       }
-      
+
       // Refresh user bookings to show reservation info
       if (isAuthenticated) {
         await fetchUserBookings();
       }
-      
+
       // Close modal
       setShowBookingModal(false);
       setSelectedSessionId(null);
@@ -400,7 +400,7 @@ const Sessions = () => {
   const handleBookingModalSubmit = async (e) => {
     e.preventDefault();
     if (!selectedSessionId) return;
-    
+
     if (selectedClimberIds.length === 0) {
       showToast('Моля, изберете поне един катерач', 'error');
       return;
@@ -415,7 +415,7 @@ const Sessions = () => {
       const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
       return idStr === 'self';
     });
-    
+
     // Save selected climber for this session (use first selected if multiple)
     if (climberIds.length > 0) {
       setSelectedClimberForSession({
@@ -495,7 +495,7 @@ const Sessions = () => {
     const userRoles = user?.roles || [];
     const hasAdminRole = userRoles.includes('admin');
     const hasClimberRole = userRoles.includes('climber');
-    
+
     // Ако е climber/admin с деца и няма избрани катерачи, показва popup за избор
     if ((hasClimberRole || hasAdminRole) && children.length > 0) {
       if (bulkBookingClimberIds.length === 0 && defaultSelectedClimberIds.length === 0) {
@@ -532,27 +532,27 @@ const Sessions = () => {
       const userRoles = user?.roles || [];
       const hasAdminRole = userRoles.includes('admin');
       const hasClimberRole = userRoles.includes('climber');
-      
+
       // Използва defaultSelectedClimberIds ако има, иначе bulkBookingClimberIds
-      const climbersToUse = defaultSelectedClimberIds.length > 0 
-        ? defaultSelectedClimberIds 
+      const climbersToUse = defaultSelectedClimberIds.length > 0
+        ? defaultSelectedClimberIds
         : bulkBookingClimberIds;
-      
+
       // Ако все още няма избрани катерачи, използва defaultSelectedClimberIds
       const finalClimbersToUse = climbersToUse.length > 0 ? climbersToUse : defaultSelectedClimberIds;
-      
+
       // Проверява дали има 'self' в избраните катерачи
       const hasSelf = finalClimbersToUse.some(id => {
         const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
         return idStr === 'self';
       });
-      
+
       // Филтрира 'self' от climber IDs
       const climberIds = finalClimbersToUse.filter(id => {
         const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
         return idStr !== 'self';
       });
-      
+
       // Book each selected session
       for (const sessionId of selectedSessionIds) {
         try {
@@ -563,7 +563,7 @@ const Sessions = () => {
               climberIds: climberIds,
             };
             const response = await bookingsAPI.create(bookingData);
-            
+
             if (response.data?.summary) {
               const { successful, failed } = response.data.summary;
               if (successful && successful.length > 0) {
@@ -580,14 +580,14 @@ const Sessions = () => {
               }
             }
           }
-          
+
           // Book for self if selected
           if (hasSelf) {
             const bookingData = {
               sessionId,
             };
             const response = await bookingsAPI.create(bookingData);
-            
+
             if (response.data?.summary) {
               const { successful, failed } = response.data.summary;
               if (successful && successful.length > 0) {
@@ -606,8 +606,8 @@ const Sessions = () => {
           }
         } catch (error) {
           // Session booking failed
-          const climberIds = (hasClimberRole || hasAdminRole) && bulkBookingClimberIds.length > 0 
-            ? bulkBookingClimberIds 
+          const climberIds = (hasClimberRole || hasAdminRole) && bulkBookingClimberIds.length > 0
+            ? bulkBookingClimberIds
             : [user?._id];
           climberIds.forEach(climberId => {
             results.failed.push({
@@ -665,12 +665,12 @@ const Sessions = () => {
           return s;
         }));
       });
-      
+
       // Refresh user bookings to show reservation info
       if (isAuthenticated) {
         await fetchUserBookings();
       }
-      
+
       // Clear selections
       setSelectedSessionIds([]);
       setBulkBookingClimberIds([]);
@@ -701,7 +701,7 @@ const Sessions = () => {
       };
 
       const response = await parentClimbersAPI.create(childData);
-      
+
       // Check if duplicate found
       if (response.data.duplicate && response.data.existingProfile) {
         setFoundExistingProfile(response.data.existingProfile);
@@ -714,7 +714,7 @@ const Sessions = () => {
       setShowAddChildModal(false);
       setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
       setFoundExistingProfile(null);
-      
+
       // Refresh children list
       await fetchUserData();
     } catch (error) {
@@ -741,7 +741,7 @@ const Sessions = () => {
       setShowAddChildModal(false);
       setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
       setFoundExistingProfile(null);
-      
+
       // Refresh children list
       await fetchUserData();
     } catch (error) {
@@ -786,7 +786,7 @@ const Sessions = () => {
   const getFilteredSessions = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     return sessions.filter(session => {
       // Filter out competitions
       if (session.type === 'competition') {
@@ -829,7 +829,7 @@ const Sessions = () => {
           return false;
         }
         // Check if session has at least one of the selected target groups
-        const hasMatchingGroup = selectedTargetGroups.some(group => 
+        const hasMatchingGroup = selectedTargetGroups.some(group =>
           session.targetGroups.includes(group)
         );
         if (!hasMatchingGroup) {
@@ -844,11 +844,11 @@ const Sessions = () => {
   const groupSessionsByDay = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     const days = eachDayOfInterval({ start: today, end: viewEndDate });
-    
+
     const filteredSessions = getFilteredSessions();
-    
+
     const grouped = {};
     days.forEach(day => {
       const dayKey = format(day, 'yyyy-MM-dd');
@@ -861,14 +861,14 @@ const Sessions = () => {
     filteredSessions.forEach(session => {
       const sessionDate = new Date(session.date);
       const dayKey = format(sessionDate, 'yyyy-MM-dd');
-      
+
       if (grouped[dayKey]) {
         grouped[dayKey].sessions.push(session);
       }
     });
 
     Object.keys(grouped).forEach(dayKey => {
-      grouped[dayKey].sessions.sort((a, b) => 
+      grouped[dayKey].sessions.sort((a, b) =>
         new Date(a.date) - new Date(b.date)
       );
     });
@@ -878,26 +878,26 @@ const Sessions = () => {
 
   const toggleFilter = (filterType, value) => {
     if (filterType === 'day') {
-      setSelectedDays(prev => 
-        prev.includes(value) 
+      setSelectedDays(prev =>
+        prev.includes(value)
           ? prev.filter(d => d !== value)
           : [...prev, value]
       );
     } else if (filterType === 'time') {
-      setSelectedTimes(prev => 
-        prev.includes(value) 
+      setSelectedTimes(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'title') {
-      setSelectedTitles(prev => 
-        prev.includes(value) 
+      setSelectedTitles(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'targetGroup') {
-      setSelectedTargetGroups(prev => 
-        prev.includes(value) 
+      setSelectedTargetGroups(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
@@ -974,121 +974,119 @@ const Sessions = () => {
                   {/* Content */}
                   <div className="px-[16px] pt-[12px] pb-[12px]">
                     <div className="flex flex-col gap-2">
-                    {/* Self profile option for climbers */}
-                    {user?.roles?.includes('climber') && (
-                      <button
-                        key="self"
-                        type="button"
-                        onClick={() => {
-                          const selfId = 'self';
-                          const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                            typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                          );
-                          const isSelected = selectedIds.includes(selfId);
-                          if (isSelected) {
-                            setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                              const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                              return idStr !== selfId;
-                            }));
-                          } else {
-                            setDefaultSelectedClimberIds(prev => [...prev, selfId]);
-                          }
-                        }}
-                        className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                          (defaultSelectedClimberIds || []).some(id => {
+                      {/* Self profile option for climbers */}
+                      {user?.roles?.includes('climber') && (
+                        <button
+                          key="self"
+                          type="button"
+                          onClick={() => {
+                            const selfId = 'self';
+                            const selectedIds = (defaultSelectedClimberIds || []).map(id =>
+                              typeof id === 'object' && id?.toString ? id.toString() : String(id)
+                            );
+                            const isSelected = selectedIds.includes(selfId);
+                            if (isSelected) {
+                              setDefaultSelectedClimberIds(prev => prev.filter(id => {
+                                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                                return idStr !== selfId;
+                              }));
+                            } else {
+                              setDefaultSelectedClimberIds(prev => [...prev, selfId]);
+                            }
+                          }}
+                          className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${(defaultSelectedClimberIds || []).some(id => {
                             const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
                             return idStr === 'self';
                           })
                             ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
-                          <span className="text-white text-xs font-medium">
-                            {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
-                          </span>
-                        </div>
-                        {/* Name */}
-                        <div className="text-left flex-1 min-w-0">
-                          <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                            {getUserDisplayName(user) || user?.email || 'Аз'}
-                          </div>
-                        </div>
-                      </button>
-                    )}
-                    {/* Children options */}
-                    {children.map((climber) => {
-                      const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
-                      const selectedIds = (defaultSelectedClimberIds || []).map(id =>
-                        typeof id === 'object' && id?.toString ? id.toString() : String(id)
-                      );
-                      const isSelected = selectedIds.includes(climberIdStr);
-                      
-                      // Get first letter from first name for avatar
-                      const firstLetter = climber.firstName?.[0]?.toUpperCase() || climber.lastName?.[0]?.toUpperCase() || '?';
-                      
-                      // Avatar color based on index
-                      const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
-                      const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
-                      
-                      return (
-                        <button
-                          key={climberIdStr}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setDefaultSelectedClimberIds(prev => prev.filter(id => {
-                                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                                return idStr !== climberIdStr;
-                              }));
-                            } else {
-                              setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
-                            }
-                          }}
-                          className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${
-                            isSelected
-                              ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           {/* Avatar */}
-                          <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
+                          <div className="w-6 h-6 rounded-full bg-[#ff6900] flex items-center justify-center shrink-0">
                             <span className="text-white text-xs font-medium">
-                              {firstLetter}
+                              {user?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'А'}
                             </span>
                           </div>
                           {/* Name */}
                           <div className="text-left flex-1 min-w-0">
                             <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
-                              {climber.firstName} {climber.lastName}
+                              {getUserDisplayName(user) || user?.email || 'Аз'}
                             </div>
                           </div>
                         </button>
-                      );
-                    })}
-                    
-                    {/* Add Child Button */}
-                    {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAddChildModal(true);
-                          setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                          setFoundExistingProfile(null);
-                        }}
-                        className="h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 border-dashed border-gray-300 rounded-[8px] hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
-                      >
-                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </div>
-                        <div className="text-xs leading-4 font-normal whitespace-nowrap">
-                          Добави дете
-                        </div>
-                      </button>
-                    )}
+                      )}
+                      {/* Children options */}
+                      {children.map((climber) => {
+                        const climberIdStr = typeof climber._id === 'object' && climber._id?.toString ? climber._id.toString() : String(climber._id);
+                        const selectedIds = (defaultSelectedClimberIds || []).map(id =>
+                          typeof id === 'object' && id?.toString ? id.toString() : String(id)
+                        );
+                        const isSelected = selectedIds.includes(climberIdStr);
+
+                        // Get first letter from first name for avatar
+                        const firstLetter = climber.firstName?.[0]?.toUpperCase() || climber.lastName?.[0]?.toUpperCase() || '?';
+
+                        // Avatar color based on index
+                        const avatarColors = ['bg-[#ff6900]', 'bg-blue-500', 'bg-green-500', 'bg-purple-500'];
+                        const avatarColor = avatarColors[children.indexOf(climber) % avatarColors.length];
+
+                        return (
+                          <button
+                            key={climberIdStr}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setDefaultSelectedClimberIds(prev => prev.filter(id => {
+                                  const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                                  return idStr !== climberIdStr;
+                                }));
+                              } else {
+                                setDefaultSelectedClimberIds(prev => [...prev, climber._id]);
+                              }
+                            }}
+                            className={`h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 rounded-[8px] transition-all ${isSelected
+                              ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                          >
+                            {/* Avatar */}
+                            <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center shrink-0`}>
+                              <span className="text-white text-xs font-medium">
+                                {firstLetter}
+                              </span>
+                            </div>
+                            {/* Name */}
+                            <div className="text-left flex-1 min-w-0">
+                              <div className="text-xs leading-4 font-normal text-[#0f172b] truncate">
+                                {climber.firstName} {climber.lastName}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+
+                      {/* Add Child Button */}
+                      {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddChildModal(true);
+                            setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
+                            setFoundExistingProfile(null);
+                          }}
+                          className="h-[32px] flex items-center gap-2 px-[12px] py-[6px] border-2 border-dashed border-gray-300 rounded-[8px] hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
+                        >
+                          <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center shrink-0">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <div className="text-xs leading-4 font-normal whitespace-nowrap">
+                            Добави дете
+                          </div>
+                        </button>
+                      )}
                     </div>
                     {(!defaultSelectedClimberIds || defaultSelectedClimberIds.length === 0) && (
                       <p className="text-[10px] text-blue-600 font-medium mt-2">
@@ -1101,7 +1099,7 @@ const Sessions = () => {
             )}
 
             {/* Filters */}
-            <div 
+            <div
               className={`${isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? 'lg:sticky' : (isAuthenticated ? 'lg:sticky lg:top-[114px]' : 'lg:sticky lg:top-[70px]')} lg:z-30`}
               style={isAuthenticated && ((user?.roles?.includes('climber') || user?.roles?.includes('admin')) && (children.length > 0 || user?.roles?.includes('climber'))) ? { top: filtersTopOffset } : undefined}
             >
@@ -1128,7 +1126,7 @@ const Sessions = () => {
             {isAuthenticated && selectedSessionIds.length > 0 && (
               <>
                 {/* Mobile sticky button - always visible at bottom */}
-                <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
+                <div className="lg:hidden fixed [bottom:calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
                   <Button
                     onClick={handleBulkBook}
                     disabled={isBulkBooking}
@@ -1143,7 +1141,7 @@ const Sessions = () => {
                   onClick={handleBulkBook}
                   disabled={isBulkBooking}
                   variant="primary"
-                  className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6"
+                  className="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6"
                 >
                   {isBulkBooking ? 'Запазване...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                 </Button>
@@ -1206,7 +1204,7 @@ const Sessions = () => {
 
             {/* Spacer for sticky button on mobile (at bottom) */}
             {selectedSessionIds.length > 0 && (
-              <div className="h-[80px] md:hidden" />
+              <div className="h-[80px] lg:hidden" />
             )}
 
             {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
@@ -1216,7 +1214,7 @@ const Sessions = () => {
                 </div>
               </Card>
             )}
-            
+
             {getFilteredSessions().length === 0 && !loading && sessions.length > 0 && (
               <Card>
                 <div className="text-center py-12">
@@ -1251,39 +1249,38 @@ const Sessions = () => {
             <div className="px-6 py-5 border-b border-gray-100">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold text-[#0f172b]">Избери катерач</h2>
-              <button
-                onClick={() => {
-                  setShowBookingModal(false);
-                  setSelectedSessionId(null);
-                  setSelectedClimberIds([]);
-                }}
+                <button
+                  onClick={() => {
+                    setShowBookingModal(false);
+                    setSelectedSessionId(null);
+                    setSelectedClimberIds([]);
+                  }}
                   className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-              >
+                >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-              </button>
+                </button>
               </div>
             </div>
-            
+
             <form onSubmit={handleBookingModalSubmit} className="p-6">
               <div className="space-y-3 mb-6">
                 {/* Self option for climbers */}
                 {user?.roles?.includes('climber') && (
                   <label
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      selectedClimberIds.includes('self')
-                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedClimberIds.includes('self')
+                      ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
                   >
                     <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={selectedClimberIds.includes('self')}
-                      onChange={() => toggleClimberSelection('self')}
+                      <input
+                        type="checkbox"
+                        checked={selectedClimberIds.includes('self')}
+                        onChange={() => toggleClimberSelection('self')}
                         className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                    />
+                      />
                     </div>
                     <span className="ml-3 text-base font-medium text-[#0f172b]">
                       За мен ({getUserFullName(user) || user?.email || 'Аз'})
@@ -1297,23 +1294,22 @@ const Sessions = () => {
                     typeof id === 'object' && id?.toString ? id.toString() : String(id)
                   );
                   const isSelected = selectedIds.includes(childIdStr);
-                  
+
                   return (
                     <label
                       key={child._id}
-                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
+                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       <div className="relative flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleClimberSelection(child._id)}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleClimberSelection(child._id)}
                           className="w-5 h-5 text-[#ff6900] border-gray-300 rounded focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-2 cursor-pointer"
-                      />
+                        />
                       </div>
                       <span className="ml-3 text-base font-medium text-[#0f172b]">
                         {child.firstName} {child.lastName}
@@ -1378,7 +1374,7 @@ const Sessions = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {(() => {
                 const session = sessions.find(s => s._id === pendingBookingSessionId);
@@ -1491,23 +1487,22 @@ const Sessions = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <div className="space-y-3 mb-6">
                 {/* Self option for climbers */}
                 {user?.roles?.includes('climber') && (
                   <label
-                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      bulkBookingClimberIds.some(id => {
-                        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                        return idStr === 'self';
-                      }) || defaultSelectedClimberIds.some(id => {
-                        const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-                        return idStr === 'self';
-                      })
-                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${bulkBookingClimberIds.some(id => {
+                      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                      return idStr === 'self';
+                    }) || defaultSelectedClimberIds.some(id => {
+                      const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                      return idStr === 'self';
+                    })
+                      ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
                   >
                     <div className="relative flex items-center">
                       <input
@@ -1538,15 +1533,14 @@ const Sessions = () => {
                     typeof id === 'object' && id?.toString ? id.toString() : String(id)
                   );
                   const isSelected = selectedIds.includes(childIdStr) || defaultIds.includes(childIdStr);
-                  
+
                   return (
                     <label
                       key={child._id}
-                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
+                        ? 'border-[#ff6900] bg-[#fff5f0] shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       <div className="relative flex items-center">
                         <input
@@ -1588,17 +1582,17 @@ const Sessions = () => {
                   onClick={() => {
                     // Проверява избраните катерачи от bulkBookingClimberIds или defaultSelectedClimberIds
                     const hasSelected = bulkBookingClimberIds.length > 0 || defaultSelectedClimberIds.length > 0;
-                    
+
                     if (!hasSelected) {
                       showToast('Моля, изберете поне един катерач', 'error');
                       return;
                     }
-                    
+
                     // Ако има defaultSelectedClimberIds, ги използва, иначе използва bulkBookingClimberIds
                     if (defaultSelectedClimberIds.length > 0 && bulkBookingClimberIds.length === 0) {
                       setBulkBookingClimberIds(defaultSelectedClimberIds);
                     }
-                    
+
                     // Затваря popup-а и показва потвърждение
                     setShowBulkBookingModal(false);
                     setShowBulkConfirmation(true);
@@ -1627,7 +1621,7 @@ const Sessions = () => {
                 ✕
               </button>
             </div>
-            
+
             <div className="mb-4">
               <h3 className="font-semibold text-gray-700 mb-2">Избрани тренировки:</h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -1648,23 +1642,23 @@ const Sessions = () => {
 
             {(() => {
               // Get the climbers to use - prefer defaultSelectedClimberIds if available, otherwise bulkBookingClimberIds
-              const climbersToUse = defaultSelectedClimberIds.length > 0 
-                ? defaultSelectedClimberIds 
+              const climbersToUse = defaultSelectedClimberIds.length > 0
+                ? defaultSelectedClimberIds
                 : bulkBookingClimberIds;
-              
+
               // Filter out 'self' from climber IDs for display
               const climberIdsForDisplay = climbersToUse.filter(id => {
                 const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
                 return idStr !== 'self';
               });
-              
+
               const hasSelf = climbersToUse.some(id => {
                 const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
                 return idStr === 'self';
               });
-              
+
               const totalClimberCount = climberIdsForDisplay.length + (hasSelf ? 1 : 0);
-              
+
               return (
                 <>
                   {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && climberIdsForDisplay.length > 0 && (
@@ -1705,8 +1699,8 @@ const Sessions = () => {
                   <div className="mb-4 p-3 bg-blue-50 rounded-md">
                     <p className="text-sm text-gray-700">
                       Ще се направят резервации за <strong>{selectedSessionIds.length}</strong> тренировки за <strong>
-                        {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 
-                          ? totalClimberCount 
+                        {(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0
+                          ? totalClimberCount
                           : 1}</strong> катерач{(user?.roles?.includes('climber') || user?.roles?.includes('admin')) && children.length > 0 && totalClimberCount > 1 ? 'а' : ''}.
                     </p>
                   </div>
@@ -1745,8 +1739,8 @@ const Sessions = () => {
                 <h2 className="text-xl font-semibold text-[#0f172b]">
                   {foundExistingProfile ? 'Свържи съществуващ профил' : 'Добави дете'}
                 </h2>
-              <button
-                onClick={() => {
+                <button
+                  onClick={() => {
                     setShowAddChildModal(false);
                     setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
                     setFoundExistingProfile(null);
@@ -1757,10 +1751,10 @@ const Sessions = () => {
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-              </button>
+                </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {foundExistingProfile ? (
                 <div>
@@ -1778,7 +1772,7 @@ const Sessions = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="mb-4 p-3 bg-blue-50 rounded-md">
                     <p className="text-sm text-gray-700">
                       Искате ли да свържете този профил към вашия акаунт?
@@ -1908,7 +1902,7 @@ const Sessions = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               {/* Session Info */}
               {(() => {
@@ -1927,30 +1921,29 @@ const Sessions = () => {
               {/* Reservations List */}
               {cancelBookingBookings.length > 0 ? (
                 <>
-              <div className="mb-4">
+                  <div className="mb-4">
                     <p className="text-sm text-[#64748b] mb-3">
-                      {cancelBookingBookings.length === 1 
-                        ? 'Избери резервация за отменяне:' 
+                      {cancelBookingBookings.length === 1
+                        ? 'Избери резервация за отменяне:'
                         : 'Избери резервации за отменяне:'}
                     </p>
                     <div className="space-y-2">
                       {cancelBookingBookings.map((reservation) => {
                         const isSelected = selectedCancelBookingIds.includes(reservation.bookingId);
-                    return (
+                        return (
                           <label
                             key={reservation.bookingId}
-                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                              isSelected
-                                ? 'border-red-500 bg-red-50 shadow-sm'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
+                            className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected
+                              ? 'border-red-500 bg-red-50 shadow-sm'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
                           >
                             <div className="relative flex items-center">
                               <input
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={() => {
-                                  setSelectedCancelBookingIds(prev => 
+                                  setSelectedCancelBookingIds(prev =>
                                     prev.includes(reservation.bookingId)
                                       ? prev.filter(id => id !== reservation.bookingId)
                                       : [...prev, reservation.bookingId]
@@ -1959,15 +1952,15 @@ const Sessions = () => {
                                 className="w-5 h-5 text-red-500 border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
                                 disabled={isCancelling}
                               />
-                      </div>
+                            </div>
                             <span className="ml-3 text-base font-medium text-[#0f172b]">
                               {reservation.climberName}
                             </span>
                           </label>
-                    );
-                  })}
-                </div>
-              </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <p className="text-sm text-[#64748b] mb-6 text-center py-4">
@@ -1976,10 +1969,10 @@ const Sessions = () => {
               )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-100">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
                     setShowCancelBookingModal(false);
                     setCancelBookingSessionId(null);
                     setCancelBookingBookings([]);
@@ -1987,11 +1980,11 @@ const Sessions = () => {
                   }}
                   disabled={isCancelling}
                   className="flex-1"
-              >
-                Отказ
-              </Button>
-              <Button
-                type="button"
+                >
+                  Отказ
+                </Button>
+                <Button
+                  type="button"
                   onClick={async () => {
                     if (selectedCancelBookingIds.length === 0) {
                       showToast('Моля, изберете поне една резервация за отменяне', 'error');
@@ -2017,15 +2010,15 @@ const Sessions = () => {
                           });
                         }
                       }
-                      
+
                       // Update local state for successful cancellations instead of full page reload
                       if (results.successful.length > 0) {
-                        setUserBookings(prev => prev.map(booking => 
+                        setUserBookings(prev => prev.map(booking =>
                           results.successful.includes(booking._id)
                             ? { ...booking, status: 'cancelled', cancelledAt: new Date() }
                             : booking
                         ));
-                        
+
                         // Optimistically update session booked counts
                         setSessions(prev => prev.map(s => {
                           if (s._id === cancelBookingSessionId) {
@@ -2036,7 +2029,7 @@ const Sessions = () => {
                           }
                           return s;
                         }));
-                        
+
                         showToast(
                           results.successful.length === 1
                             ? 'Резервацията е отменена успешно'
@@ -2070,8 +2063,8 @@ const Sessions = () => {
                   className="flex-1"
                 >
                   {isCancelling ? 'Отменяне...' : 'Отмени'}
-              </Button>
-            </div>
+                </Button>
+              </div>
             </div>
           </div>
         </div>

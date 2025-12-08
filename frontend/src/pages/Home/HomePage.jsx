@@ -21,13 +21,13 @@ const HomePage = () => {
       links.push(
         { name: 'Табло', href: '/coach/dashboard', description: 'Преглед на тренировките' },
         { name: 'График', href: '/admin/sessions', description: 'Преглед на сесии' },
-        { name: 'Моя график', href: '/my-sessions', description: 'Моите резервации' },
+        { name: 'Моят график', href: '/my-sessions', description: 'Моите резервации' },
         { name: 'Катерачи', href: '/admin/climbers', description: 'Списък с катерачи' }
       );
     } else if (hasRole('climber')) {
       links.push(
         { name: 'Табло', href: '/climber/dashboard', description: 'Моят дашборд' },
-        { name: 'Моя график', href: '/my-sessions', description: 'Моите резервации' },
+        { name: 'Моят график', href: '/my-sessions', description: 'Моите резервации' },
         { name: 'График', href: '/sessions', description: 'Достъпни сесии' },
         { name: 'Профил', href: '/profile', description: 'Моят профил' }
       );

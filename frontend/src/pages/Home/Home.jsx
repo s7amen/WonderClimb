@@ -10,6 +10,7 @@ import Card from '../../components/UI/Card';
 import Loading from '../../components/UI/Loading';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
+import ClimberMobileBottomNav from '../../components/Layout/ClimberMobileBottomNav';
 import SessionList from '../../components/Sessions/SessionList';
 import BookingModal from '../../components/UI/BookingModal';
 
@@ -357,6 +358,9 @@ const Home = () => {
       />
 
       <Footer />
+
+      {/* Mobile Bottom Navigation - Only for climbers */}
+      <ClimberMobileBottomNav />
     </div>
   );
 };

@@ -108,48 +108,30 @@ const userSchema = new mongoose.Schema({
       default: false,
     },
     membershipHistory: [{
-      year: {
-        type: Number,
-        required: true,
-      },
-      wasMember: {
-        type: Boolean,
-        required: true,
-      },
-    }],
-  },
-}, {
-  timestamps: true,
-});
+      userSchema.index({ email: 1 }, {
+        unique: true,
+        sparse: true,
+        partialFilterExpression: { email: { $ne: null } }
+      });
+      userSchema.index({ accountStatus: 1 });
+      userSchema.index({ roles: 1 });
+      userSchema.index({ dateOfBirth: 1 });
+      // Compound index for duplicate checking
+      userSchema.index({ firstName: 1, lastName: 1, dateOfBirth: 1 });
 
-// Indexes
-// Note: sparse index with partialFilterExpression allows multiple null values but enforces uniqueness for non-null
-// We need to ensure email is explicitly null (not undefined) for children without email
-// Using partialFilterExpression to exclude null values from the index
-userSchema.index({ email: 1 }, {
-  unique: true,
-  sparse: true,
-  partialFilterExpression: { email: { $ne: null } }
-});
-userSchema.index({ accountStatus: 1 });
-userSchema.index({ roles: 1 });
-userSchema.index({ dateOfBirth: 1 });
-// Compound index for duplicate checking
-userSchema.index({ firstName: 1, lastName: 1, dateOfBirth: 1 });
+      // Method to compare password
+      userSchema.methods.comparePassword = async function (candidatePassword) {
+        if (!this.passwordHash) {
+          return false; // No password set, cannot compare
+        }
+        return bcrypt.compare(candidatePassword, this.passwordHash);
+      };
 
-// Method to compare password
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  if (!this.passwordHash) {
-    return false; // No password set, cannot compare
-  }
-  return bcrypt.compare(candidatePassword, this.passwordHash);
-};
+      // Static method to hash password
+      userSchema.statics.hashPassword = async function (password) {
+        const saltRounds = 10;
+        return bcrypt.hash(password, saltRounds);
+      };
 
-// Static method to hash password
-userSchema.statics.hashPassword = async function (password) {
-  const saltRounds = 10;
-  return bcrypt.hash(password, saltRounds);
-};
-
-export const User = mongoose.model('User', userSchema);
+      export const User = mongoose.model('User', userSchema);
 

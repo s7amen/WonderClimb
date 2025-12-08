@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { authAPI } from '../services/api';
 
 export const usePWAInstall = (onErrorModalOpen = null) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -452,6 +453,50 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }
   };
 
+  // Check if currently running in PWA mode (standalone)
+  const isRunningInPWA = debugInfo.isStandalone || debugInfo.isIOSStandalone || false;
+
+  // Report usage/installation to backend
+  useEffect(() => {
+    const reportStatus = async () => {
+      // If running in PWA or we know it's installed
+      if (isRunningInPWA || isInstalled) {
+        try {
+          // This will only succeed if user is authenticated (handled by interceptor)
+          // We don't check auth state here explicitly to avoid coupling with AuthContext
+          // If unauthorized, it just fails silently which is fine
+          await authAPI.updatePWAStatus(true);
+          console.log('[PWA Status] Reported installed status to backend');
+        } catch (error) {
+          // Ignore errors (user might not be logged in)
+          // console.debug('[PWA Status] Failed to report status (likely unauthenticated)', error);
+        }
+      }
+    };
+
+    // Report on mount if condition met, and whenever state changes
+    reportStatus();
+  }, [isInstalled, isRunningInPWA]);
+
+  // Enhanced check using native API
+  useEffect(() => {
+    const checkNativeAPI = async () => {
+      if ('getInstalledRelatedApps' in navigator) {
+        try {
+          const relatedApps = await navigator.getInstalledRelatedApps();
+          console.log('[PWA Install] Related apps:', relatedApps);
+          if (relatedApps.length > 0) {
+            setIsInstalled(true);
+            localStorage.setItem('pwa-installed', 'true');
+          }
+        } catch (e) {
+          console.error('[PWA Install] Error checking native API:', e);
+        }
+      }
+    };
+    checkNativeAPI();
+  }, []);
+
   return {
     install,
     openInstalledApp,
@@ -463,6 +508,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     setShowErrorModal,
     debugInfo,
     deferredPrompt: !!deferredPrompt,
+    isRunningInPWA, // Explicitly indicate if app is running in PWA mode
   };
 };
 

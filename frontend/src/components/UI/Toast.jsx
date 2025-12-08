@@ -37,16 +37,17 @@ export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   return (
     <div
       className={`
-        fixed z-40
-        bottom-16 left-0 sm:bottom-4 sm:left-1/2
-        border-l-4 rounded-t-lg sm:rounded shadow-lg
+        fixed z-[60]
+        [bottom:calc(4rem+env(safe-area-inset-bottom,0px))] lg:bottom-4
+        left-0 lg:left-1/2
+        border-l-4 rounded-t-lg lg:rounded shadow-lg
         transition-all duration-300 ease-in-out
         ${isExiting
-          ? 'opacity-0 translate-y-full sm:translate-y-[calc(100%+1rem)] sm:translate-x-[-50%]'
-          : 'opacity-100 translate-y-0 sm:translate-y-0 sm:translate-x-[-50%]'}
+          ? 'opacity-0 translate-y-full lg:translate-y-[calc(100%+1rem)] lg:translate-x-[-50%]'
+          : 'opacity-100 translate-y-0 lg:translate-y-0 lg:translate-x-[-50%]'}
         ${types[type]}
         px-4 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4
-        w-screen sm:w-auto sm:max-w-md md:max-w-lg lg:max-w-xl
+        w-screen lg:w-auto lg:max-w-md xl:max-w-lg 2xl:max-w-xl
       `}
     >
       <div className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4">

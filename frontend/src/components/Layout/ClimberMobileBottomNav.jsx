@@ -42,8 +42,8 @@ const ClimberMobileBottomNav = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Only show for authenticated climbers on mobile devices
-    if (!isAuthenticated || !user?.roles?.includes('climber') || !isMobile) {
+    // Only show for authenticated users on mobile devices
+    if (!isAuthenticated || !isMobile) {
         return null;
     }
 
@@ -54,7 +54,7 @@ const ClimberMobileBottomNav = () => {
             icon: DashboardIcon,
         },
         {
-            name: 'Моя график',
+            name: 'Моят график',
             href: '/my-sessions',
             icon: ClockIcon,
         },

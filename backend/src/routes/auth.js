@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, refreshToken, logout, me } from '../controllers/authController.js';
+import { register, login, refreshToken, logout, me, updatePWAStatus } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 import { validateRegister, validateLogin } from '../middleware/validation/authValidation.js';
 import { authRateLimiter } from '../middleware/rateLimit.js';
@@ -56,6 +56,7 @@ router.post('/login', authRateLimiter, validateLogin, login);
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);
 router.get('/me', authenticate, me);
+router.post('/pwa-status', authenticate, updatePWAStatus);
 
 export default router;
 

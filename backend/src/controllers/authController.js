@@ -237,3 +237,19 @@ export const me = async (req, res) => {
         res.status(500).json({ error: { message: 'Failed to fetch user' } });
     }
 };
+
+export const updatePWAStatus = async (req, res) => {
+    try {
+        const { installed } = req.body;
+
+        await User.findByIdAndUpdate(req.user.id, {
+            pwaInstalled: installed,
+            pwaLastUsed: new Date()
+        });
+
+        res.json({ message: 'PWA status updated' });
+    } catch (error) {
+        logger.error({ error }, 'Update PWA status error');
+        res.status(500).json({ error: { message: 'Failed to update PWA status' } });
+    }
+};

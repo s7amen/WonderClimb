@@ -155,6 +155,7 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   logout: () => api.post('/auth/logout', {}, { withCredentials: true }),
   refresh: () => api.post('/auth/refresh', {}, { withCredentials: true }),
+  updatePWAStatus: (installed) => api.post('/auth/pwa-status', { installed }),
 };
 
 // Sessions API

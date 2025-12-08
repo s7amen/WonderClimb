@@ -1387,13 +1387,13 @@ const Schedule = () => {
               </div>
 
               {/* Bulk action button - right side */}
-              <div className="flex flex-col items-end md:items-end gap-2 w-full md:w-auto">
+              <div className="flex flex-col items-end lg:items-end gap-2 w-full lg:w-auto">
                 {selectedSessionIds.length > 0 && (
                   <Button
                     onClick={handleBulkBook}
                     disabled={isBulkBooking}
                     variant="primary"
-                    className="w-full md:w-auto text-sm md:text-base py-3 md:py-2 md:fixed md:bottom-4 md:right-4 md:z-50 md:shadow-lg"
+                    className="w-full lg:w-auto text-sm lg:text-base py-3 lg:py-2 lg:fixed lg:bottom-4 lg:right-4 lg:z-50 lg:shadow-lg"
                   >
                     {isBulkBooking ? 'Резервиране...' : `Запази всички маркирани (${selectedSessionIds.length})`}
                   </Button>

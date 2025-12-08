@@ -117,6 +117,8 @@ const PageLoader = () => (
   </div>
 );
 
+import ErrorBoundary from './components/UI/ErrorBoundary';
+
 function App() {
   return (
     <AuthProvider>
@@ -127,258 +129,260 @@ function App() {
             v7_relativeSplatPath: true,
           }}
         >
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/terms-of-service" element={<TermsOfService />} />
-              <Route path="/" element={<Home />} />
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
+                <Route path="/" element={<Home />} />
 
-              {/* Public Browsing */}
-              <Route path="/sessions" element={<UniversalLayout />}>
-                <Route index element={<SessionsBrowse />} />
-              </Route>
-              <Route path="/competitions" element={<UniversalLayout />}>
-                <Route index element={<CompetitionsBrowse />} />
-                <Route path=":id" element={<CompetitionsPublicDetail />} />
-              </Route>
+                {/* Public Browsing */}
+                <Route path="/sessions" element={<UniversalLayout />}>
+                  <Route index element={<SessionsBrowse />} />
+                </Route>
+                <Route path="/competitions" element={<UniversalLayout />}>
+                  <Route index element={<CompetitionsBrowse />} />
+                  <Route path=":id" element={<CompetitionsPublicDetail />} />
+                </Route>
 
-              {/* Unified Dashboard Routes */}
-              <Route path="/dashboard">
-                {/* Admin Dashboard */}
+                {/* Unified Dashboard Routes */}
+                <Route path="/dashboard">
+                  {/* Admin Dashboard */}
+                  <Route
+                    path="admin"
+                    element={
+                      <RequireMinRole minRole="admin">
+                        <AdminLayout />
+                      </RequireMinRole>
+                    }
+                  >
+                    <Route index element={<AdminDashboard />} />
+                  </Route>
+
+                  {/* Coach Dashboard */}
+                  <Route
+                    path="coach"
+                    element={
+                      <RequireMinRole minRole="coach">
+                        <CoachLayout />
+                      </RequireMinRole>
+                    }
+                  >
+                    <Route index element={<CoachDashboard />} />
+                    <Route path="attendance" element={<CoachAttendance />} />
+                    <Route path="attendance/:sessionId" element={<CoachAttendance />} />
+                  </Route>
+
+                  {/* Instructor Dashboard */}
+                  <Route
+                    path="instructor"
+                    element={
+                      <RequireMinRole minRole="instructor">
+                        <CoachLayout />
+                      </RequireMinRole>
+                    }
+                  >
+                    <Route index element={<InstructorDashboard />} />
+                  </Route>
+
+                  {/* Climber Dashboard */}
+                  <Route
+                    path="climber"
+                    element={
+                      <RequireMinRole minRole="climber">
+                        <ClimberLayout />
+                      </RequireMinRole>
+                    }
+                  >
+                    <Route index element={<ClimberDashboard />} />
+                    <Route path="schedule" element={<ClimberSchedule />} />
+                  </Route>
+                </Route>
+
+                {/* Feature Routes - Staff Management */}
+
+                {/* Sessions Management - Coach, Admin */}
                 <Route
-                  path="admin"
+                  path="/sessions/manage"
+                  element={
+                    <RequireMinRole minRole="coach">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<SessionsManage />} />
+                </Route>
+
+                {/* Climbers Management - Instructor, Coach, Admin */}
+                <Route
+                  path="/climbers"
+                  element={
+                    <RequireMinRole minRole="instructor">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<ClimbersList />} />
+                  <Route path=":id" element={<ClimberProfile />} />
+                </Route>
+
+                {/* Family Management - Instructor, Coach, Admin */}
+                <Route
+                  path="/families"
+                  element={
+                    <RequireMinRole minRole="instructor">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<FamilyList />} />
+                  <Route path=":id" element={<FamilyProfile />} />
+                </Route>
+
+                {/* Gym Management - Instructor+ */}
+                <Route
+                  path="/gym"
+                  element={
+                    <RequireMinRole minRole="instructor">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<GymDashboard />} />
+                  <Route path="check-in" element={<GymCheckIn />} />
+                  <Route path="passes" element={<GymPasses />} />
+                  <Route path="visits" element={<GymVisits />} />
+                  <Route path="prices" element={<GymPrices />} />
+                </Route>
+
+                {/* Training Management - Coach+ */}
+                <Route
+                  path="/training"
+                  element={
+                    <RequireMinRole minRole="coach">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<TrainingDashboard />} />
+                  <Route path="bookings" element={<TrainingBookings />} />
+                  <Route path="climbers" element={<ClimbersList type="training" />} />
+                  <Route path="sessions" element={<TrainingSessions />} />
+                  <Route path="passes" element={<TrainingPasses />} />
+                  <Route path="attendance" element={<TrainingAttendance />} />
+                </Route>
+
+                {/* Competition Management - Coach, Admin */}
+                <Route
+                  path="/competitions/manage"
+                  element={
+                    <RequireMinRole minRole="coach">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<CompetitionsManage />} />
+                  <Route path=":id" element={<CompetitionsManageDetail />} />
+                </Route>
+
+                {/* Finance Management - Admin only */}
+                <Route
+                  path="/finance"
                   element={
                     <RequireMinRole minRole="admin">
                       <AdminLayout />
                     </RequireMinRole>
                   }
                 >
-                  <Route index element={<AdminDashboard />} />
+                  <Route index element={<FinanceDashboard />} />
+                  <Route path="entries" element={<FinanceEntries />} />
+                  <Route path="reports" element={<FinanceReports />} />
+                  <Route path="reports/gym" element={<GymReport />} />
+                  <Route path="reports/training" element={<TrainingReport />} />
+                  <Route path="reports/coach-fees" element={<CoachFeesReport />} />
                 </Route>
 
-                {/* Coach Dashboard */}
+                {/* Product Management - Admin only */}
                 <Route
-                  path="coach"
+                  path="/products"
                   element={
-                    <RequireMinRole minRole="coach">
-                      <CoachLayout />
+                    <RequireMinRole minRole="admin">
+                      <AdminLayout />
                     </RequireMinRole>
                   }
                 >
-                  <Route index element={<CoachDashboard />} />
-                  <Route path="attendance" element={<CoachAttendance />} />
-                  <Route path="attendance/:sessionId" element={<CoachAttendance />} />
+                  <Route index element={<ProductsList />} />
+                  <Route path=":id" element={<ProductDetail />} />
                 </Route>
 
-                {/* Instructor Dashboard */}
+                {/* Settings - Admin only */}
                 <Route
-                  path="instructor"
+                  path="/settings"
                   element={
-                    <RequireMinRole minRole="instructor">
-                      <CoachLayout />
+                    <RequireMinRole minRole="admin">
+                      <AdminLayout />
                     </RequireMinRole>
                   }
                 >
-                  <Route index element={<InstructorDashboard />} />
+                  <Route index element={<Navigate to="/settings/messages" replace />} />
+                  <Route path="messages" element={<Settings />} />
+                  <Route path="cards" element={<Settings />} />
+                  <Route path="pricing" element={<AdminPricing />} />
                 </Route>
 
-                {/* Climber Dashboard */}
+                {/* Calendar - All authenticated users */}
                 <Route
-                  path="climber"
+                  path="/calendar"
                   element={
-                    <RequireMinRole minRole="climber">
+                    <ProtectedRoute>
+                      <UniversalLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Calendar />} />
+                </Route>
+
+                {/* Universal routes - All authenticated users */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <UniversalLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Profile />} />
+                </Route>
+
+                <Route
+                  path="/my-sessions"
+                  element={
+                    <ProtectedRoute>
+                      <UniversalLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<MyBookings />} />
+                </Route>
+
+                <Route
+                  path="/climber/subscriptions"
+                  element={
+                    <ProtectedRoute>
                       <ClimberLayout />
-                    </RequireMinRole>
+                    </ProtectedRoute>
                   }
                 >
-                  <Route index element={<ClimberDashboard />} />
-                  <Route path="schedule" element={<ClimberSchedule />} />
+                  <Route index element={<Subscriptions />} />
                 </Route>
-              </Route>
 
-              {/* Feature Routes - Staff Management */}
-
-              {/* Sessions Management - Coach, Admin */}
-              <Route
-                path="/sessions/manage"
-                element={
-                  <RequireMinRole minRole="coach">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<SessionsManage />} />
-              </Route>
-
-              {/* Climbers Management - Instructor, Coach, Admin */}
-              <Route
-                path="/climbers"
-                element={
-                  <RequireMinRole minRole="instructor">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<ClimbersList />} />
-                <Route path=":id" element={<ClimberProfile />} />
-              </Route>
-
-              {/* Family Management - Instructor, Coach, Admin */}
-              <Route
-                path="/families"
-                element={
-                  <RequireMinRole minRole="instructor">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<FamilyList />} />
-                <Route path=":id" element={<FamilyProfile />} />
-              </Route>
-
-              {/* Gym Management - Instructor+ */}
-              <Route
-                path="/gym"
-                element={
-                  <RequireMinRole minRole="instructor">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<GymDashboard />} />
-                <Route path="check-in" element={<GymCheckIn />} />
-                <Route path="passes" element={<GymPasses />} />
-                <Route path="visits" element={<GymVisits />} />
-                <Route path="prices" element={<GymPrices />} />
-              </Route>
-
-              {/* Training Management - Coach+ */}
-              <Route
-                path="/training"
-                element={
-                  <RequireMinRole minRole="coach">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<TrainingDashboard />} />
-                <Route path="bookings" element={<TrainingBookings />} />
-                <Route path="climbers" element={<ClimbersList type="training" />} />
-                <Route path="sessions" element={<TrainingSessions />} />
-                <Route path="passes" element={<TrainingPasses />} />
-                <Route path="attendance" element={<TrainingAttendance />} />
-              </Route>
-
-              {/* Competition Management - Coach, Admin */}
-              <Route
-                path="/competitions/manage"
-                element={
-                  <RequireMinRole minRole="coach">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<CompetitionsManage />} />
-                <Route path=":id" element={<CompetitionsManageDetail />} />
-              </Route>
-
-              {/* Finance Management - Admin only */}
-              <Route
-                path="/finance"
-                element={
-                  <RequireMinRole minRole="admin">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<FinanceDashboard />} />
-                <Route path="entries" element={<FinanceEntries />} />
-                <Route path="reports" element={<FinanceReports />} />
-                <Route path="reports/gym" element={<GymReport />} />
-                <Route path="reports/training" element={<TrainingReport />} />
-                <Route path="reports/coach-fees" element={<CoachFeesReport />} />
-              </Route>
-
-              {/* Product Management - Admin only */}
-              <Route
-                path="/products"
-                element={
-                  <RequireMinRole minRole="admin">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<ProductsList />} />
-                <Route path=":id" element={<ProductDetail />} />
-              </Route>
-
-              {/* Settings - Admin only */}
-              <Route
-                path="/settings"
-                element={
-                  <RequireMinRole minRole="admin">
-                    <AdminLayout />
-                  </RequireMinRole>
-                }
-              >
-                <Route index element={<Navigate to="/settings/messages" replace />} />
-                <Route path="messages" element={<Settings />} />
-                <Route path="cards" element={<Settings />} />
-                <Route path="pricing" element={<AdminPricing />} />
-              </Route>
-
-              {/* Calendar - All authenticated users */}
-              <Route
-                path="/calendar"
-                element={
-                  <ProtectedRoute>
-                    <UniversalLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Calendar />} />
-              </Route>
-
-              {/* Universal routes - All authenticated users */}
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <UniversalLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Profile />} />
-              </Route>
-
-              <Route
-                path="/my-sessions"
-                element={
-                  <ProtectedRoute>
-                    <UniversalLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<MyBookings />} />
-              </Route>
-
-              <Route
-                path="/climber/subscriptions"
-                element={
-                  <ProtectedRoute>
-                    <ClimberLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Subscriptions />} />
-              </Route>
-
-              {/* Catch all - redirect to home */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+                {/* Catch all - redirect to home */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </Router>
       </ToastProvider>
     </AuthProvider>

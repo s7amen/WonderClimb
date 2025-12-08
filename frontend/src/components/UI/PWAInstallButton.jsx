@@ -21,7 +21,8 @@ const PWAInstallButton = ({
     showErrorModal,
     setShowErrorModal,
     debugInfo,
-    deferredPrompt
+    deferredPrompt,
+    isRunningInPWA
   } = usePWAInstall(handleErrorModalOpen);
 
   const handleClick = () => {
@@ -34,11 +35,8 @@ const PWAInstallButton = ({
 
   // Sticky icon variant for mobile
   if (variant === 'sticky') {
-    // Check if we're in standalone mode (PWA)
-    const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
-
     // Hide if in standalone mode (PWA) - no button needed
-    if (isStandalone) {
+    if (isRunningInPWA) {
       return (
         <>
           <ErrorModal
@@ -81,8 +79,8 @@ const PWAInstallButton = ({
         <button
           onClick={handleClick}
           className={`fixed bottom-20 right-4 z-[9998] lg:bottom-3 lg:hidden w-14 h-14 ${isInstalled
-              ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
-              : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
+            ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
+            : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
             } text-white rounded-full shadow-xl flex flex-col items-center justify-center transition-all hover:scale-110 active:scale-95 ${className}`}
           aria-label={isInstalled ? "Отвори приложението" : "Инсталирай приложението"}
           style={{
@@ -140,12 +138,9 @@ const PWAInstallButton = ({
   }
 
   // Regular button variant (for footer)
-  // Check if we're in standalone mode (PWA)
-  const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
-
   // Hide if in standalone mode (PWA) - no button needed in PWA
   // Show only on mobile/tablet (lg:hidden) and when not in standalone mode
-  if (isStandalone) {
+  if (isRunningInPWA) {
     return (
       <>
         <ErrorModal
@@ -166,8 +161,8 @@ const PWAInstallButton = ({
       <button
         onClick={handleClick}
         className={`lg:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${isInstalled
-            ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
-            : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
+          ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
+          : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
           } ${className}`}
         aria-label={isInstalled ? "Отвори приложението" : "Инсталирай приложението"}
         style={{

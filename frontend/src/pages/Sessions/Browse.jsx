@@ -866,7 +866,7 @@ const Sessions = () => {
         {isAuthenticated && selectedSessionIds.length > 0 && (
           <>
             {/* Mobile sticky button - always visible at bottom */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
+            <div className="lg:hidden fixed [bottom:calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
               <Button
                 onClick={handleBulkBook}
                 disabled={isBulkBooking}
@@ -890,7 +890,7 @@ const Sessions = () => {
               onClick={handleBulkBook}
               disabled={isBulkBooking}
               variant="primary"
-              className="hidden md:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
+              className="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
             >
               {isBulkBooking ? (
                 'Запазване...'
@@ -961,7 +961,7 @@ const Sessions = () => {
 
         {/* Spacer for sticky button on mobile (at bottom) */}
         {selectedSessionIds.length > 0 && (
-          <div className="h-[80px] md:hidden" />
+          <div className="h-[80px] lg:hidden" />
         )}
 
         {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (

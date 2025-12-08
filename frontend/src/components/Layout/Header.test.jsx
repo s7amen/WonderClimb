@@ -51,7 +51,7 @@ describe('Header Menu Visibility', () => {
 
         // Secondary Menu items should NOT be visible
         expect(screen.queryByText('Табло')).not.toBeInTheDocument();
-        expect(screen.queryByText('Моя график')).not.toBeInTheDocument();
+        expect(screen.queryByText('Моят график')).not.toBeInTheDocument();
     });
 
     it('shows Main Menu and Secondary Menu for Climber', () => {
@@ -70,7 +70,7 @@ describe('Header Menu Visibility', () => {
 
         // Secondary Menu items should be visible
         expect(screen.getByText('Табло')).toBeInTheDocument();
-        expect(screen.getByText('Моя график')).toBeInTheDocument();
+        expect(screen.getByText('Моят график')).toBeInTheDocument();
     });
 
     it('hides Main Menu and Secondary Menu for Instructor (no climber role)', () => {
@@ -89,7 +89,7 @@ describe('Header Menu Visibility', () => {
 
         // Secondary Menu items should NOT be visible
         expect(screen.queryByText('Табло')).not.toBeInTheDocument();
-        expect(screen.queryByText('Моя график')).not.toBeInTheDocument();
+        expect(screen.queryByText('Моят график')).not.toBeInTheDocument();
     });
 
     it('shows Main Menu and Secondary Menu for User with both Climber and Instructor roles', () => {
@@ -116,6 +116,6 @@ describe('Header Menu Visibility', () => {
         // Secondary Menu items should be visible because they HAVE the climber role
         // Code: activeRole === 'climber' || (user.roles && user.roles.includes('climber'))
         expect(screen.getByText('Табло')).toBeInTheDocument();
-        expect(screen.getByText('Моя график')).toBeInTheDocument();
+        expect(screen.getByText('Моят график')).toBeInTheDocument();
     });
 });
