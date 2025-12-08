@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { format } from 'date-fns';
 import Card from '../../components/UI/Card';
@@ -24,7 +24,7 @@ const Profile = () => {
     phone: '',
   });
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const { showToast, ToastComponent } = useToast();
+  const { showToast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteWarning, setDeleteWarning] = useState(null);
@@ -277,10 +277,7 @@ const Profile = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-neutral-950">Моят профил</h1>
-      </div>
-
-      <ToastComponent />
-      <ConfirmDialog
+      </div><ConfirmDialog
         isOpen={showDeleteDialog}
         onClose={cancelDelete}
         onConfirm={confirmDelete}

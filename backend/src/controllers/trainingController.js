@@ -276,6 +276,58 @@ export const updateTrainingPass = async (req, res) => {
 };
 
 /**
+ * DELETE /api/v1/training/passes/:id
+ * Delete training pass (soft delete)
+ */
+export const deleteTrainingPass = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const pass = await trainingService.deleteTrainingPass(id);
+
+        logger.info({ passId: pass._id }, 'Training pass deleted (soft)');
+
+        res.json({
+            message: 'Training pass deleted successfully',
+            trainingPass: pass,
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error deleting training pass');
+        res.status(400).json({
+            error: { message: error.message || 'Failed to delete training pass' },
+        });
+    }
+};
+
+/**
+ * DELETE /api/v1/training/passes/:id/cascade
+ * Delete training pass and all related bookings (hard delete)
+ */
+export const deleteTrainingPassCascade = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await trainingService.deleteTrainingPassCascade(id);
+
+        logger.info({
+            passId: id,
+            deletedBookings: result.deletedBookings
+        }, 'Training pass deleted with cascade');
+
+        res.json({
+            message: 'Training pass and all related bookings deleted successfully',
+            trainingPass: result.pass,
+            deletedBookings: result.deletedBookings,
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error deleting training pass with cascade');
+        res.status(400).json({
+            error: { message: error.message || 'Failed to delete training pass with cascade' },
+        });
+    }
+};
+
+/**
  * GET /api/v1/training/my-passes
  * Get current user's training passes
  */

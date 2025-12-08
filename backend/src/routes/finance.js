@@ -16,6 +16,9 @@ router.use(requireMinRole('admin'));
 // POST /api/v1/finance/entries - Create finance entry
 router.post('/entries', financeController.createEntry);
 
+// GET /api/v1/finance/transactions - List finance transactions
+router.get('/transactions', financeController.getTransactions);
+
 // GET /api/v1/finance/entries - List finance entries
 router.get('/entries', financeController.getEntries);
 

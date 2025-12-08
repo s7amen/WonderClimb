@@ -15,10 +15,12 @@ const BookingModal = ({
   sessionIds = [],
   sessions = [],
   onBookingSuccess,
-  defaultSelectedClimberIds = []
+  defaultSelectedClimberIds = [],
+  showToast // Accept showToast as prop to ensure toast persists after modal close
 }) => {
   const { user } = useAuth();
-  const { showToast, ToastComponent } = useToast();
+  // Remove internal useToast to prevent toast disappearing on close
+  // const { showToast, ToastComponent } = useToast();
   const [children, setChildren] = useState([]);
   const [selfClimber, setSelfClimber] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,8 +65,10 @@ const BookingModal = ({
 
       const [childrenRes, selfRes] = await Promise.all(promises);
 
-      // Filter children by accountStatus
-      const filteredChildren = childrenRes.data.climbers?.filter(c => c.accountStatus === 'active') || [];
+      // Filter children by accountStatus - include active and null/undefined (for backward compatibility)
+      const filteredChildren = childrenRes.data.climbers?.filter(c =>
+        c.accountStatus === 'active' || c.accountStatus === null || c.accountStatus === undefined
+      ) || [];
       setChildren(filteredChildren);
 
       // Set self climber if available
@@ -272,7 +276,6 @@ const BookingModal = ({
 
   return (
     <>
-      <ToastComponent />
       <BaseModal
         isOpen={isOpen}
         onClose={onClose}

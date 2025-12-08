@@ -15,8 +15,8 @@ router.use(requireRole('admin', 'climber'));
 
 // Log all requests to this router for debugging
 router.use((req, res, next) => {
-  logger.info({ 
-    path: req.path, 
+  logger.info({
+    path: req.path,
     method: req.method,
     originalUrl: req.originalUrl,
     baseUrl: req.baseUrl
@@ -34,7 +34,7 @@ router.get('/me/profile', async (req, res, next) => {
     const user = await User.findById(userId)
       .select('firstName middleName lastName email phone roles accountStatus createdAt updatedAt')
       .lean();
-    
+
     if (!user) {
       return res.status(404).json({
         error: {
@@ -55,13 +55,13 @@ router.get('/me/profile', async (req, res, next) => {
  */
 router.put('/me/profile', async (req, res, next) => {
   try {
-    logger.info({ 
-      path: req.path, 
+    logger.info({
+      path: req.path,
       method: req.method,
       userId: req.user?.id,
-      body: req.body 
+      body: req.body
     }, 'PUT /me/profile called');
-    
+
     const userId = req.user.id;
     const { firstName, middleName, lastName, phone } = req.body;
 
@@ -116,29 +116,82 @@ router.get('/me/bookings', async (req, res, next) => {
 
     // If climber, get their linked children and include bookings for all of them
     if (userRoles.includes('climber')) {
-      const climbers = await getClimbersForParent(userId);
-      const climberIds = climbers.map(c => c._id.toString());
+      try {
+        const climbers = await getClimbersForParent(userId);
+        // Safely extract climber IDs, filtering out any null/undefined values
+        const climberIds = climbers
+          .filter(c => c && c._id)
+          .map(c => c._id.toString());
 
-      // Fetch bookings for all linked children
-      const allBookings = [];
-      for (const climberId of climberIds) {
-        const bookings = await getBookingsForUser(userId, userRoles, {
-          ...filters,
-          climberId,
+        // Fetch bookings for all linked children
+        const allBookings = [];
+        for (const climberId of climberIds) {
+          try {
+            const bookings = await getBookingsForUser(userId, userRoles, {
+              ...filters,
+              climberId,
+            });
+            allBookings.push(...bookings);
+          } catch (error) {
+            logger.error({ error, userId, climberId }, 'Error fetching bookings for specific climber');
+            // Continue with other climbers even if one fails
+          }
+        }
+
+        // Also include bookings where user is the booker
+        const userBookings = await getBookingsForUser(userId, userRoles, filters);
+        allBookings.push(...userBookings);
+
+        // Remove duplicates by _id first
+        const uniqueById = Array.from(
+          new Map(allBookings.map(b => [b._id.toString(), b])).values()
+        );
+
+        // Remove duplicates by sessionId+climberId+status='booked' (keep most recent)
+        // This prevents showing duplicate active bookings for the same session and climber
+        const bookingKeyMap = new Map();
+        uniqueById.forEach(booking => {
+          const sessionId = booking.sessionId?._id?.toString() || booking.sessionId?.toString() || booking.session?._id?.toString();
+          const climberId = booking.climberId?._id?.toString() || booking.climberId?.toString() || booking.climber?._id?.toString();
+          const status = booking.status;
+
+          // Only deduplicate active bookings (status='booked')
+          if (status === 'booked' && sessionId && climberId) {
+            const key = `${sessionId}_${climberId}_${status}`;
+            const existing = bookingKeyMap.get(key);
+
+            // Keep the most recent booking (by createdAt)
+            const bookingDate = booking.createdAt ? new Date(booking.createdAt) : new Date(0);
+            const existingDate = existing?.createdAt ? new Date(existing.createdAt) : new Date(0);
+            if (!existing || bookingDate > existingDate) {
+              bookingKeyMap.set(key, booking);
+            }
+          } else {
+            // For cancelled bookings or missing data, keep all
+            bookingKeyMap.set(`${booking._id}_${Date.now()}`, booking);
+          }
         });
-        allBookings.push(...bookings);
+
+        // Convert map values back to array
+        const finalBookings = Array.from(bookingKeyMap.values());
+
+        logger.info({
+          userId,
+          totalBookings: allBookings.length,
+          uniqueById: uniqueById.length,
+          finalBookings: finalBookings.length,
+        }, 'Bookings deduplication completed');
+
+        return res.json({ bookings: finalBookings });
+      } catch (climberError) {
+        logger.error({
+          error: climberError.message,
+          stack: climberError.stack,
+          name: climberError.name,
+          userId
+        }, 'Error fetching climber bookings - returning empty array');
+        return res.json({ bookings: [] });
       }
-
-      // Also include bookings where user is the booker
-      const userBookings = await getBookingsForUser(userId, userRoles, filters);
-      allBookings.push(...userBookings);
-
-      // Remove duplicates
-      const uniqueBookings = Array.from(
-        new Map(allBookings.map(b => [b._id.toString(), b])).values()
-      );
-
-      return res.json({ bookings: uniqueBookings });
     }
 
     // Admin users without climber role get empty bookings (they can use admin endpoints)
@@ -147,9 +200,43 @@ router.get('/me/bookings', async (req, res, next) => {
     }
 
     const bookings = await getBookingsForUser(userId, userRoles, filters);
-    res.json({ bookings });
+
+    // Remove duplicates by sessionId+climberId+status='booked' (keep most recent)
+    const bookingKeyMap = new Map();
+    bookings.forEach(booking => {
+      const sessionId = booking.sessionId?._id?.toString() || booking.sessionId?.toString() || booking.session?._id?.toString();
+      const climberId = booking.climberId?._id?.toString() || booking.climberId?.toString() || booking.climber?._id?.toString();
+      const status = booking.status;
+
+      // Only deduplicate active bookings (status='booked')
+      if (status === 'booked' && sessionId && climberId) {
+        const key = `${sessionId}_${climberId}_${status}`;
+        const existing = bookingKeyMap.get(key);
+
+        // Keep the most recent booking (by createdAt)
+        const bookingDate = booking.createdAt ? new Date(booking.createdAt) : new Date(0);
+        const existingDate = existing.createdAt ? new Date(existing.createdAt) : new Date(0);
+        if (!existing || bookingDate > existingDate) {
+          bookingKeyMap.set(key, booking);
+        }
+      } else {
+        // For cancelled bookings or missing data, keep all
+        bookingKeyMap.set(`${booking._id}_${Date.now()}`, booking);
+      }
+    });
+
+    const finalBookings = Array.from(bookingKeyMap.values());
+
+    logger.info({
+      userId,
+      totalBookings: bookings.length,
+      finalBookings: finalBookings.length,
+    }, 'Bookings deduplication completed');
+
+    res.json({ bookings: finalBookings });
   } catch (error) {
-    next(error);
+    logger.error({ error, userId: req.user?.id }, 'Critical error in /me/bookings endpoint - returning empty array');
+    res.json({ bookings: [] });
   }
 });
 

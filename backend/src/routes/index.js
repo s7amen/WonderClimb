@@ -13,6 +13,7 @@ import adminFinanceRoutes from './adminFinance.js';
 import adminUsersRoutes from './adminUsers.js';
 import adminSettingsRoutes from './adminSettings.js';
 import climberPhotosRoutes from './climberPhotos.js';
+import familyRoutes from './family.js';
 import competitionsRoutes from './competitions.js';
 import competitionPublicRoutes from './competitionPublic.js';
 import docsRoutes from './docs.js';
@@ -20,6 +21,8 @@ import gymRoutes from './gym.js';
 import trainingRoutes from './training.js';
 import financeRoutes from './finance.js';
 import productRoutes from './products.js';
+import saleRoutes from './saleRoutes.js';
+import pricingRoutes from './pricing.js';
 
 const router = express.Router();
 
@@ -35,6 +38,7 @@ router.get('/', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/sessions', sessionsPublicRoutes);
 router.use('/competitions', competitionPublicRoutes);
+router.use('/families', familyRoutes);
 
 // Protected routes (require authentication)
 // IMPORTANT: Register bookingsRoutes on /bookings to avoid conflicts with other routes
@@ -57,6 +61,8 @@ router.use('/gym', gymRoutes); // Gym routes (check-in, passes)
 router.use('/training', trainingRoutes); // Training routes (sessions, attendance, passes)
 router.use('/finance', financeRoutes); // Finance routes (entries, reports) - admin only
 router.use('/products', productRoutes); // Product routes (CRUD)
+router.use('/sales', saleRoutes); // Sales routes (POS) - instructor+
+router.use('/pricing', pricingRoutes); // Pricing routes (CRUD, versioning) - admin only
 router.use('/api/v1', docsRoutes); // API docs
 
 export default router;

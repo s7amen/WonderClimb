@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 
+// Toast Component - renders individual toast notification
 export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   const [visible, setVisible] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
@@ -34,14 +35,14 @@ export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   };
 
   return (
-    <div 
+    <div
       className={`
         fixed z-40
-        bottom-0 left-0 sm:bottom-4 sm:left-1/2
+        bottom-16 left-0 sm:bottom-4 sm:left-1/2
         border-l-4 rounded-t-lg sm:rounded shadow-lg
         transition-all duration-300 ease-in-out
-        ${isExiting 
-          ? 'opacity-0 translate-y-full sm:translate-y-[calc(100%+1rem)] sm:translate-x-[-50%]' 
+        ${isExiting
+          ? 'opacity-0 translate-y-full sm:translate-y-[calc(100%+1rem)] sm:translate-x-[-50%]'
           : 'opacity-100 translate-y-0 sm:translate-y-0 sm:translate-x-[-50%]'}
         ${types[type]}
         px-4 py-3 sm:px-4 sm:py-3 md:px-6 md:py-4
@@ -74,25 +75,47 @@ export const Toast = ({ message, type = 'info', duration = 3000, onClose }) => {
   );
 };
 
-export const useToast = () => {
+// Create Toast Context
+const ToastContext = createContext(null);
+
+// Toast Provider - wraps the entire app and provides global toast state
+export const ToastProvider = ({ children }) => {
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'info', duration = 3000) => {
     setToast({ message, type, duration });
   };
 
-  const ToastComponent = () => {
-    if (!toast) return null;
-    return (
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        duration={toast.duration}
-        onClose={() => setToast(null)}
-      />
-    );
-  };
-
-  return { showToast, ToastComponent };
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      {/* Render toast at root level - persists across navigation */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          duration={toast.duration}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </ToastContext.Provider>
+  );
 };
 
+// Hook to use toast - now uses global context
+export const useToast = () => {
+  const context = useContext(ToastContext);
+
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+
+  // For backward compatibility, return a dummy ToastComponent
+  // This allows existing code to continue working without immediate changes
+  const ToastComponent = () => null;
+
+  return {
+    showToast: context.showToast,
+    ToastComponent
+  };
+};

@@ -180,7 +180,7 @@ BaseModal.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
     title: PropTypes.node, // Accept both string and React nodes
-    children: PropTypes.node.isRequired,
+    children: PropTypes.node,
     footer: PropTypes.node,
     size: PropTypes.oneOf(['sm', 'md', 'lg', 'xl', '2xl']),
     closeOnBackdrop: PropTypes.bool,

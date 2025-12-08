@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import { formatDate } from '../../utils/dateUtils';
@@ -19,7 +19,7 @@ const Sessions = () => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [daysToShow] = useState(30); // Booking horizon - 30 days
-  const { showToast, ToastComponent } = useToast();
+  const { showToast } = useToast();
 
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -954,11 +954,7 @@ const Sessions = () => {
         {/* Header Section */}
         <div className="mb-2 lg:mb-4">
           <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График</h1>
-        </div>
-
-        <ToastComponent />
-
-        {/* Layout with Sidebar and Main Content */}
+        </div>{/* Layout with Sidebar and Main Content */}
         <div className={`flex flex-col lg:flex-row ${filtersCollapsed ? 'lg:gap-8' : 'gap-y-2 lg:gap-6'}`}>
           {/* Left Sidebar - Reservation and Filters */}
           <div className="w-full lg:w-64 xl:w-72 shrink-0 space-y-2 lg:space-y-4">

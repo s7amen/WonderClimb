@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -17,7 +17,7 @@ const Register = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register: registerUser } = useAuth();
-  const { showToast, ToastComponent } = useToast();
+  const { showToast } = useToast();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -477,9 +477,7 @@ const Register = () => {
           </p>
         </div>
         </Card>
-      </div>
-      <ToastComponent />
-    </div>
+      </div></div>
   );
 };
 

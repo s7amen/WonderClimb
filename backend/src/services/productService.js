@@ -6,7 +6,7 @@ import logger from '../middleware/logging.js';
  */
 export const createProduct = async (productData, createdById) => {
     try {
-        const { name, sku, type, price, category, unit, isActive = true } = productData;
+        const { name, sku, type, price, category, unit, isActive = true, stockQuantity, lowStockThreshold } = productData;
 
         const product = await Product.create({
             name,
@@ -15,7 +15,10 @@ export const createProduct = async (productData, createdById) => {
             price,
             category,
             unit,
+            stockQuantity,
+            lowStockThreshold,
             isActive,
+            createdById,
         });
 
         logger.info({
@@ -141,6 +144,80 @@ export const deactivateProduct = async (productId) => {
         return product;
     } catch (error) {
         logger.error({ error: error.message, productId }, 'Error deactivating product');
+        throw error;
+    }
+};
+
+/**
+ * Upload product image
+ */
+export const uploadProductImage = async (productId, imageBuffer, productName) => {
+    try {
+        const { processProductImage } = await import('../middleware/productImageUpload.js');
+
+        // Process the image
+        const { url } = await processProductImage(imageBuffer, productId, productName);
+
+        // Update product with image URL
+        const product = await Product.findByIdAndUpdate(
+            productId,
+            { imageUrl: url },
+            { new: true }
+        );
+
+        if (!product) {
+            throw new Error('Product not found');
+        }
+
+        logger.info({ productId, imageUrl: url }, 'Product image uploaded');
+
+        return product;
+    } catch (error) {
+        logger.error({ error: error.message, productId }, 'Error uploading product image');
+        throw error;
+    }
+};
+
+/**
+ * Hard delete product
+ */
+export const deleteProduct = async (productId) => {
+    try {
+        const product = await Product.findByIdAndDelete(productId);
+
+        if (!product) {
+            throw new Error('Product not found');
+        }
+
+        logger.info({ productId }, 'Product permanently deleted');
+
+        return product;
+    } catch (error) {
+        logger.error({ error: error.message, productId }, 'Error deleting product');
+        throw error;
+    }
+};
+
+/**
+ * Reactivate product
+ */
+export const reactivateProduct = async (productId) => {
+    try {
+        const product = await Product.findByIdAndUpdate(
+            productId,
+            { isActive: true },
+            { new: true }
+        );
+
+        if (!product) {
+            throw new Error('Product not found');
+        }
+
+        logger.info({ productId }, 'Product reactivated');
+
+        return product;
+    } catch (error) {
+        logger.error({ error: error.message, productId }, 'Error reactivating product');
         throw error;
     }
 };

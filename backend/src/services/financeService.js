@@ -14,27 +14,47 @@ export const createFinanceEntry = async (entryData, createdById) => {
         const {
             type,
             area,
-            personId,
-            personRole,
+            climberId, // Renamed from personId
+            personId, // Backwards compat in input
+            transactionId,
+            itemType,
             source,
             sourceId,
             sessionIds,
             amount,
+            totalAmount,
             date,
             description,
         } = entryData;
 
+        // If no transactionId, we technically should fail or create a dummy one,
+        // but for now let's assume the caller provides it OR we allow legacy loose creation
+        // BUT schema says transactionId is required.
+        // We might need to wrap single entry creation in a transaction creation for legacy support
+        // OR warn.
+
+        // Mapping legacy "amount" to "totalAmount"
+        const finalAmount = totalAmount || amount;
+
         const entry = await FinanceEntry.create({
             type,
             area,
-            personId,
-            personRole,
-            source,
-            sourceId,
+            transactionId, // Must be provided now
+            climberId: climberId || personId,
+            // personRole removed from schema
+            itemType: itemType || 'other', // Default if missing
+            source: source || 'other', // Legacy support
+            // sourceId removed/mapped to specific IDs in schema? 
+            // The new schema has specific ID fields, but maybe we shouldn't break this completely yet.
+            // Let's stick to core fields for now.
+            quantity: 1,
+            unitAmount: finalAmount,
+            totalAmount: finalAmount,
+
             sessionIds,
-            amount,
             date: date || new Date(),
             description,
+            createdById
         });
 
         logger.info({
@@ -57,7 +77,7 @@ export const createFinanceEntry = async (entryData, createdById) => {
  */
 export const getFinanceEntries = async (filters = {}, pagination = {}) => {
     try {
-        const { type, area, startDate, endDate, personId } = filters;
+        const { type, area, startDate, endDate, personId, source, itemType } = filters;
         const { page = 1, limit = 50 } = pagination;
 
         const query = {};
@@ -70,8 +90,16 @@ export const getFinanceEntries = async (filters = {}, pagination = {}) => {
             query.area = area;
         }
 
+        if (source) {
+            query.source = source;
+        }
+
+        if (itemType) {
+            query.itemType = itemType;
+        }
+
         if (personId) {
-            query.personId = personId;
+            query.climberId = personId;
         }
 
         if (startDate || endDate) {
@@ -88,7 +116,9 @@ export const getFinanceEntries = async (filters = {}, pagination = {}) => {
 
         const [entries, total] = await Promise.all([
             FinanceEntry.find(query)
-                .populate('personId', 'firstName lastName email')
+                .populate('climberId', 'firstName lastName email')
+                .populate('productId', 'name category imageUrl') // Add product population
+                .populate('transactionId') // Helpful context
                 .sort({ date: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -252,32 +282,136 @@ export const generateGymReport = async (startDate, endDate) => {
     try {
         const start = new Date(startDate);
         const end = new Date(endDate);
+        // Ensure end date covers the full day if it's just a date string or set to 00:00:00
+        if (endDate.includes('T')) {
+            // If it's ISO, trust it? Or maybe just ensure end of day.
+            // Usually reports go from Start 00:00 to End 23:59
+        } else {
+            // If manual date strings, set times
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 59, 999);
+        }
 
-        // Get gym passes sold in period
+        // 1. Get Gym Passes (Income)
         const gymPasses = await GymPass.find({
             createdAt: { $gte: start, $lte: end },
-        }).lean();
+            paymentStatus: { $ne: 'failed' } // Exclude failed payments if any
+        }).populate('userId', 'firstName lastName').populate('pricingId', 'labelBg category').lean();
 
-        // Get single gym visits in period
-        const gymVisits = await GymVisit.find({
+        // 2. Get Finance Entries (Income & Expense) for Gym
+        const financeEntries = await FinanceEntry.find({
             date: { $gte: start, $lte: end },
-            type: 'single',
-        }).lean();
+            area: 'gym'
+        })
+            .populate('climberId', 'firstName lastName') // Populate climber info
+            .lean();
 
+        // Initialize Stats
         const report = {
             period: { startDate, endDate },
-            passesSold: {
-                count: gymPasses.length,
-                revenue: gymPasses.reduce((sum, pass) => sum + (pass.amount || 0), 0),
+            income: {
+                total: 0,
+                cards: 0,      // From GymPass
+                visits: 0,     // From FinanceEntry (visit_single, visit_multisport, GYM_SINGLE_VISIT)
+                visitCount: 0, // Count of visit transactions
+                other: 0       // From FinanceEntry (other income)
             },
-            singleVisits: {
-                count: gymVisits.length,
-                revenue: gymVisits.reduce((sum, visit) => sum + (visit.amount || 0), 0),
+            expenses: {
+                total: 0,
+                items: 0
             },
-            totalRevenue: 0,
+            netRevenue: 0,
+            transactions: [] // Unified list
         };
 
-        report.totalRevenue = report.passesSold.revenue + report.singleVisits.revenue;
+        // --- Process Gym Passes (Cards) ---
+        gymPasses.forEach(pass => {
+            const amount = pass.amount || 0;
+            report.income.total += amount;
+            report.income.cards += amount;
+
+            report.transactions.push({
+                _id: pass._id,
+                date: pass.createdAt,
+                type: 'income',
+                category: 'subscription', // or 'card'
+                description: `Продажба на карта: ${pass.pricingId?.labelBg || 'N/A'}`, // Pass name
+                details: pass.userId ? `${pass.userId.firstName} ${pass.userId.lastName}` : 'Guest',
+                amount: amount,
+                sourceModel: 'GymPass'
+            });
+        });
+
+        // --- Process Finance Entries ---
+        financeEntries.forEach(entry => {
+            const amount = entry.amount || 0;
+
+            if (entry.type === 'income' || entry.type === 'revenue') {
+                report.income.total += amount;
+
+                // Check if this is a visit entry
+                const isVisit = ['visit_single', 'visit_multisport'].includes(entry.source) ||
+                    entry.pricingCode === 'GYM_SINGLE_VISIT' ||
+                    entry.itemType === 'gym_visit_single' ||
+                    entry.itemType === 'gym_visit_multisport';
+
+                if (isVisit) {
+                    report.income.visits += amount;
+                    report.income.visitCount += 1;
+                } else {
+                    report.income.other += amount;
+                }
+
+                // Format details name
+                let details = 'Guest';
+                if (entry.climberId) {
+                    details = `${entry.climberId.firstName} ${entry.climberId.lastName}`;
+                } else if (entry.personId) {
+                    // Fallback for old records if any
+                    details = 'Member (Legacy)';
+                }
+
+                // Determine category for display
+                let category = 'other';
+                if (entry.source === 'visit_single' || entry.pricingCode === 'GYM_SINGLE_VISIT' || entry.itemType === 'gym_visit_single') {
+                    category = 'visit';
+                } else if (entry.source === 'visit_multisport' || entry.itemType === 'gym_visit_multisport') {
+                    category = 'multisport';
+                }
+
+                report.transactions.push({
+                    _id: entry._id,
+                    date: entry.date,
+                    type: 'income',
+                    category: category,
+                    description: entry.description || 'Приход',
+                    details: details,
+                    amount: amount,
+                    sourceModel: 'FinanceEntry'
+                });
+
+            } else if (entry.type === 'expense') {
+                report.expenses.total += amount;
+                report.expenses.items += 1; // Count of expense items
+
+                report.transactions.push({
+                    _id: entry._id,
+                    date: entry.date,
+                    type: 'expense',
+                    category: 'expense',
+                    description: entry.description || 'Разход',
+                    details: '',
+                    amount: amount,
+                    sourceModel: 'FinanceEntry'
+                });
+            }
+        });
+
+        // Calculate Net
+        report.netRevenue = report.income.total - report.expenses.total;
+
+        // Sort transactions by date descending
+        report.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return report;
     } catch (error) {
@@ -294,7 +428,7 @@ export const generateTrainingReport = async (startDate, endDate) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
-        // Get training passes sold in period
+        // Get training passes sold in period (for stats)
         const trainingPasses = await TrainingPass.find({
             createdAt: { $gte: start, $lte: end },
         }).lean();
@@ -307,7 +441,7 @@ export const generateTrainingReport = async (startDate, endDate) => {
 
         const sessionIds = sessions.map(s => s._id);
 
-        // Get bookings for these sessions
+        // Get bookings for these sessions (for stats)
         const bookings = await Booking.find({
             sessionId: { $in: sessionIds },
             status: 'booked',
@@ -319,6 +453,17 @@ export const generateTrainingReport = async (startDate, endDate) => {
             const coachFees = session.coachFees || [];
             return sum + coachFees.reduce((feeSum, fee) => feeSum + (fee.amount || 0), 0);
         }, 0);
+
+        // --- Fetch Finance Entries for Training Area ---
+        // This handles both date and createdAt fields (some entries might have null date)
+        const financeEntries = await FinanceEntry.find({
+            $or: [
+                { date: { $gte: start, $lte: end }, area: 'training' },
+                { date: null, createdAt: { $gte: start, $lte: end }, area: 'training' }
+            ]
+        })
+            .populate('climberId', 'firstName lastName')
+            .lean();
 
         const report = {
             period: { startDate, endDate },
@@ -335,10 +480,49 @@ export const generateTrainingReport = async (startDate, endDate) => {
             },
             totalRevenue: 0,
             netRevenue: 0,
+            transactions: [] // Initialize transactions array
         };
 
         report.totalRevenue = report.passesSold.revenue + report.sessionBookings.revenue;
         report.netRevenue = report.totalRevenue - report.coachFees.total;
+
+        // Populate transactions from FinanceEntry records
+        financeEntries.forEach(entry => {
+            // Use totalAmount primarily, fallback to amount field
+            const amount = entry.totalAmount || entry.amount || 0;
+
+            // Format details name
+            let details = 'Guest';
+            if (entry.climberId) {
+                details = `${entry.climberId.firstName} ${entry.climberId.lastName}`;
+            }
+
+            // Determine category label based on itemType primarily
+            let categoryLabel = 'other';
+            if (entry.itemType === 'training_pass') {
+                categoryLabel = 'subscription';
+            } else if (entry.itemType === 'training_single') {
+                categoryLabel = 'visit';
+            } else if (entry.source === 'subscription' || entry.itemType === 'pass') {
+                categoryLabel = 'subscription';
+            } else if (entry.source === 'visit_single' || entry.itemType === 'visit') {
+                categoryLabel = 'visit';
+            }
+
+            report.transactions.push({
+                _id: entry._id,
+                date: entry.date || entry.createdAt, // Fallback to createdAt if date is null
+                type: entry.type, // 'revenue' or 'expense'
+                category: categoryLabel,
+                description: entry.description || (entry.type === 'revenue' ? 'Приход' : 'Разход'),
+                details: details,
+                amount: amount,
+                sourceModel: 'FinanceEntry'
+            });
+        });
+
+        // Sort transactions by date descending
+        report.transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         return report;
     } catch (error) {

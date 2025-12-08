@@ -21,17 +21,32 @@ router.use(authenticate);
  */
 router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, res, next) => {
   try {
-    const { role } = req.query;
+    const { role, page = 1, limit = 0, sort = '-createdAt' } = req.query;
 
     const query = {};
     if (role) {
       query.roles = { $in: [role] };
     }
 
-    const users = await User.find(query)
+    // Parse pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    let usersQuery = User.find(query)
       .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort(sort);
+
+    // Apply pagination if limit is set
+    if (limitNum > 0) {
+      usersQuery = usersQuery.skip(skip).limit(limitNum);
+    }
+
+    const [users, total] = await Promise.all([
+      usersQuery.lean(),
+      User.countDocuments(query)
+    ]);
 
     res.json({
       users: users.map(user => ({
@@ -55,8 +70,100 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       })),
+      pagination: limitNum > 0 ? {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        pages: Math.ceil(total / limitNum)
+      } : null
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/admin/users
+ * Create a new user (climber)
+ * Accessible to: admin, coach, instructor
+ */
+router.post('/users', requireRole('admin', 'coach', 'instructor'), async (req, res, next) => {
+  try {
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phone,
+      dateOfBirth,
+      notes,
+      isTrainee,
+      roles
+    } = req.body;
+
+    // Validation
+    if (!firstName || !lastName) {
+      return res.status(400).json({
+        error: { message: 'First name and last name are required' }
+      });
+    }
+
+    const userData = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      middleName: middleName ? middleName.trim() : null,
+      phone: phone ? phone.trim() : '',
+      dateOfBirth: dateOfBirth || null,
+      notes: notes ? notes.trim() : '',
+      isTrainee: isTrainee || false,
+      roles: roles || ['climber'],
+      accountStatus: 'inactive', // Always inactive initially as requested
+      email: null
+    };
+
+    // Handle email
+    if (email && email.trim()) {
+      const emailLower = email.trim().toLowerCase();
+      // Check uniqueness
+      const existingUser = await User.findOne({ email: emailLower });
+      if (existingUser) {
+        return res.status(409).json({
+          error: { message: 'Email already exists' }
+        });
+      }
+      userData.email = emailLower;
+    }
+
+    const user = new User(userData);
+    await user.save();
+
+    logger.info({
+      adminId: req.user.id,
+      newUserId: user._id,
+      roles: user.roles
+    }, 'User created by admin');
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        roles: user.roles,
+        accountStatus: user.accountStatus
+      }
+    });
+
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        error: {
+          message: 'Validation failed',
+          errors: Object.values(error.errors).map(e => e.message),
+        },
+      });
+    }
     next(error);
   }
 });
@@ -172,7 +279,7 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
           });
         }
         // Check if email already exists for another user
-        const existingUser = await User.findOne({ 
+        const existingUser = await User.findOne({
           email: email.toLowerCase().trim(),
           _id: { $ne: req.params.id }
         });
@@ -247,10 +354,10 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
       });
     }
 
-    logger.info({ 
-      userId: req.user.id, 
+    logger.info({
+      userId: req.user.id,
       updatedUserId: req.params.id,
-      changes: updateData 
+      changes: updateData
     }, 'User data updated by admin');
 
     res.json({
@@ -339,10 +446,10 @@ router.put('/users/:id/roles', requireRole('admin'), async (req, res, next) => {
       });
     }
 
-    logger.info({ 
-      userId: req.user.id, 
+    logger.info({
+      userId: req.user.id,
       updatedUserId: req.params.id,
-      newRoles: roles 
+      newRoles: roles
     }, 'User roles updated by admin');
 
     res.json({
@@ -406,8 +513,8 @@ router.post('/children', requireRole('admin'), validateCreateClimber, async (req
 
     await child.save();
 
-    logger.info({ 
-      adminId: req.user.id, 
+    logger.info({
+      adminId: req.user.id,
       childId: child._id,
     }, 'Child created by admin');
 
@@ -445,7 +552,7 @@ router.post('/children/:childId/activate', requireRole('admin'), validateActivat
     if (phone !== undefined) updateData.phone = phone;
 
     const user = await activateClimberProfile(childId, email, password, req.user.id, updateData);
-    
+
     res.json({
       user,
       message: 'Child profile activated successfully',
@@ -520,9 +627,9 @@ router.post('/children/:childId/link-parent/:parentId', requireRole('admin'), as
     const link = new ParentClimberLink({ parentId, climberId: childId });
     await link.save();
 
-    logger.info({ 
-      adminId: req.user.id, 
-      parentId, 
+    logger.info({
+      adminId: req.user.id,
+      parentId,
       childId,
     }, 'Child linked to parent by admin');
 
@@ -552,7 +659,7 @@ router.delete('/children/:childId/unlink-parent/:parentId', requireRole('admin')
     const { childId, parentId } = req.params;
 
     const result = await ParentClimberLink.deleteOne({ parentId, climberId: childId });
-    
+
     if (result.deletedCount === 0) {
       return res.status(404).json({
         error: {
@@ -561,9 +668,9 @@ router.delete('/children/:childId/unlink-parent/:parentId', requireRole('admin')
       });
     }
 
-    logger.info({ 
-      adminId: req.user.id, 
-      parentId, 
+    logger.info({
+      adminId: req.user.id,
+      parentId,
       childId,
     }, 'Child unlinked from parent by admin');
 
@@ -583,7 +690,7 @@ router.delete('/children/:childId/unlink-parent/:parentId', requireRole('admin')
 router.delete('/children/cleanup', requireRole('admin'), async (req, res, next) => {
   try {
     // Find all users with role 'climber' and no email (including empty string)
-    const childrenWithoutEmail = await User.find({ 
+    const childrenWithoutEmail = await User.find({
       roles: { $in: ['climber'] },
       $or: [
         { email: null },
@@ -598,11 +705,11 @@ router.delete('/children/cleanup', requireRole('admin'), async (req, res, next) 
     await ParentClimberLink.deleteMany({ climberId: { $in: childIds } });
 
     // Delete the children users
-    const result = await User.deleteMany({ 
+    const result = await User.deleteMany({
       _id: { $in: childIds }
     });
 
-    logger.info({ 
+    logger.info({
       adminId: req.user.id,
       deletedCount: result.deletedCount
     }, 'Old children without email deleted');
@@ -626,7 +733,7 @@ router.post('/fix-email-index', requireRole('admin'), async (req, res, next) => 
   try {
     const db = User.db;
     const collection = db.collection('users');
-    
+
     // Drop existing email index
     try {
       await collection.dropIndex('email_1');
@@ -637,20 +744,20 @@ router.post('/fix-email-index', requireRole('admin'), async (req, res, next) => 
       }
       logger.info({ adminId: req.user.id }, 'Email index does not exist, will create new one');
     }
-    
+
     // Recreate index with partialFilterExpression
     await collection.createIndex(
       { email: 1 },
-      { 
-        unique: true, 
+      {
+        unique: true,
         sparse: true,
         partialFilterExpression: { email: { $ne: null } },
         name: 'email_1'
       }
     );
-    
+
     logger.info({ adminId: req.user.id }, 'Recreated email index with partialFilterExpression');
-    
+
     res.json({
       message: 'Email index fixed successfully',
     });

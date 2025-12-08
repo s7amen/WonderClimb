@@ -4,8 +4,16 @@ const trainingPassSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
         index: true,
+    },
+    isFamilyPass: {
+        type: Boolean,
+        default: false,
+    },
+    familyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Family',
+        default: null,
     },
     passId: {
         type: String,
@@ -16,7 +24,7 @@ const trainingPassSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['monthly', 'pack', 'single'],
+        enum: ['monthly', 'pack', 'single', 'time_based', 'prepaid_entries'],
     },
     name: {
         type: String,
@@ -25,13 +33,11 @@ const trainingPassSchema = new mongoose.Schema({
     },
     totalSessions: {
         type: Number,
-        required: true,
-        min: 0,
+        default: null,
     },
     remainingSessions: {
         type: Number,
-        required: true,
-        min: 0,
+        default: null,
     },
     validFrom: {
         type: Date,
@@ -96,9 +102,18 @@ trainingPassSchema.virtual('isValid').get(function () {
     const isDateValid = (!this.validFrom || now >= this.validFrom) &&
         (!this.validUntil || now <= this.validUntil);
 
-    const isSessionsValid = this.remainingSessions > 0;
+    const isSessionsValid = (this.totalSessions === null || this.totalSessions === 0) ||
+        (this.remainingSessions !== null && this.remainingSessions > 0);
 
     return isDateValid && isSessionsValid;
+});
+
+// Middleware to ensure either userId or familyId is present
+trainingPassSchema.pre('save', function (next) {
+    if (!this.userId && !this.familyId) {
+        return next(new Error('TrainingPass must belong to either a User or a Family.'));
+    }
+    next();
 });
 
 export const TrainingPass = mongoose.model('TrainingPass', trainingPassSchema);

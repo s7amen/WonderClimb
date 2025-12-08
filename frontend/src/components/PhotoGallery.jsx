@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { API_BASE_URL, climberPhotosAPI } from '../services/api';
 import { useToast } from './UI/Toast';
 import AuthImage from './AuthImage';
@@ -9,7 +9,7 @@ const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
   const [deleting, setDeleting] = useState(null);
   const [settingMain, setSettingMain] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
-  const { showToast, ToastComponent } = useToast();
+  const { showToast } = useToast();
 
   const getPhotoUrl = (filename) => {
     return `${API_BASE_URL}/admin/photos/${climberId}/${filename}`;
@@ -174,9 +174,7 @@ const PhotoGallery = ({ climberId, photos = [], onUpdate, onImageClick }) => {
             </div>
           )
         )}
-      </div>
-      <ToastComponent />
-      <ConfirmDialog
+      </div><ConfirmDialog
         isOpen={showDeleteDialog}
         onClose={cancelDelete}
         onConfirm={confirmDelete}

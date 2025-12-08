@@ -1,15 +1,16 @@
-const Button = ({ 
-  children, 
-  onClick, 
-  type = 'button', 
-  variant = 'primary', 
+const Button = ({
+  children,
+  onClick,
+  type = 'button',
+  variant = 'primary',
   disabled = false,
+  loading = false,
   className = '',
-  ...props 
+  ...props
 }) => {
   // Base classes: rounded-lg (8px), text-sm (14px), font-medium, padding
   const baseClasses = 'px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
-  
+
   const variants = {
     // Primary: orange background (#ea7a24), white text
     primary: 'bg-orange-brand !text-white hover:opacity-90 focus:ring-orange-brand disabled:opacity-50 disabled:cursor-not-allowed',
@@ -25,11 +26,11 @@ const Button = ({
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || loading}
       className={`${baseClasses} ${variants[variant]} ${className}`}
       {...props}
     >
-      {children}
+      {loading ? 'Зареждане...' : children}
     </button>
   );
 };

@@ -4,6 +4,8 @@ import { AttendanceRecord } from '../models/attendanceRecord.js';
 import { TrainingPass } from '../models/trainingPass.js';
 import { Pricing } from '../models/pricing.js';
 import { User } from '../models/user.js';
+import { FinanceEntry } from '../models/financeEntry.js';
+import { FinanceTransaction } from '../models/financeTransaction.js';
 import logger from '../middleware/logging.js';
 
 /**
@@ -315,12 +317,23 @@ export const getAttendanceForSession = async (sessionId) => {
  */
 export const createTrainingPass = async (passData, createdById) => {
     try {
-        const { userId, pricingId, discountPercent, discountReason, paymentStatus } = passData;
+        const { userId, familyId, isFamilyPass, pricingId, discountPercent, discountReason, paymentStatus } = passData;
 
-        // Verify user exists
-        const user = await User.findById(userId);
-        if (!user) {
-            throw new Error('User not found');
+        // Verify user or family exists
+        if (userId) {
+            const user = await User.findById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+        } else if (familyId) {
+            // Import dynamically to avoid circular dependency if needed, or assume it's available
+            const { Family } = await import('../models/family.js');
+            const family = await Family.findById(familyId);
+            if (!family) {
+                throw new Error('Family not found');
+            }
+        } else {
+            throw new Error('Either user or family must be selected');
         }
 
         // Get pricing template
@@ -329,30 +342,62 @@ export const createTrainingPass = async (passData, createdById) => {
             throw new Error('Pricing not found or inactive');
         }
 
-        if (pricing.category !== 'training') {
+        const validCategories = ['training_pass', 'training_single'];
+        if (!validCategories.includes(pricing.category)) {
             throw new Error('Pricing is not for training passes');
         }
 
         // Calculate dates
+        // Use provided validFrom or default to now
         const now = new Date();
-        const validFrom = pricing.validFrom || now;
-        const validUntil = new Date(validFrom);
-        validUntil.setDate(validUntil.getDate() + (pricing.validityDays || 30));
+        const validFrom = passData.validFrom ? new Date(passData.validFrom) : new Date();
 
-        // Calculate amount with discount
-        let finalAmount = pricing.amount;
-        if (discountPercent && discountPercent > 0) {
-            finalAmount = pricing.amount * (1 - discountPercent / 100);
+        // Use provided validUntil or calculate from validityDays
+        let validUntil;
+        if (passData.validUntil) {
+            validUntil = new Date(passData.validUntil);
+        } else {
+            const { addDuration } = await import('../utils/dateUtils.js');
+            validUntil = addDuration(validFrom, pricing.validityDays || 30, pricing.validityType || 'days');
+        }
+
+        // Calculate amount
+        // If amount is provided explicitly, use it (it's the final amount)
+        // Otherwise calculate from pricing and discount
+        let finalAmount;
+        if (passData.amount !== undefined && passData.amount !== '') {
+            finalAmount = parseFloat(passData.amount);
+        } else {
+            finalAmount = pricing.amount;
+            if (discountPercent && discountPercent > 0) {
+                finalAmount = pricing.amount * (1 - discountPercent / 100);
+            }
+        }
+
+        // Determine sessions
+        const inputSessions = passData.totalSessions !== undefined ? passData.totalSessions : passData.totalEntries;
+        const totalSessions = inputSessions !== undefined && inputSessions !== '' && inputSessions !== null
+            ? parseInt(inputSessions)
+            : (pricing.maxEntries || null);
+
+        // Determine pass type
+        let passType = 'time_based';
+        if (pricing.category === 'training_single') {
+            passType = 'single';
+        } else if (totalSessions) {
+            passType = 'prepaid_entries';
         }
 
         // Create pass
         const trainingPass = await TrainingPass.create({
-            userId,
+            userId: userId || null,
+            familyId: familyId || null,
+            isFamilyPass: !!isFamilyPass,
             passId: `TRN-${Date.now()}`,
-            type: pricing.type || 'pass',
+            type: passType,
             name: pricing.labelBg,
-            totalSessions: pricing.maxEntries || 10,
-            remainingSessions: pricing.maxEntries || 10,
+            totalSessions: totalSessions,
+            remainingSessions: totalSessions, // Start with full sessions
             validFrom,
             validUntil,
             isActive: true,
@@ -365,6 +410,45 @@ export const createTrainingPass = async (passData, createdById) => {
             createdById,
             updatedById: createdById,
         });
+
+        // Create Finance Entry if amount > 0
+        if (finalAmount > 0) {
+            try {
+                // 1. Create Transaction
+                const financeTransaction = await FinanceTransaction.create({
+                    totalAmount: finalAmount,
+                    paymentMethod: 'cash', // Defaulting to cash for manual creation
+                    paidAt: new Date(),
+                    handledById: createdById,
+                    payerClimberId: userId || null,
+                    source: 'training',
+                    notes: `Training pass created: ${pricing.labelBg}`,
+                });
+
+                // 2. Create Entry
+                await FinanceEntry.create({
+                    transactionId: financeTransaction._id,
+                    area: 'training',
+                    type: 'revenue',
+                    itemType: 'training_pass',
+                    pricingCode: pricing.pricingCode,
+                    quantity: 1,
+                    unitAmount: finalAmount,
+                    totalAmount: finalAmount,
+                    climberId: userId || null,
+                    trainingPassId: trainingPass._id,
+                    date: new Date(),
+                    description: `Training Pass: ${pricing.labelBg}`,
+                    createdById: createdById,
+                });
+            } catch (financeError) {
+                // Log but don't fail the pass creation
+                logger.error({
+                    err: financeError,
+                    trainingPassId: trainingPass._id
+                }, 'Failed to create finance entry for training pass');
+            }
+        }
 
         logger.info({
             trainingPassId: trainingPass._id,
@@ -395,7 +479,21 @@ export const getUserTrainingPasses = async (userId, activeOnly = false) => {
             query.remainingSessions = { $gt: 0 };
         }
 
+        // Find families where user is a member
+        const { Family } = await import('../models/family.js');
+        const families = await Family.find({ memberIds: userId });
+        if (families.length > 0) {
+            const familyIds = families.map(f => f._id);
+            query.$or = [
+                { userId: userId },
+                { familyId: { $in: familyIds } }
+            ];
+            delete query.userId; // Remove simple userId query in favor of $or
+        }
+
         const passes = await TrainingPass.find(query)
+            .populate('userId', 'firstName lastName email')
+            .populate('familyId', 'name')
             .populate('pricingId')
             .sort({ createdAt: -1 })
             .lean();
@@ -434,6 +532,7 @@ export const getAllTrainingPasses = async (filters = {}, pagination = {}) => {
         const [passes, total] = await Promise.all([
             TrainingPass.find(query)
                 .populate('userId', 'firstName lastName email')
+                .populate('familyId', 'name')
                 .populate('pricingId')
                 .sort({ createdAt: -1 })
                 .skip(skip)
@@ -464,6 +563,7 @@ export const getTrainingPassById = async (passId) => {
     try {
         const pass = await TrainingPass.findById(passId)
             .populate('userId', 'firstName lastName email phone')
+            .populate('familyId', 'name')
             .populate('pricingId')
             .lean();
 
@@ -493,7 +593,7 @@ export const getTrainingPassById = async (passId) => {
  */
 export const updateTrainingPass = async (passId, updates, updatedById) => {
     try {
-        const allowedUpdates = ['paymentStatus', 'notes', 'isActive'];
+        const allowedUpdates = ['paymentStatus', 'notes', 'isActive', 'remainingSessions', 'validFrom', 'validUntil'];
         const filteredUpdates = {};
 
         Object.keys(updates).forEach(key => {
@@ -519,6 +619,65 @@ export const updateTrainingPass = async (passId, updates, updatedById) => {
         return pass;
     } catch (error) {
         logger.error({ error: error.message, passId }, 'Error updating training pass');
+        throw error;
+    }
+};
+
+/**
+ * Delete training pass (soft delete)
+ */
+export const deleteTrainingPass = async (passId) => {
+    try {
+        const pass = await TrainingPass.findById(passId);
+        if (!pass) {
+            throw new Error('Training pass not found');
+        }
+
+        // Soft delete - set isActive to false
+        pass.isActive = false;
+        await pass.save();
+
+        logger.info({ passId: pass._id }, 'Training pass deleted (soft)');
+
+        return pass;
+    } catch (error) {
+        logger.error({ error: error.message, passId }, 'Error deleting training pass');
+        throw error;
+    }
+};
+
+/**
+ * Delete training pass and all related records (cascade hard delete)
+ */
+export const deleteTrainingPassCascade = async (passId) => {
+    try {
+        const pass = await TrainingPass.findById(passId);
+        if (!pass) {
+            throw new Error('Training pass not found');
+        }
+
+        // Delete all related bookings
+        const bookingsResult = await Booking.deleteMany({ trainingPassId: passId });
+
+        logger.info({
+            passId,
+            deletedBookings: bookingsResult.deletedCount
+        }, 'Deleted bookings for cascade delete');
+
+        // Note: We don't delete attendance records as they are tied to sessions, not passes
+        // Attendance is historical data that should be preserved
+
+        // Hard delete the pass
+        await TrainingPass.findByIdAndDelete(passId);
+
+        logger.info({ passId }, 'Training pass deleted (cascade)');
+
+        return {
+            pass,
+            deletedBookings: bookingsResult.deletedCount,
+        };
+    } catch (error) {
+        logger.error({ error: error.message, passId }, 'Error cascade deleting training pass');
         throw error;
     }
 };
@@ -570,6 +729,46 @@ export const getAllBookings = async (filters = {}, pagination = {}) => {
         };
     } catch (error) {
         logger.error({ error: error.message, filters }, 'Error fetching bookings');
+        throw error;
+    }
+};
+
+/**
+ * Extend validity of all active training passes
+ */
+export const extendAllActivePasses = async (days, adminId) => {
+    try {
+        const now = new Date();
+        const extensionMs = days * 24 * 60 * 60 * 1000;
+
+        const updateResult = await TrainingPass.updateMany(
+            {
+                isActive: true,
+                validUntil: { $gt: now }
+            },
+            [
+                {
+                    $set: {
+                        validUntil: {
+                            $add: ["$validUntil", extensionMs]
+                        },
+                        updatedById: adminId,
+                        updatedAt: new Date()
+                    }
+                }
+            ]
+        );
+
+        logger.info({
+            days,
+            adminId,
+            matchedCount: updateResult.matchedCount,
+            modifiedCount: updateResult.modifiedCount
+        }, 'Bulk extended active training passes');
+
+        return updateResult.modifiedCount;
+    } catch (error) {
+        logger.error({ error: error.message, days }, 'Error extending training passes');
         throw error;
     }
 };

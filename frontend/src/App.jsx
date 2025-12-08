@@ -1,50 +1,95 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import React, { Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/UI/Toast';
+import RequireMinRole from './components/RequireMinRole';
 import ProtectedRoute from './components/ProtectedRoute';
 import Loading from './components/UI/Loading';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 
-// Lazy load layouts (smaller, can be loaded immediately)
+// Lazy load layouts
 import AdminLayout from './components/Layout/AdminLayout';
 import CoachLayout from './components/Layout/CoachLayout';
 import ClimberLayout from './components/Layout/ClimberLayout';
-import ParentLayout from './components/Layout/ParentLayout';
+import UniversalLayout from './components/Layout/UniversalLayout';
 
-// Lazy load pages for better code splitting
+// Lazy load pages - NEW STRUCTURE
 const Login = lazy(() => import('./pages/Auth/Login'));
 const Register = lazy(() => import('./pages/Auth/Register'));
-const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
-const AdminSessions = lazy(() => import('./pages/Admin/Sessions'));
-const AdminCalendar = lazy(() => import('./pages/Admin/Calendar'));
-const AdminClimbers = lazy(() => import('./pages/Admin/Climbers'));
-const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
-const ClimberProfile = lazy(() => import('./pages/Admin/ClimberProfile'));
-const Competitions = lazy(() => import('./pages/Admin/Competitions'));
-const CompetitionDetail = lazy(() => import('./pages/Admin/CompetitionDetail'));
-const PublicCompetition = lazy(() => import('./pages/Public/Competition'));
-const PublicCompetitionDetail = lazy(() => import('./pages/Public/CompetitionDetail'));
-const PublicSessions = lazy(() => import('./pages/Public/Sessions'));
 const TermsOfService = lazy(() => import('./pages/Public/TermsOfService'));
-const CoachDashboard = lazy(() => import('./pages/Coach/Dashboard'));
-const CoachAttendance = lazy(() => import('./pages/Coach/Attendance'));
-const InstructorDashboard = lazy(() => import('./pages/Instructor/Dashboard'));
-const ClimberDashboard = lazy(() => import('./pages/Climber/Dashboard'));
-const ClimberSchedule = lazy(() => import('./pages/Climber/Schedule'));
-const ParentDashboard = lazy(() => import('./pages/Parent/Dashboard'));
-const ParentProfile = lazy(() => import('./pages/Parent/Profile'));
-const ParentSchedule = lazy(() => import('./pages/Parent/Schedule'));
-const ParentBookings = lazy(() => import('./pages/Parent/Bookings'));
-const ParentSavedSessions = lazy(() => import('./pages/Parent/SavedSessions'));
-const ParentSubscriptions = lazy(() => import('./pages/Parent/Subscriptions'));
-const Profile = lazy(() => import('./pages/Profile/Profile'));
-const MySessions = lazy(() => import('./pages/MySessions/MySessions'));
-const PublicLandingPage = lazy(() => import('./pages/Home/Home'));
+// Use the restored Home page
+const Landing = lazy(() => import('./pages/Home/Home'));
 
-// Home component - always shows public landing page
+// Dashboards
+const AdminDashboard = lazy(() => import('./pages/Dashboard/AdminDashboard'));
+const CoachDashboard = lazy(() => import('./pages/Dashboard/CoachDashboard'));
+const InstructorDashboard = lazy(() => import('./pages/Dashboard/InstructorDashboard'));
+const ClimberDashboard = lazy(() => import('./pages/Dashboard/ClimberDashboard'));
+const ClimberSchedule = lazy(() => import('./pages/Dashboard/ClimberSchedule'));
+const CoachAttendance = lazy(() => import('./pages/Dashboard/CoachAttendance'));
+
+// Sessions
+const SessionsBrowse = lazy(() => import('./pages/Sessions/Browse'));
+const SessionsManage = lazy(() => import('./pages/Sessions/Manage'));
+
+// Competitions
+const CompetitionsBrowse = lazy(() => import('./pages/Competitions/Browse'));
+const CompetitionsPublicDetail = lazy(() => import('./pages/Competitions/PublicDetail'));
+const CompetitionsManage = lazy(() => import('./pages/Competitions/Manage'));
+const CompetitionsManageDetail = lazy(() => import('./pages/Competitions/ManageDetail'));
+
+// Climbers
+const ClimbersList = lazy(() => import('./pages/Climbers/List'));
+const ClimberProfile = lazy(() => import('./pages/Climbers/Profile'));
+const FamilyList = lazy(() => import('./pages/Families/FamilyList'));
+const FamilyProfile = lazy(() => import('./pages/Families/Profile'));
+
+
+// Gym
+const GymDashboard = lazy(() => import('./pages/Gym/Dashboard'));
+const GymCheckIn = lazy(() => import('./pages/Gym/CheckIn'));
+const GymPasses = lazy(() => import('./pages/Gym/Passes'));
+const GymVisits = lazy(() => import('./pages/Gym/Visits'));
+const GymPrices = lazy(() => import('./pages/Gym/Prices'));
+
+// Training
+const TrainingDashboard = lazy(() => import('./pages/Training/Dashboard'));
+const TrainingBookings = lazy(() => import('./pages/Training/Bookings'));
+const TrainingSessions = lazy(() => import('./pages/Training/Sessions'));
+const TrainingPasses = lazy(() => import('./pages/Training/Passes'));
+const TrainingAttendance = lazy(() => import('./pages/Training/Attendance'));
+
+// Finance
+const FinanceDashboard = lazy(() => import('./pages/Finance/Dashboard'));
+const FinanceEntries = lazy(() => import('./pages/Finance/Entries'));
+const FinanceReports = lazy(() => import('./pages/Finance/Reports'));
+const GymReport = lazy(() => import('./pages/Finance/GymReport'));
+const TrainingReport = lazy(() => import('./pages/Finance/TrainingReport'));
+const CoachFeesReport = lazy(() => import('./pages/Finance/CoachFees'));
+
+// Products
+const ProductsList = lazy(() => import('./pages/Products/List'));
+const ProductDetail = lazy(() => import('./pages/Products/Detail'));
+
+// Calendar
+const Calendar = lazy(() => import('./pages/Calendar/Calendar'));
+
+// Settings
+const Settings = lazy(() => import('./pages/Settings/index')); // Imports index.jsx
+
+// User
+const Profile = lazy(() => import('./pages/Profile/Profile'));
+const MyBookings = lazy(() => import('./pages/MyBookings/MyBookings'));
+const Subscriptions = lazy(() => import('./pages/Climber/Subscriptions'));
+
+// Admin
+const AdminPricing = lazy(() => import('./pages/Admin/Pricing'));
+
+
+// Home component - redirects authenticated users to their dashboard
 const Home = () => {
-  const { loading } = useAuth();
+  const { user, loading, hasRole } = useAuth();
 
   if (loading) {
     return (
@@ -54,7 +99,15 @@ const Home = () => {
     );
   }
 
-  return <PublicLandingPage />;
+  // Redirect authenticated users to their appropriate dashboard
+  // if (user) {
+  //   if (hasRole('admin')) return <Navigate to="/dashboard/admin" replace />;
+  //   if (hasRole('coach')) return <Navigate to="/dashboard/coach" replace />;
+  //   if (hasRole('instructor')) return <Navigate to="/dashboard/instructor" replace />;
+  //   if (hasRole('climber')) return <Navigate to="/dashboard/climber" replace />;
+  // }
+
+  return <Landing />;
 };
 
 // Loading fallback component
@@ -67,203 +120,267 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-          {/* Public routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/terms-of-service" element={<TermsOfService />} />
-          <Route path="/" element={<Home />} />
+      <ToastProvider>
+        <Router
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
+              <Route path="/" element={<Home />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requiredRoles={['admin', 'coach', 'instructor']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-          </Route>
+              {/* Public Browsing */}
+              <Route path="/sessions" element={<UniversalLayout />}>
+                <Route index element={<SessionsBrowse />} />
+              </Route>
+              <Route path="/competitions" element={<UniversalLayout />}>
+                <Route index element={<CompetitionsBrowse />} />
+                <Route path=":id" element={<CompetitionsPublicDetail />} />
+              </Route>
 
-          {/* Root-level calendar route - accessible by all users */}
-          <Route
-            path="/calendar"
-            element={<AdminLayout />}
-          >
-            <Route index element={<AdminCalendar />} />
-          </Route>
+              {/* Unified Dashboard Routes */}
+              <Route path="/dashboard">
+                {/* Admin Dashboard */}
+                <Route
+                  path="admin"
+                  element={
+                    <RequireMinRole minRole="admin">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<AdminDashboard />} />
+                </Route>
 
-          {/* Public routes - accessible without authentication */}
-          <Route path="/sessions" element={<PublicSessions />} />
-          <Route path="/competitions" element={<PublicCompetition />} />
-          <Route path="/competitions/:id" element={<PublicCompetitionDetail />} />
+                {/* Coach Dashboard */}
+                <Route
+                  path="coach"
+                  element={
+                    <RequireMinRole minRole="coach">
+                      <CoachLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<CoachDashboard />} />
+                  <Route path="attendance" element={<CoachAttendance />} />
+                  <Route path="attendance/:sessionId" element={<CoachAttendance />} />
+                </Route>
 
-          {/* Admin competition routes - accessible by admin and coach */}
-          <Route
-            path="/admin/competitions"
-            element={
-              <ProtectedRoute requiredRoles={['admin', 'coach']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Competitions />} />
-            <Route path=":id" element={<CompetitionDetail />} />
-          </Route>
+                {/* Instructor Dashboard */}
+                <Route
+                  path="instructor"
+                  element={
+                    <RequireMinRole minRole="instructor">
+                      <CoachLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<InstructorDashboard />} />
+                </Route>
 
-          {/* Admin sessions route - accessible by admin and coach */}
-          <Route
-            path="/admin/sessions"
-            element={
-              <ProtectedRoute requiredRoles={['admin', 'coach']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminSessions />} />
-          </Route>
+                {/* Climber Dashboard */}
+                <Route
+                  path="climber"
+                  element={
+                    <RequireMinRole minRole="climber">
+                      <ClimberLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<ClimberDashboard />} />
+                  <Route path="schedule" element={<ClimberSchedule />} />
+                </Route>
+              </Route>
 
-          {/* Admin climbers route - accessible by admin, coach, and instructor */}
-          <Route
-            path="/admin/climbers"
-            element={
-              <ProtectedRoute requiredRoles={['admin', 'coach', 'instructor']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<AdminClimbers />} />
-            <Route path=":id" element={<ClimberProfile />} />
-          </Route>
+              {/* Feature Routes - Staff Management */}
 
-          {/* Admin settings route - accessible by admin only */}
-          <Route
-            path="/admin/settings"
-            element={
-              <ProtectedRoute requiredRoles={['admin']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/admin/settings/messages" replace />} />
-            <Route path="messages" element={<AdminSettings />} />
-          </Route>
+              {/* Sessions Management - Coach, Admin */}
+              <Route
+                path="/sessions/manage"
+                element={
+                  <RequireMinRole minRole="coach">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<SessionsManage />} />
+              </Route>
 
-          {/* Universal routes - accessible by all authenticated users */}
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
-                  <Header />
-                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-                    <Profile />
-                  </main>
-                  <Footer />
-                </div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-sessions"
-            element={
-              <ProtectedRoute>
-                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
-                  <Header />
-                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-                    <MySessions />
-                  </main>
-                  <Footer />
-                </div>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/climber/subscriptions"
-            element={
-              <ProtectedRoute>
-                <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
-                  <Header />
-                  <main className="flex-1 max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-                    <ParentSubscriptions />
-                  </main>
-                  <Footer />
-                </div>
-              </ProtectedRoute>
-            }
-          />
+              {/* Climbers Management - Instructor, Coach, Admin */}
+              <Route
+                path="/climbers"
+                element={
+                  <RequireMinRole minRole="instructor">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<ClimbersList />} />
+                <Route path=":id" element={<ClimberProfile />} />
+              </Route>
 
-          {/* Redirect old admin/calendar route */}
-          <Route
-            path="/admin/calendar"
-            element={<Navigate to="/calendar" replace />}
-          />
+              {/* Family Management - Instructor, Coach, Admin */}
+              <Route
+                path="/families"
+                element={
+                  <RequireMinRole minRole="instructor">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<FamilyList />} />
+                <Route path=":id" element={<FamilyProfile />} />
+              </Route>
 
-          <Route
-            path="/coach"
-            element={
-              <ProtectedRoute requiredRoles={['coach', 'admin']}>
-                <CoachLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<CoachDashboard />} />
-            <Route path="attendance" element={<CoachAttendance />} />
-            <Route path="attendance/:sessionId" element={<CoachAttendance />} />
-            <Route path="*" element={<Navigate to="/coach/dashboard" replace />} />
-          </Route>
+              {/* Gym Management - Instructor+ */}
+              <Route
+                path="/gym"
+                element={
+                  <RequireMinRole minRole="instructor">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<GymDashboard />} />
+                <Route path="check-in" element={<GymCheckIn />} />
+                <Route path="passes" element={<GymPasses />} />
+                <Route path="visits" element={<GymVisits />} />
+                <Route path="prices" element={<GymPrices />} />
+              </Route>
 
-          <Route
-            path="/instructor"
-            element={
-              <ProtectedRoute requiredRoles={['instructor', 'admin']}>
-                <CoachLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<InstructorDashboard />} />
-            <Route path="*" element={<Navigate to="/instructor/dashboard" replace />} />
-          </Route>
+              {/* Training Management - Coach+ */}
+              <Route
+                path="/training"
+                element={
+                  <RequireMinRole minRole="coach">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<TrainingDashboard />} />
+                <Route path="bookings" element={<TrainingBookings />} />
+                <Route path="climbers" element={<ClimbersList type="training" />} />
+                <Route path="sessions" element={<TrainingSessions />} />
+                <Route path="passes" element={<TrainingPasses />} />
+                <Route path="attendance" element={<TrainingAttendance />} />
+              </Route>
 
-          <Route
-            path="/climber"
-            element={
-              <ProtectedRoute requiredRoles={['climber', 'admin', 'coach']}>
-                <ClimberLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<ClimberDashboard />} />
-            <Route path="schedule" element={<ClimberSchedule />} />
-            <Route path="*" element={<Navigate to="/climber/dashboard" replace />} />
-          </Route>
+              {/* Competition Management - Coach, Admin */}
+              <Route
+                path="/competitions/manage"
+                element={
+                  <RequireMinRole minRole="coach">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<CompetitionsManage />} />
+                <Route path=":id" element={<CompetitionsManageDetail />} />
+              </Route>
 
-          <Route
-            path="/parent"
-            element={
-              <ProtectedRoute requiredRoles={['climber', 'admin', 'coach']}>
-                <ParentLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<ParentDashboard />} />
-            <Route path="profile" element={<ParentProfile />} />
-            <Route path="schedule" element={<ParentSchedule />} />
-            <Route path="bookings" element={<ParentBookings />} />
-            <Route path="saved-sessions" element={<ParentSavedSessions />} />
-            <Route path="subscriptions" element={<ParentSubscriptions />} />
-            <Route path="*" element={<Navigate to="/parent/profile" replace />} />
-          </Route>
+              {/* Finance Management - Admin only */}
+              <Route
+                path="/finance"
+                element={
+                  <RequireMinRole minRole="admin">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<FinanceDashboard />} />
+                <Route path="entries" element={<FinanceEntries />} />
+                <Route path="reports" element={<FinanceReports />} />
+                <Route path="reports/gym" element={<GymReport />} />
+                <Route path="reports/training" element={<TrainingReport />} />
+                <Route path="reports/coach-fees" element={<CoachFeesReport />} />
+              </Route>
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </Router>
+              {/* Product Management - Admin only */}
+              <Route
+                path="/products"
+                element={
+                  <RequireMinRole minRole="admin">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<ProductsList />} />
+                <Route path=":id" element={<ProductDetail />} />
+              </Route>
+
+              {/* Settings - Admin only */}
+              <Route
+                path="/settings"
+                element={
+                  <RequireMinRole minRole="admin">
+                    <AdminLayout />
+                  </RequireMinRole>
+                }
+              >
+                <Route index element={<Navigate to="/settings/messages" replace />} />
+                <Route path="messages" element={<Settings />} />
+                <Route path="cards" element={<Settings />} />
+                <Route path="pricing" element={<AdminPricing />} />
+              </Route>
+
+              {/* Calendar - All authenticated users */}
+              <Route
+                path="/calendar"
+                element={
+                  <ProtectedRoute>
+                    <UniversalLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Calendar />} />
+              </Route>
+
+              {/* Universal routes - All authenticated users */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <UniversalLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Profile />} />
+              </Route>
+
+              <Route
+                path="/my-sessions"
+                element={
+                  <ProtectedRoute>
+                    <UniversalLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<MyBookings />} />
+              </Route>
+
+              <Route
+                path="/climber/subscriptions"
+                element={
+                  <ProtectedRoute>
+                    <ClimberLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Subscriptions />} />
+              </Route>
+
+              {/* Catch all - redirect to home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }

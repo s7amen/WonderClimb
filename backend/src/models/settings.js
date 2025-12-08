@@ -79,3 +79,8 @@ const settingsSchema = new mongoose.Schema({
 });
 
 export const Settings = mongoose.model('Settings', settingsSchema);
+
+
+
+
+

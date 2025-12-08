@@ -65,21 +65,14 @@ app.use(cookieParser());
 // Serve static files (for test page)
 app.use(express.static('public'));
 
+// Serve uploaded files (product images, climber photos)
+app.use('/uploads', express.static('uploads'));
+
 // Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: config.nodeEnv,
-  });
-});
-
-// Root route
-app.get('/', (req, res) => {
-  res.json({
-    message: 'WonderClimb API',
-    version: '0.1.0',
-    docs: '/api/v1/docs',
+    timestamp: new Date().toISOString()
   });
 });
 

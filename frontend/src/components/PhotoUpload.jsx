@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+﻿import { useState, useRef } from 'react';
 import { climberPhotosAPI } from '../services/api';
 import { useToast } from './UI/Toast';
 
@@ -6,7 +6,7 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
-  const { showToast, ToastComponent } = useToast();
+  const { showToast } = useToast();
 
   const handleFileSelect = async (file) => {
     if (!file) return;
@@ -65,9 +65,7 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
     }
   };
 
-  const handleClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleClick = () => {
     if (!uploading && fileInputRef.current) {
       fileInputRef.current.click();
     }
@@ -76,11 +74,10 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
   return (
     <>
       <div
-        className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors ${
-          dragActive
+        className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors ${dragActive
             ? 'border-[#ea7a24] bg-[#fff5ed]'
             : 'border-[#d1d5dc] hover:border-[#ea7a24]'
-        } ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          } ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -123,9 +120,7 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
             </p>
           </div>
         )}
-      </div>
-      <ToastComponent />
-    </>
+      </div></>
   );
 };
 

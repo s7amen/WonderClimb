@@ -10,10 +10,6 @@ const familySchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     }],
-    notes: {
-        type: String,
-        trim: true,
-    },
     createdById: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

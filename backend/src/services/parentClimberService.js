@@ -106,11 +106,11 @@ export const createClimberForParent = async (parentId, climberData) => {
     // Create parent-climber link
     await createLink(parentId, child._id);
 
-    logger.info({ 
-      parentId, 
+    logger.info({
+      parentId,
       childId: child._id,
     }, 'Child User created and linked to parent');
-    
+
     return {
       duplicate: false,
       child,
@@ -182,7 +182,7 @@ export const updateClimberForParent = async (parentId, climberId, updateData) =>
 
     // Build update fields
     const updateFields = {};
-    
+
     if (updateData.firstName !== undefined) {
       updateFields.firstName = updateData.firstName.trim();
     }
@@ -271,13 +271,13 @@ export const checkClimberRelatedData = async (climberId) => {
 
     // Get all bookings for this climber
     const allBookings = await Booking.find({ climberId }).populate('sessionId', 'date').lean();
-    
+
     // Separate future and past bookings
     const futureBookings = allBookings.filter(booking => {
       const sessionDate = booking.sessionId?.date;
       return sessionDate && new Date(sessionDate) > now;
     });
-    
+
     const pastBookings = allBookings.filter(booking => {
       const sessionDate = booking.sessionId?.date;
       return !sessionDate || new Date(sessionDate) <= now;
@@ -332,7 +332,7 @@ export const deleteClimberRelatedData = async (climberId) => {
 
     // Get all bookings and find future ones
     const allBookings = await Booking.find({ climberId }).populate('sessionId', 'date').lean();
-    
+
     const futureBookingIds = allBookings
       .filter(booking => {
         const sessionDate = booking.sessionId?.date;
@@ -407,13 +407,13 @@ export const deleteClimberForParent = async (parentId, climberId) => {
     // Delete the child User
     await User.findByIdAndDelete(climberId);
 
-    logger.info({ 
-      parentId, 
-      climberId, 
-      deletionResults 
+    logger.info({
+      parentId,
+      climberId,
+      deletionResults
     }, 'Child deleted with related data cleanup');
 
-    return { 
+    return {
       message: 'Child deleted successfully',
       deletionResults,
     };
@@ -432,25 +432,34 @@ export const deleteClimberForParent = async (parentId, climberId) => {
 export const getClimbersForParent = async (parentId) => {
   try {
     logger.info({ parentId }, 'Fetching climbers for parent');
-    
+
     const links = await ParentClimberLink.find({ parentId })
       .populate('climberId')
       .lean();
 
-    logger.info({ 
-      parentId, 
+    logger.info({
+      parentId,
       linksCount: links.length,
-      linkIds: links.map(l => l.climberId?._id?.toString() || l.climberId?.toString())
+      linkIds: links.map(l => l.climberId?._id?.toString() || l.climberId?.toString()),
+      // DEBUG: Log which links have null climberId
+      nullLinks: links.filter(l => !l.climberId).map(l => l._id.toString())
     }, 'Parent-climber links found');
 
     const climbers = links
       .map(link => link.climberId)
-      .filter(child => child !== null && child !== undefined);
+      .filter(child => {
+        if (!child) {
+          logger.warn({ parentId }, 'Found link with null climberId - child may have been deleted');
+          return false;
+        }
+        return true;
+      });
 
-    logger.info({ 
-      parentId, 
+    logger.info({
+      parentId,
       climbersCount: climbers.length,
-      climberIds: climbers.map(c => c._id?.toString())
+      climberIds: climbers.map(c => c._id?.toString()),
+      filteredOut: links.length - climbers.length
     }, 'Climbers filtered and returned');
 
     return climbers;

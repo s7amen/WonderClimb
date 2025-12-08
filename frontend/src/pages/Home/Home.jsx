@@ -77,7 +77,7 @@ const Home = () => {
       setLoading(true);
       const today = startOfDay(new Date());
       const endDate = addDays(today, 5); // Next 5 days only
-      
+
       const response = await sessionsAPI.getAvailable({
         startDate: today.toISOString(),
         endDate: endDate.toISOString(),
@@ -87,9 +87,9 @@ const Home = () => {
       const allSessions = response.data.sessions || [];
       const trainingSessions = allSessions.filter(session => {
         const sessionDate = new Date(session.date);
-        return sessionDate >= today && 
-               session.status === 'active' && 
-               session.type !== 'competition';
+        return sessionDate >= today &&
+          session.status === 'active' &&
+          session.type !== 'competition';
       }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
       setSessions(trainingSessions);
@@ -103,25 +103,25 @@ const Home = () => {
   const onLoginSubmit = async (data) => {
     setLoginError('');
     setLoginLoading(true);
-    
+
     const result = await login(data.email, data.password);
-    
+
     if (result.success) {
       // Redirect based on user role
       const user = JSON.parse(localStorage.getItem('user'));
       if (user?.roles?.includes('admin')) {
-        navigate('/admin/dashboard');
+        navigate('/dashboard/admin');
       } else if (user?.roles?.includes('coach')) {
-        navigate('/coach/dashboard');
+        navigate('/dashboard/coach');
       } else if (user?.roles?.includes('climber')) {
-        navigate('/parent/profile');
+        navigate('/dashboard/climber');
       } else {
         navigate('/');
       }
     } else {
       setLoginError(result.error || 'Влизането неуспешно');
     }
-    
+
     setLoginLoading(false);
   };
 
@@ -162,7 +162,7 @@ const Home = () => {
   return (
     <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
       {/* Full-screen background section with login form */}
-      <section 
+      <section
         className="relative w-full h-screen flex flex-col items-center justify-center"
         style={{
           backgroundImage: 'url(/images/boulder-kids-wall.webp)',
@@ -175,10 +175,10 @@ const Home = () => {
         <div className="absolute top-0 left-0 right-0 z-20">
           <Header />
         </div>
-        
+
         {/* Dark overlay for readability */}
         <div className="absolute inset-0 bg-black/60 z-0"></div>
-        
+
         {/* Content container - centered */}
         <div className="relative z-10 w-full max-w-md px-4 flex flex-col items-center justify-center">
           {/* Title section - moved up */}
@@ -203,74 +203,74 @@ const Home = () => {
             </div>
           ) : (
             <Card className="bg-white/5 backdrop-blur-md border border-white/20 rounded-[14px] p-6 shadow-2xl w-full">
-            {loginError && (
-              <div className="mb-4 p-3 bg-red-500/30 backdrop-blur-sm border border-red-400/50 text-white rounded-[10px] text-sm">
-                {loginError}
+              {loginError && (
+                <div className="mb-4 p-3 bg-red-500/30 backdrop-blur-sm border border-red-400/50 text-white rounded-[10px] text-sm">
+                  {loginError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit(onLoginSubmit)}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Имейл
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
+                    placeholder="Имейл"
+                    {...register('email', {
+                      required: 'Имейлът е задължителен',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Невалиден имейл адрес',
+                      },
+                    })}
+                  />
+                  {errors.email?.message && (
+                    <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-white mb-1">
+                    Парола
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
+                    placeholder="Парола"
+                    {...register('password', {
+                      required: 'Паролата е задължителна',
+                      minLength: {
+                        value: 6,
+                        message: 'Паролата трябва да бъде поне 6 символа',
+                      },
+                    })}
+                  />
+                  {errors.password?.message && (
+                    <p className="mt-1 text-sm text-red-300">{errors.password.message}</p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={loginLoading}
+                  className="w-full mb-4"
+                >
+                  {loginLoading ? 'Влизане...' : 'Влез'}
+                </Button>
+              </form>
+
+              <div className="text-center">
+                <p className="text-sm text-white">
+                  Нямате профил?{' '}
+                  <Link to="/register" className="text-white hover:text-white/80 font-medium underline">
+                    Регистрирайте се
+                  </Link>
+                </p>
               </div>
-            )}
-
-            <form onSubmit={handleSubmit(onLoginSubmit)}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-white mb-1">
-                  Имейл
-                </label>
-                <input
-                  type="email"
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
-                  placeholder="Имейл"
-                  {...register('email', {
-                    required: 'Имейлът е задължителен',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Невалиден имейл адрес',
-                    },
-                  })}
-                />
-                {errors.email?.message && (
-                  <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-white mb-1">
-                  Парола
-                </label>
-                <input
-                  type="password"
-                  className="w-full px-3 py-2 bg-white/10 backdrop-blur-sm border border-white/30 rounded-[10px] focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white text-sm text-white placeholder:text-white/70"
-                  placeholder="Парола"
-                  {...register('password', {
-                    required: 'Паролата е задължителна',
-                    minLength: {
-                      value: 6,
-                      message: 'Паролата трябва да бъде поне 6 символа',
-                    },
-                  })}
-                />
-                {errors.password?.message && (
-                  <p className="mt-1 text-sm text-red-300">{errors.password.message}</p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={loginLoading}
-                className="w-full mb-4"
-              >
-                {loginLoading ? 'Влизане...' : 'Влез'}
-              </Button>
-            </form>
-
-            <div className="text-center">
-              <p className="text-sm text-white">
-                Нямате профил?{' '}
-                <Link to="/register" className="text-white hover:text-white/80 font-medium underline">
-                  Регистрирайте се
-                </Link>
-              </p>
-            </div>
-          </Card>
+            </Card>
           )}
         </div>
       </section>
@@ -325,7 +325,7 @@ const Home = () => {
                 selectedClimberForSession={{}}
                 userBookings={[]}
               />
-              
+
               <div className="mt-8 text-center">
                 <Button
                   variant="primary"

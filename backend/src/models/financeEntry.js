@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const financeEntrySchema = new mongoose.Schema({
-    type: {
-        type: String,
+    transactionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FinanceTransaction',
         required: true,
-        enum: ['revenue', 'expense'],
         index: true,
     },
     area: {
@@ -13,42 +13,83 @@ const financeEntrySchema = new mongoose.Schema({
         enum: ['gym', 'training', 'general'],
         index: true,
     },
-    personId: {
+    type: { // revenue or expense
+        type: String,
+        required: true,
+        enum: ['revenue', 'expense'],
+        index: true,
+    },
+    itemType: {
+        type: String,
+        required: true,
+        enum: [
+            'gym_visit_single',
+            'gym_pass',
+            'gym_visit_multisport',
+            'training_pass',
+            'training_single',
+            'product',
+            'course',
+            'coach_fee',
+            'instructor_fee',
+            'other'
+        ],
+    },
+    pricingCode: {
+        type: String,
+        default: null,
+    },
+    quantity: {
+        type: Number,
+        required: true,
+        default: 1,
+    },
+    unitAmount: {
+        type: Number,
+        required: true,
+    },
+    totalAmount: { // quantity * unitAmount
+        type: Number,
+        required: true,
+    },
+    // Compatibility field for existing queries that use 'amount'
+    amount: {
+        type: Number,
+        default: function () { return this.totalAmount; }
+    },
+
+    // Domain Object Links
+    climberId: { // Specific beneficiary
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         default: null,
     },
-    personRole: {
-        type: String,
-        default: null,
-    },
-    source: {
-        type: String,
-        required: true,
-        enum: [
-            'gym_pass',
-            'training_pass',
-            'gym_single_visit',
-            'training_single',
-            'coach_fee',
-            'instructor_fee',
-            'product',
-            'birthday',
-            'other'
-        ],
-    },
-    sourceId: {
+    gymPassId: {
         type: mongoose.Schema.Types.ObjectId,
+        ref: 'GymPass',
         default: null,
     },
-    sessionIds: [{
+    gymVisitId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'GymVisit',
+        default: null,
+    },
+    trainingPassId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TrainingPass',
+        default: null,
+    },
+    productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
+        default: null,
+    },
+    sessionIds: [{ // Keeping for session accounting
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Session',
     }],
-    amount: {
-        type: Number,
-        required: true,
-    },
+
+    // Meta
     date: {
         type: Date,
         required: true,
@@ -58,14 +99,10 @@ const financeEntrySchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
-    createdById: {
+    createdById: { // usually same as transaction.handledById
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-    },
-    updatedById: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
     },
 }, {
     timestamps: true,
@@ -73,5 +110,6 @@ const financeEntrySchema = new mongoose.Schema({
 
 financeEntrySchema.index({ date: 1 });
 financeEntrySchema.index({ type: 1, area: 1 });
+financeEntrySchema.index({ climberId: 1 });
 
 export const FinanceEntry = mongoose.model('FinanceEntry', financeEntrySchema);

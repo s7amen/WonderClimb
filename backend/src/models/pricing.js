@@ -15,7 +15,7 @@ const pricingSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['gym_pass', 'training_pass', 'gym_single_visit', 'training_single', 'product', 'birthday', 'other'],
+        enum: ['gym_pass', 'training_pass', 'gym_single_visit', 'training_single', 'product', 'birthday', 'events', 'course', 'other'],
     },
     amount: {
         type: Number,
@@ -25,6 +25,11 @@ const pricingSchema = new mongoose.Schema({
     validityDays: {
         type: Number,
         default: null,
+    },
+    validityType: {
+        type: String,
+        enum: ['days', 'months'],
+        default: 'days',
     },
     maxEntries: {
         type: Number,

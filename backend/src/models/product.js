@@ -21,11 +21,26 @@ const productSchema = new mongoose.Schema({
         required: true,
         min: 0,
     },
+    stockQuantity: {
+        type: Number,
+        default: null, // null = unlimited stock (e.g., rental items)
+        min: 0,
+    },
+    lowStockThreshold: {
+        type: Number,
+        default: 5,
+        min: 0,
+    },
     isActive: {
         type: Boolean,
         default: true,
     },
     category: {
+        type: String,
+        trim: true,
+        default: null,
+    },
+    imageUrl: {
         type: String,
         trim: true,
         default: null,

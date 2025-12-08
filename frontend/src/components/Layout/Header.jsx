@@ -28,85 +28,51 @@ const Header = () => {
   // Use selectedRole as activeRole, fallback to pathname-based detection only on initial load
   const activeRole = selectedRole || (user ? getActiveRole(user, location.pathname) : null);
 
-  // Main menu items (same for everyone, except competitions for climbers)
+  // Main menu items (same for everyone)
   const getMainMenuItems = () => {
-    const items = [
+    return [
       { name: 'Начало', href: '/' },
       { name: 'График', href: '/sessions' },
       { name: 'Календар', href: '/calendar' },
     ];
-    
-    // Only show competitions for non-climber users or when not logged in
-    // If user has climber role but also has admin/coach roles, show competitions
-    if (!isAuthenticated || !user) {
-      items.push({ name: 'Състезания', href: '/competitions' });
-    } else {
-      const hasClimberOnly = user.roles?.includes('climber') && !user.roles?.some(r => ['admin', 'coach'].includes(r));
-      if (!hasClimberOnly) {
-        items.push({ name: 'Състезания', href: '/competitions' });
-      }
-    }
-    
-    return items;
   };
-  
+
   const mainMenuItems = getMainMenuItems();
 
-  // Get second menu items based on active role
+  // Get second menu items - only for climbers
   const getSecondMenuItems = () => {
-    if (!isAuthenticated || !user || !activeRole) return [];
+    if (!isAuthenticated || !user) return [];
 
-    const items = [];
+    // Only show secondary menu for climbers
+    // If user has other roles, they should use the sidebar in their dashboard
+    // But if they are on the home page, maybe they want to act as a climber?
+    // The request specifically says "Secondary menu ... for logged in users with role climbers"
 
-    // Dashboard based on active role
-    const dashboardPath = getDashboardPathForRole(activeRole);
-    if (dashboardPath) {
-      items.push({ name: 'Табло', href: dashboardPath });
-    }
+    // Check if user has climber role or is in climber mode
+    const isClimber = activeRole === 'climber' || (user.roles && user.roles.includes('climber'));
 
-    // My Schedule (for all logged in users)
-    items.push({ name: 'Моя график', href: '/my-sessions' });
-
-    // Role-specific items based on active role
-    if (activeRole === 'admin') {
-      items.push(
-        { name: 'График', href: '/admin/sessions' },
-        { name: 'Календар', href: '/calendar' },
-        { name: 'Състезания', href: '/admin/competitions' },
-        { name: 'Катерачи', href: '/admin/climbers' },
-        { name: 'Настройки', href: '/admin/settings' }
-      );
-    } else if (activeRole === 'coach') {
-      items.push(
-        { name: 'График', href: '/admin/sessions' },
-        { name: 'Профил', href: '/profile' },
-        { name: 'Състезания', href: '/admin/competitions' },
-        { name: 'Катерачи', href: '/admin/climbers' }
-      );
-    } else if (activeRole === 'instructor') {
-      items.push(
-        { name: 'Катерачи', href: '/admin/climbers' }
-      );
-    } else if (activeRole === 'climber') {
-      items.push(
+    if (isClimber) {
+      return [
+        { name: 'Табло', href: '/dashboard/climber' },
+        { name: 'Моя график', href: '/my-sessions' },
         { name: 'График', href: '/sessions' },
         { name: 'Абонаменти', href: '/climber/subscriptions' },
-        { name: 'Профил', href: '/profile' }
-      );
+        { name: 'Профил', href: '/profile' },
+      ];
     }
 
-    return items;
+    return [];
   };
 
-  // Get mobile second menu items - for climbers, show Табло, Моя график, График and Абонаменти
+  // Get mobile second menu items - for climbers, hide this menu (they have bottom nav instead)
   const getMobileSecondMenuItems = () => {
     const allItems = getSecondMenuItems();
+
+    // For climbers, don't show the horizontal menu on mobile - they have bottom nav
     if (activeRole === 'climber') {
-      // For climbers, return Табло, Моя график, График and Абонаменти
-      return allItems.filter(item => 
-        item.name === 'Табло' || item.name === 'Моя график' || item.name === 'График' || item.name === 'Абонаменти'
-      );
+      return [];
     }
+
     return allItems;
   };
 
@@ -172,8 +138,8 @@ const Header = () => {
     if (path === '/sessions') {
       return location.pathname === '/sessions' || location.pathname.startsWith('/sessions');
     }
-    if (path === '/admin/sessions') {
-      return location.pathname === '/admin/sessions' || location.pathname.startsWith('/admin/sessions');
+    if (path === '/sessions/manage') {
+      return location.pathname === '/sessions/manage' || location.pathname.startsWith('/sessions/manage');
     }
     if (path === '/calendar') {
       return location.pathname === '/calendar' || location.pathname.startsWith('/calendar');
@@ -181,14 +147,26 @@ const Header = () => {
     if (path === '/competitions') {
       return location.pathname === '/competitions' || location.pathname.startsWith('/competitions');
     }
+    if (path === '/competitions/manage') {
+      return location.pathname === '/competitions/manage' || location.pathname.startsWith('/competitions/manage');
+    }
     if (path === '/climbers') {
       return location.pathname === '/climbers' || location.pathname.startsWith('/climbers');
     }
-    if (path === '/admin/climbers') {
-      return location.pathname === '/admin/climbers' || location.pathname.startsWith('/admin/climbers');
+    if (path === '/gym') {
+      return location.pathname === '/gym' || location.pathname.startsWith('/gym');
     }
-    if (path === '/admin/settings') {
-      return location.pathname === '/admin/settings' || location.pathname.startsWith('/admin/settings');
+    if (path === '/training') {
+      return location.pathname === '/training' || location.pathname.startsWith('/training');
+    }
+    if (path === '/finance') {
+      return location.pathname === '/finance' || location.pathname.startsWith('/finance');
+    }
+    if (path === '/products') {
+      return location.pathname === '/products' || location.pathname.startsWith('/products');
+    }
+    if (path === '/settings') {
+      return location.pathname === '/settings' || location.pathname.startsWith('/settings');
     }
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
@@ -204,8 +182,8 @@ const Header = () => {
               {/* Logo Icon - sized to match combined text height */}
               <div className="relative h-[3rem] w-[3rem] shrink-0">
                 <div className="absolute inset-[10%]">
-                  <img 
-                    alt="WonderClimb Logo" 
+                  <img
+                    alt="WonderClimb Logo"
                     src="/logo-icon.svg"
                     className="w-full h-full"
                     onError={(e) => {
@@ -248,27 +226,29 @@ const Header = () => {
             </Link>
 
             {/* Desktop Main Navigation */}
-            <nav className="hidden lg:flex items-center gap-6">
-              {mainMenuItems.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className="relative"
-                >
-                  <span
-                    className={`
-                      text-[1.125rem] font-normal text-white hover:text-gray-200 transition-colors
-                      ${isActive(item.href) ? 'text-[#ea7a24]' : ''}
-                    `}
+            {(!isAuthenticated || (user?.roles?.includes('climber'))) && (
+              <nav className="hidden lg:flex items-center gap-6">
+                {mainMenuItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="relative"
                   >
-                    {item.name}
-                  </span>
-                  {isActive(item.href) && (
-                    <div className="absolute bg-[#ea7a24] h-[2px] left-0 right-0 top-[38px]" />
-                  )}
-                </Link>
-              ))}
-            </nav>
+                    <span
+                      className={`
+                        text-[1.125rem] font-normal text-white hover:text-gray-200 transition-colors
+                        ${isActive(item.href) ? 'text-[#ea7a24]' : ''}
+                      `}
+                    >
+                      {item.name}
+                    </span>
+                    {isActive(item.href) && (
+                      <div className="absolute bg-[#ea7a24] h-[2px] left-0 right-0 top-[38px]" />
+                    )}
+                  </Link>
+                ))}
+              </nav>
+            )}
 
             {/* Desktop User Button */}
             {isAuthenticated ? (
@@ -292,12 +272,12 @@ const Header = () => {
                       d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                     />
                   </svg>
-                  
+
                   {/* User Name */}
                   <span className="text-base font-normal text-white">
                     {getUserDisplayName(user) || user?.email || 'Потребител'}
                   </span>
-                  
+
                   {/* Dropdown Icon */}
                   <svg
                     className="w-4 h-4 text-white"
@@ -324,7 +304,7 @@ const Header = () => {
                     >
                       Профил
                     </Link>
-                    
+
                     {/* Roles section - only show if user has multiple roles */}
                     {availableRoles.length > 1 && (
                       <>
@@ -335,11 +315,10 @@ const Header = () => {
                             <button
                               key={roleDashboard.role}
                               onClick={() => handleRoleSwitch(roleDashboard.role)}
-                              className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${
-                                isActive 
-                                  ? 'text-[#ea7a24] font-medium' 
-                                  : 'text-gray-700'
-                              }`}
+                              className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${isActive
+                                ? 'text-[#ea7a24] font-medium'
+                                : 'text-gray-700'
+                                }`}
                             >
                               {roleDashboard.label}
                             </button>
@@ -347,7 +326,7 @@ const Header = () => {
                         })}
                       </>
                     )}
-                    
+
                     <div className="border-t border-gray-200 my-1"></div>
                     <button
                       onClick={() => {
@@ -455,8 +434,8 @@ const Header = () => {
                     to={item.href}
                     className={`
                       text-[1rem] font-normal transition-colors
-                      ${isActive(item.href) 
-                        ? 'text-[#ea7a24] font-medium' 
+                      ${isActive(item.href)
+                        ? 'text-[#ea7a24] font-medium'
                         : 'text-[#d1d5dc] hover:text-white'
                       }
                     `}
@@ -474,8 +453,8 @@ const Header = () => {
                     to={item.href}
                     className={`
                       text-[1rem] font-normal transition-colors whitespace-nowrap
-                      ${isActive(item.href) 
-                        ? 'text-[#ea7a24] font-medium' 
+                      ${isActive(item.href)
+                        ? 'text-[#ea7a24] font-medium'
                         : 'text-[#d1d5dc] hover:text-white'
                       }
                     `}
@@ -497,7 +476,7 @@ const Header = () => {
             className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
             onClick={() => setShowMobileMenu(false)}
           />
-          
+
           {/* Mobile Menu Panel */}
           <div
             ref={mobileMenuRef}
@@ -563,24 +542,26 @@ const Header = () => {
               )}
 
               {/* Main Menu Links */}
-              <nav className="flex-1 py-4 border-b border-gray-700">
-                <div className="px-4 py-2 text-xs uppercase text-gray-400 tracking-wider">
-                  Главно меню
-                </div>
-                {mainMenuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setShowMobileMenu(false)}
-                    className={`
-                      block px-4 py-3 text-[1.125rem] font-normal text-white hover:bg-[#3d4146] transition-colors
-                      ${isActive(item.href) ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' : ''}
-                    `}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </nav>
+              {(!isAuthenticated || (user?.roles?.includes('climber'))) && (
+                <nav className="flex-1 py-4 border-b border-gray-700">
+                  <div className="px-4 py-2 text-xs uppercase text-gray-400 tracking-wider">
+                    Главно меню
+                  </div>
+                  {mainMenuItems.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setShowMobileMenu(false)}
+                      className={`
+                        block px-4 py-3 text-[1.125rem] font-normal text-white hover:bg-[#3d4146] transition-colors
+                        ${isActive(item.href) ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' : ''}
+                      `}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </nav>
+              )}
 
               {/* Second Menu Links - Full menu in hamburger */}
               {isAuthenticated && secondMenuItems.length > 0 && (
@@ -597,8 +578,8 @@ const Header = () => {
                       onClick={() => setShowMobileMenu(false)}
                       className={`
                         block px-4 py-3 text-[1rem] font-normal transition-colors
-                        ${isActive(item.href) 
-                          ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' 
+                        ${isActive(item.href)
+                          ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]'
                           : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
                         }
                       `}
@@ -644,11 +625,10 @@ const Header = () => {
                           setShowMobileMenu(false);
                           handleRoleSwitch(roleDashboard.role);
                         }}
-                        className={`block w-full text-left px-4 py-3 text-sm transition-colors ${
-                          isActive 
-                            ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]' 
-                            : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
-                        }`}
+                        className={`block w-full text-left px-4 py-3 text-sm transition-colors ${isActive
+                          ? 'bg-[#3d4146] text-[#ea7a24] font-medium border-r-2 border-[#ea7a24]'
+                          : 'text-[#d1d5dc] hover:bg-[#3d4146] hover:text-white'
+                          }`}
                       >
                         {roleDashboard.label}
                       </button>

@@ -2,6 +2,7 @@ import express from 'express';
 import * as productController from '../controllers/productController.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireMinRole } from '../middleware/rbac.js';
+import { upload } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -32,12 +33,37 @@ router.patch(
     productController.updateProduct
 );
 
+// POST /api/v1/products/:id/image - Upload product image
+// Requires: admin only
+router.post(
+    '/:id/image',
+    requireMinRole('admin'),
+    upload.single('image'),
+    productController.uploadProductImage
+);
+
 // DELETE /api/v1/products/:id - Deactivate product
 // Requires: admin only
 router.delete(
     '/:id',
     requireMinRole('admin'),
     productController.deleteProduct
+);
+
+// DELETE /api/v1/products/:id/permanent - Hard delete product
+// Requires: admin only
+router.delete(
+    '/:id/permanent',
+    requireMinRole('admin'),
+    productController.hardDeleteProduct
+);
+
+// POST /api/v1/products/:id/reactivate - Reactivate product
+// Requires: admin only
+router.post(
+    '/:id/reactivate',
+    requireMinRole('admin'),
+    productController.reactivateProduct
 );
 
 export default router;

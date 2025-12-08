@@ -9,6 +9,26 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const [debugInfo, setDebugInfo] = useState({});
 
   useEffect(() => {
+    // Early device detection - skip all PWA checks on desktop devices
+    const isMobileOrTablet = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      // Check for mobile devices
+      const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      // Check for Windows/Mac/Linux desktop (exclude Windows Phone/Mobile)
+      const isDesktop = /windows nt|macintosh|mac os x|linux/i.test(userAgent) &&
+        !/windows phone|windows mobile/i.test(userAgent);
+
+      // Only run PWA checks on mobile/tablet, not desktop
+      return isMobile && !isDesktop;
+    };
+
+    // Skip all PWA logic if on desktop
+    if (!isMobileOrTablet()) {
+      console.log('[PWA Install] Skipping PWA checks on desktop device');
+      setIsSupported(false);
+      return; // Exit early, don't run any PWA checks
+    }
+
     // Comprehensive PWA diagnostics
     const checkPWARequirements = async () => {
       const diagnostics = {
@@ -20,24 +40,24 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         protocol: window.location.protocol,
         hostname: window.location.hostname,
         origin: window.location.origin,
-        
+
         // Browser support
         hasServiceWorker: 'serviceWorker' in navigator,
         hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
         hasDeferredPrompt: !!deferredPrompt,
-        
+
         // Manifest checks
         manifestExists: false,
         manifestValid: false,
         manifestErrors: [],
-        
+
         // Icon checks
         iconsExist: {
           icon192: false,
           icon512: false,
         },
         iconErrors: [],
-        
+
         // Service worker checks
         serviceWorkerRegistered: false,
         serviceWorkerErrors: [],
@@ -71,27 +91,27 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           manifestResponse = await fetch('/manifest.webmanifest');
         }
         diagnostics.manifestExists = manifestResponse.ok;
-        
+
         if (manifestResponse.ok) {
           const manifest = await manifestResponse.json();
           diagnostics.manifestValid = true;
-          
+
           // Validate required fields
           const requiredFields = ['name', 'short_name', 'icons', 'start_url', 'display'];
           const missingFields = requiredFields.filter(field => !manifest[field]);
-          
+
           if (missingFields.length > 0) {
             diagnostics.manifestValid = false;
             diagnostics.manifestErrors.push(`Missing required fields: ${missingFields.join(', ')}`);
           }
-          
+
           // Check icons in manifest
           if (manifest.icons && Array.isArray(manifest.icons)) {
             // Check for PNG icons (192x192 and 512x512) or SVG icons
             const icon192 = manifest.icons.find(icon => icon.sizes === '192x192' || icon.sizes === 'any');
             const icon512 = manifest.icons.find(icon => icon.sizes === '512x512' || icon.sizes === 'any');
             const svgIcon = manifest.icons.find(icon => icon.type === 'image/svg+xml' || icon.src?.endsWith('.svg'));
-            
+
             // If we have an SVG icon, it can serve both sizes
             if (svgIcon) {
               try {
@@ -119,7 +139,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
               } else {
                 diagnostics.iconErrors.push('Icon 192x192 missing in manifest');
               }
-              
+
               if (icon512) {
                 try {
                   const iconResponse = await fetch(icon512.src);
@@ -149,7 +169,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         try {
           const registrations = await navigator.serviceWorker.getRegistrations();
           diagnostics.serviceWorkerRegistered = registrations.length > 0;
-          
+
           if (registrations.length === 0) {
             diagnostics.serviceWorkerErrors.push('No service worker registered');
           }
@@ -162,10 +182,10 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       }
 
       // HTTPS/localhost check
-      const isSecure = diagnostics.protocol === 'https:' || 
-                       diagnostics.hostname === 'localhost' || 
-                       diagnostics.hostname === '127.0.0.1';
-      
+      const isSecure = diagnostics.protocol === 'https:' ||
+        diagnostics.hostname === 'localhost' ||
+        diagnostics.hostname === '127.0.0.1';
+
       if (!isSecure) {
         diagnostics.manifestErrors.push(`PWA requires HTTPS or localhost. Current: ${diagnostics.protocol}//${diagnostics.hostname}`);
       }
@@ -177,7 +197,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       const isSafari = /safari/i.test(diagnostics.userAgent) && !/chrome/i.test(diagnostics.userAgent);
       const isEdge = /edge/i.test(diagnostics.userAgent);
       const isFirefox = /firefox/i.test(diagnostics.userAgent);
-      
+
       diagnostics.browserInfo = {
         isIOS,
         isAndroid,
@@ -189,20 +209,20 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       };
 
       setDebugInfo(diagnostics);
-      
+
       // Log all issues
       const allIssues = [
         ...diagnostics.manifestErrors,
         ...diagnostics.iconErrors,
         ...diagnostics.serviceWorkerErrors,
       ];
-      
+
       if (allIssues.length > 0) {
         console.warn('[PWA Install] Issues found:', allIssues);
       } else {
         console.log('[PWA Install] All checks passed');
       }
-      
+
       console.log('[PWA Install] Full diagnostics:', diagnostics);
     };
 
@@ -216,7 +236,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
       console.log('[PWA Install] beforeinstallprompt event received', e);
-      
+
       // If beforeinstallprompt fires and we have localStorage saying installed, 
       // it means the app was uninstalled (because beforeinstallprompt only fires when NOT installed)
       const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
@@ -225,7 +245,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         setIsInstalled(false);
         localStorage.removeItem('pwa-installed');
       }
-      
+
       e.preventDefault();
       setDeferredPrompt(e);
       setError(null);
@@ -241,9 +261,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       localStorage.setItem('pwa-installed', 'true');
       setError(null);
     };
-    
+
     window.addEventListener('appinstalled', handleAppInstalled);
-    
+
     // Also listen for when app is uninstalled
     // We can't directly detect uninstallation, but we can check if:
     // 1. We were in standalone mode before but now we're not
@@ -257,7 +277,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
-      
+
       // If we're not in standalone and we have a deferred prompt, it means app was uninstalled
       // because beforeinstallprompt only fires when app is NOT installed
       if (!isStandalone && !isIOSStandalone && hasLocalStorageInstalled && deferredPrompt) {
@@ -266,7 +286,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         localStorage.removeItem('pwa-installed');
       }
     };
-    
+
     // Check periodically if app was uninstalled (less frequently now)
     const uninstallCheckInterval = setInterval(checkIfUninstalled, 5000);
 
@@ -287,7 +307,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // If app is installed, show message to open it manually
     if (isInstalled) {
       const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
-      
+
       if (isStandalone) {
         // Already in PWA, just navigate to home
         window.location.href = '/';
@@ -365,10 +385,10 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         }
         return;
       }
-      
+
       // No deferred prompt and not iOS - show error in modal
       const errorMsg = 'PWA инсталацията не е налична.\n\nPWA изисква HTTPS или localhost.';
-      
+
       setError(errorMsg);
       console.error('[PWA Install] No deferred prompt available', {
         protocol: window.location.protocol,
@@ -376,7 +396,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         userAgent: navigator.userAgent,
         hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
       });
-      
+
       if (onErrorModalOpen) {
         setShowErrorModal(true);
         onErrorModalOpen(errorMsg, {
@@ -418,7 +438,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
       console.error('[PWA Install] Error showing install prompt:', error);
       setError(errorMsg);
-      
+
       if (onErrorModalOpen) {
         setShowErrorModal(true);
         onErrorModalOpen(errorMsg, {

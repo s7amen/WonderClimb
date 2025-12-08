@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import ErrorModal from './ErrorModal';
 
-const PWAInstallButton = ({ 
+const PWAInstallButton = ({
   variant = 'button', // 'button' or 'sticky'
   className = '',
   hideWhenBulkBooking = false, // Hide when bulk booking button is visible
@@ -13,15 +13,15 @@ const PWAInstallButton = ({
     setErrorModalData({ message, debugInfo });
   };
 
-  const { 
-    install, 
+  const {
+    install,
     openInstalledApp,
-    isInstalled, 
-    error, 
-    showErrorModal, 
+    isInstalled,
+    error,
+    showErrorModal,
     setShowErrorModal,
-    debugInfo, 
-    deferredPrompt 
+    debugInfo,
+    deferredPrompt
   } = usePWAInstall(handleErrorModalOpen);
 
   const handleClick = () => {
@@ -36,7 +36,7 @@ const PWAInstallButton = ({
   if (variant === 'sticky') {
     // Check if we're in standalone mode (PWA)
     const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
-    
+
     // Hide if in standalone mode (PWA) - no button needed
     if (isStandalone) {
       return (
@@ -80,13 +80,12 @@ const PWAInstallButton = ({
       <>
         <button
           onClick={handleClick}
-          className={`fixed bottom-3 right-4 z-[9998] lg:hidden w-14 h-14 ${
-            isInstalled 
-              ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' 
+          className={`fixed bottom-20 right-4 z-[9998] lg:bottom-3 lg:hidden w-14 h-14 ${isInstalled
+              ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
               : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
-          } text-white rounded-full shadow-xl flex flex-col items-center justify-center transition-all hover:scale-110 active:scale-95 ${className}`}
+            } text-white rounded-full shadow-xl flex flex-col items-center justify-center transition-all hover:scale-110 active:scale-95 ${className}`}
           aria-label={isInstalled ? "Отвори приложението" : "Инсталирай приложението"}
-          style={{ 
+          style={{
             touchAction: 'manipulation',
           }}
         >
@@ -126,7 +125,7 @@ const PWAInstallButton = ({
             </>
           )}
         </button>
-        
+
         <ErrorModal
           isOpen={showErrorModal || !!errorModalData}
           onClose={() => {
@@ -143,7 +142,7 @@ const PWAInstallButton = ({
   // Regular button variant (for footer)
   // Check if we're in standalone mode (PWA)
   const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
-  
+
   // Hide if in standalone mode (PWA) - no button needed in PWA
   // Show only on mobile/tablet (lg:hidden) and when not in standalone mode
   if (isStandalone) {
@@ -166,13 +165,12 @@ const PWAInstallButton = ({
     <>
       <button
         onClick={handleClick}
-        className={`lg:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
-          isInstalled 
-            ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800' 
+        className={`lg:hidden flex items-center justify-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${isInstalled
+            ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
             : 'bg-[#EA7A24] hover:bg-[#d8691a] active:bg-[#c5580f]'
-        } ${className}`}
+          } ${className}`}
         aria-label={isInstalled ? "Отвори приложението" : "Инсталирай приложението"}
-        style={{ 
+        style={{
           touchAction: 'manipulation',
         }}
       >
@@ -193,7 +191,7 @@ const PWAInstallButton = ({
           {isInstalled ? 'Отвори приложението' : 'Инсталирай приложението'}
         </span>
       </button>
-      
+
       <ErrorModal
         isOpen={showErrorModal || !!errorModalData}
         onClose={() => {

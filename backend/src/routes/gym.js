@@ -52,7 +52,7 @@ router.post(
 // Requires: coach or admin
 router.get(
     '/passes',
-    requireMinRole('coach'),
+    requireMinRole('climber'),
     gymController.getAllPasses
 );
 
@@ -76,6 +76,66 @@ router.patch(
     '/passes/:id',
     requireMinRole('admin'),
     gymController.updatePass
+);
+
+// DELETE /api/v1/gym/passes/:id - Delete pass (soft delete)
+// Requires: admin only
+router.delete(
+    '/passes/:id',
+    requireMinRole('admin'),
+    gymController.deletePass
+);
+
+// POST /api/v1/gym/passes/extend-all - Extend all active passes
+// Requires: admin only
+router.post(
+    '/passes/extend-all',
+    requireMinRole('admin'),
+    gymController.extendAllPasses
+);
+
+// DELETE /api/v1/gym/passes/:id/cascade - Delete pass and all related visits (hard delete)
+// Requires: admin only
+router.delete(
+    '/passes/:id/cascade',
+    requireMinRole('admin'),
+    gymController.deletePassCascade
+);
+
+/**
+ * Pricing endpoints
+ */
+
+// GET /api/v1/gym/pricing - Get all pricing
+// Requires: instructor, coach, or admin
+router.get(
+    '/pricing',
+    requireMinRole('instructor'),
+    gymController.getAllPricing
+);
+
+// POST /api/v1/gym/pricing - Create new pricing
+// Requires: admin only
+router.post(
+    '/pricing',
+    requireMinRole('admin'),
+    gymController.createPricing
+);
+
+// PUT /api/v1/gym/pricing/:id - Update pricing
+// Requires: admin only
+router.put(
+    '/pricing/:id',
+    requireMinRole('admin'),
+    gymController.updatePricing
+);
+
+// DELETE /api/v1/gym/pricing/:id - Delete pricing (soft delete)
+// Requires: admin only
+router.delete(
+    '/pricing/:id',
+    requireMinRole('admin'),
+    gymController.deletePricing
 );
 
 export default router;

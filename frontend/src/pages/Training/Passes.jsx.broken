@@ -1,0 +1,483 @@
+import React, { useState, useEffect } from 'react';
+import { trainingAPI, gymAPI, adminUsersAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../components/UI/Toast';
+import BaseModal from '../../components/UI/BaseModal';
+import Button from '../../components/UI/Button';
+import CreatePassModal from '../../components/Cards/CreatePassModal';
+import Loading from '../../components/UI/Loading';
+import { getUserFullName } from '../../utils/userUtils';
+
+const TrainingPasses = () => {
+    const { user } = useAuth();
+    const { showToast, ToastComponent } = useToast();
+    const [passes, setPasses] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [pricing, setPricing] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [editingPass, setEditingPass] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+
+    const [formData, setFormData] = useState({
+        userId: '',
+        pricingId: '',
+        isFamilyPass: false,
+        familyId: '',
+        discountPercent: '',
+        discountReason: '',
+        paymentStatus: 'paid',
+        notes: '',
+        validFrom: '',
+        validUntil: '',
+        validityDays: '',
+        remainingEntries: '',
+        amount: '',
+    });
+
+    const [formErrors, setFormErrors] = useState({});
+    const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'cascade'
+    const [generatedCardNumber, setGeneratedCardNumber] = useState('');
+
+    const isAdmin = user?.roles?.includes('admin');
+
+    const typeLabels = {
+        single: 'Единичен',
+        prepaid_entries: 'Предплатени посещения',
+        time_based: 'Времева база',
+    };
+
+    const paymentStatusLabels = {
+        paid: 'Платено',
+        unpaid: 'Неплатено',
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [passesRes, usersRes, pricingRes] = await Promise.all([
+                trainingAPI.getAllPasses(),
+                adminUsersAPI.getAll(),
+                gymAPI.getAllPricing({ isActive: 'true', category: 'training_pass,training_single' }),
+            ]);
+
+            setPasses(passesRes.data.passes || []);
+            setUsers(usersRes.data.users || []);
+            setPricing(pricingRes.data.pricing || []);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            showToast('Грешка при зареждане на данни', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('bg-BG');
+    };
+
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+    };
+
+    const handleAddClick = () => {
+        setEditingPass(null);
+
+        // Generate new card number
+        const cardNum = `WC${Date.now().toString().slice(-8)}`;
+        setGeneratedCardNumber(cardNum);
+
+        setFormData({
+            userId: '',
+            pricingId: '',
+            isFamilyPass: false,
+            familyId: '',
+            hasDiscount: false,
+            discountPercent: '',
+            discountReason: '',
+            paymentStatus: 'paid',
+            notes: '',
+            validFrom: new Date().toISOString().split('T')[0],
+            validUntil: '',
+            remainingEntries: '',
+            amount: '',
+        });
+        setFormErrors({});
+        setShowModal(true);
+    };
+
+    const handleEditClick = (pass) => {
+        setEditingPass(pass);
+        setGeneratedCardNumber(pass.passId || '');
+
+        setFormData({
+            userId: pass.userId?._id?.toString() || pass.userId?.toString() || '',
+            pricingId: pass.pricingId?._id?.toString() || pass.pricingId?.toString() || '',
+            isFamilyPass: pass.isFamilyPass || false,
+            familyId: pass.familyId?.toString() || '',
+            hasDiscount: !!(pass.discountPercent && pass.discountPercent > 0),
+            discountPercent: pass.discountPercent?.toString() || '',
+            discountReason: pass.discountReason || '',
+            paymentStatus: pass.paymentStatus || 'unpaid',
+            notes: pass.notes || '',
+            validFrom: pass.validFrom ? formatDateForInput(pass.validFrom) : '',
+            validUntil: pass.validUntil ? formatDateForInput(pass.validUntil) : '',
+            remainingEntries: pass.remainingEntries?.toString() || '',
+            amount: pass.amount?.toString() || '',
+        });
+        setFormErrors({});
+        setShowModal(true);
+    };
+
+    const handleDeleteClick = (id) => {
+        setDeletingId(id);
+        setDeleteMode('soft');
+        setShowDeleteConfirm(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!deletingId) return;
+
+        try {
+            if (deleteMode === 'cascade') {
+                await trainingAPI.deletePassCascade(deletingId);
+                showToast('Картата и всички свързани посещения са изтрити успешно', 'success');
+            } else {
+                await trainingAPI.deletePass(deletingId);
+                showToast('Картата е изтрита успешно', 'success');
+            }
+            fetchData();
+        } catch (error) {
+            console.error('Error deleting pass:', error);
+            showToast(
+                error.response?.data?.error?.message || 'Грешка при изтриване на карта',
+                'error'
+            );
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeletingId(null);
+            setDeleteMode('soft');
+        }
+    };
+
+    const validateForm = () => {
+        const errors = {};
+
+        if (!formData.userId) {
+            errors.userId = 'Потребителят е задължителен';
+        }
+
+        if (!formData.pricingId) {
+            errors.pricingId = 'Цената е задължителна';
+        }
+
+        if (formData.discountPercent !== '' && formData.discountPercent !== null) {
+            const discount = parseFloat(formData.discountPercent);
+            if (isNaN(discount) || discount < 0 || discount > 100) {
+                errors.discountPercent = 'Отстъпката трябва да е между 0 и 100';
+            }
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleSave = async (passId = null, submitData) => {
+        setIsSaving(true);
+
+        try {
+            if (editingPass) {
+                await trainingAPI.updatePass(editingPass._id, submitData);
+                showToast('Картата е обновена успешно', 'success');
+            } else {
+                await trainingAPI.createPass(submitData);
+                showToast('Картата е създадена успешно', 'success');
+            }
+
+            setShowModal(false);
+            fetchData();
+        } catch (error) {
+            console.error('Error saving pass:', error);
+            showToast(
+                error.response?.data?.error?.message || 'Грешка при запазване на карта',
+                'error'
+            );
+            throw error; // Re-throw for modal to handle
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleInputChange = (field, value) => {
+        setFormData(prev => {
+            const updates = { [field]: value };
+
+            // Auto-calculate validUntil when pricingId is selected
+            if (field === 'pricingId' && value) {
+                const selectedPricing = pricing.find(p => p._id === value);
+                if (selectedPricing) {
+                    const days = selectedPricing.validityDays || 30;
+                    const validFrom = prev.validFrom || new Date().toISOString().split('T')[0];
+                    const validFromDate = new Date(validFrom);
+                    const validUntilDate = new Date(validFromDate);
+                    validUntilDate.setDate(validUntilDate.getDate() + days);
+
+                    // Calculate final amount with discount
+                    const baseAmount = selectedPricing.amount || 0;
+                    const discount = parseFloat(prev.discountPercent) || 0;
+                    const finalAmount = baseAmount * (1 - discount / 100);
+
+                    updates.validityDays = days.toString();
+                    updates.validFrom = validFrom;
+                    updates.validUntil = validUntilDate.toISOString().split('T')[0];
+                    updates.amount = finalAmount.toFixed(2);
+                    updates.remainingEntries = (selectedPricing.maxEntries || '').toString();
+                }
+            }
+
+            // Recalculate validUntil when validFrom or validityDays changes
+            if (field === 'validFrom' || field === 'validityDays') {
+                const validFrom = field === 'validFrom' ? value : prev.validFrom;
+                const days = field === 'validityDays' ? parseInt(value) : parseInt(prev.validityDays);
+
+                if (validFrom && !isNaN(days)) {
+                    const validFromDate = new Date(validFrom);
+                    const validUntilDate = new Date(validFromDate);
+                    validUntilDate.setDate(validUntilDate.getDate() + days);
+                    updates.validUntil = validUntilDate.toISOString().split('T')[0];
+                }
+            }
+
+            // Recalculate amount when discount changes
+            if (field === 'discountPercent' && prev.pricingId) {
+                const selectedPricing = pricing.find(p => p._id === prev.pricingId);
+                if (selectedPricing) {
+                    const baseAmount = selectedPricing.amount || 0;
+                    const discount = parseFloat(value) || 0;
+                    const finalAmount = baseAmount * (1 - discount / 100);
+                    updates.amount = finalAmount.toFixed(2);
+                }
+            }
+
+            return { ...prev, ...updates };
+        });
+
+        if (formErrors[field]) {
+            setFormErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loading text="Зареждане на карти..." />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            <ToastComponent />
+
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Карти за тренировки</h1>
+                    <p className="text-sm text-gray-500 mt-1">Управление на картите за тренировки</p>
+                </div>
+                {isAdmin && (
+                    <Button variant="primary" onClick={handleAddClick}>
+                        <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Добави
+                    </Button>
+                )}
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Потребител
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Тип
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Име
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Посещения
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Валидна до
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Статус
+                                </th>
+                                {isAdmin && (
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Действия
+                                    </th>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {passes.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={isAdmin ? 7 : 6}
+                                        className="px-6 py-4 text-center text-sm text-gray-500"
+                                    >
+                                        Няма намерени карти
+                                    </td>
+                                </tr>
+                            ) : (
+                                passes.map((pass) => {
+                                    const user = pass.userId;
+                                    const userName = user
+                                        ? getUserFullName(user) || `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-'
+                                        : '-';
+
+                                    return (
+                                        <tr key={pass._id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {userName}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {typeLabels[pass.type] || pass.type}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {pass.name}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {pass.remainingEntries !== null && pass.totalEntries !== null
+                                                    ? `${pass.remainingEntries} / ${pass.totalEntries}`
+                                                    : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {formatDate(pass.validUntil)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span
+                                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${pass.isActive
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                        }`}
+                                                >
+                                                    {pass.isActive ? 'Активна' : 'Неактивна'}
+                                                </span>
+                                            </td>
+                                            {isAdmin && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleEditClick(pass)}
+                                                            className="text-orange-600 hover:text-orange-900"
+                                                            title="Редактирай"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(pass._id)}
+                                                            className="text-red-600 hover:text-red-900"
+                                                            title="Изтрий"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                        setDeletingId(null);
+                        setDeleteMode('soft');
+                }}
+                        title="Потвърждение за изтриване"
+                        size="md"
+                        footer={
+                            <div className="flex gap-3 justify-end">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false);
+                                        setDeletingId(null);
+                                        setDeleteMode('soft');
+                                    }}
+                                >
+                                    Отказ
+                                </Button>
+                                <Button variant="danger" onClick={handleDeleteConfirm}>
+                                    Изтрий
+                                </Button>
+                            </div>
+                        }
+            >
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-700 mb-3">
+                                Моля, изберете как искате да изтриете картата:
+                            </p>
+
+                            <div className="space-y-2">
+                                <label className="flex items-start p-3 border border-gray-200 rounded-[10px] cursor-pointer hover:bg-gray-50 transition-colors">
+                                    <input
+                                        type="radio"
+                                        name="deleteMode"
+                                        value="soft"
+                                        checked={deleteMode === 'soft'}
+                                        onChange={(e) => setDeleteMode(e.target.value)}
+                                        className="mt-1 w-4 h-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+                                    />
+                                    <div className="ml-3 flex-1">
+                                        <span className="block text-sm font-medium text-gray-900">Изтрий само картата</span>
+                                        <span className="block text-xs text-gray-500 mt-1">Картата ще бъде деактивирана, но посещенията ще останат в историята</span>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-start p-3 border-2 border-red-200 rounded-[10px] cursor-pointer hover:bg-red-50 transition-colors">
+                                    <input
+                                        type="radio"
+                                        name="deleteMode"
+                                        value="cascade"
+                                        checked={deleteMode === 'cascade'}
+                                        onChange={(e) => setDeleteMode(e.target.value)}
+                                        className="mt-1 w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                    />
+                                    <div className="ml-3 flex-1">
+                                        <span className="block text-sm font-medium text-red-900">Изтрий картата И всички посещения</span>
+                                        <span className="block text-xs text-red-600 mt-1">⚠️ ВНИМАНИЕ: Всички записи за посещения с тази карта ще бъдат изтрити завинаги!</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </BaseModal>
+                </div>
+                );
+};
+
+                export default TrainingPasses;

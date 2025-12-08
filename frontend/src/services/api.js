@@ -19,6 +19,7 @@ const resolveApiBaseUrl = () => {
 };
 
 export const API_BASE_URL = resolveApiBaseUrl();
+export const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/, '');
 
 // Create axios instance
 const api = axios.create({
@@ -247,6 +248,7 @@ export const adminUsersAPI = {
   update: (id, data) => api.put(`/admin/users/${id}`, data),
   updateRoles: (id, roles) => api.put(`/admin/users/${id}/roles`, { roles }),
   getCoaches: () => api.get('/admin/users?role=coach'),
+  create: (data) => api.post('/admin/users', data),
 };
 
 // Climber Photos API
@@ -268,6 +270,57 @@ export const climberPhotosAPI = {
   },
 };
 
+// ============================================
+// SALES / POS
+// ============================================
+
+/**
+ * Process a sale transaction (POS)
+ * @param {Object} saleData - Sale data
+ * @param {Array} saleData.items - Array of items (visits, passes, products)
+ * @param {string} saleData.currency - Payment currency ('EUR' or 'BGN')
+ * @param {number} saleData.amountPaid - Amount paid by customer
+ * @returns {Promise<Object>} Sale result with payment details
+ */
+export const processSale = async (saleData) => {
+  const response = await api.post('/sales', saleData);
+  return response.data;
+};
+
+// Gym API
+export const gymAPI = {
+  // Pricing endpoints
+  getAllPricing: (params) => api.get('/gym/pricing', { params }),
+  createPricing: (data) => api.post('/gym/pricing', data),
+  updatePricing: (id, data) => api.put(`/gym/pricing/${id}`, data),
+  deletePricing: (id) => api.delete(`/gym/pricing/${id}`),
+
+  // Gym passes endpoints
+  getAllPasses: (params) => api.get('/gym/passes', { params }),
+  createPass: (data) => api.post('/gym/passes', data),
+  updatePass: (id, data) => api.patch(`/gym/passes/${id}`, data),
+  deletePass: (id) => api.delete(`/gym/passes/${id}`),
+  deletePassCascade: (id) => api.delete(`/gym/passes/${id}/cascade`),
+  extendAllPasses: (data) => api.post('/gym/passes/extend-all', data),
+  getPassById: (id) => api.get(`/gym/passes/${id}`),
+
+  // Check-in endpoints
+  checkIn: (data) => api.post('/gym/check-in', data),
+  getVisits: (params) => api.get('/gym/visits', { params }),
+  getTodaysVisits: () => api.get('/gym/visits/today'),
+};
+
+// Training API
+export const trainingAPI = {
+  // Training passes endpoints
+  getAllPasses: (params) => api.get('/training/passes', { params }),
+  createPass: (data) => api.post('/training/passes', data),
+  updatePass: (id, data) => api.patch(`/training/passes/${id}`, data),
+  deletePass: (id) => api.delete(`/training/passes/${id}`),
+  deletePassCascade: (id) => api.delete(`/training/passes/${id}/cascade`),
+  getPassById: (id) => api.get(`/training/passes/${id}`),
+};
+
 // Competitions API
 export const competitionsAPI = {
   // Public endpoints (no authentication required)
@@ -281,6 +334,60 @@ export const competitionsAPI = {
   importCompetitions: (competitions) => api.post('/admin/competitions/import', { competitions }),
   updateCompetition: (id, data) => api.put(`/admin/competitions/${id}`, data),
   deleteCompetition: (id) => api.delete(`/admin/competitions/${id}`),
+};
+
+// Products API
+export const productsAPI = {
+  getAll: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.isActive !== undefined) params.append('isActive', filters.isActive);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.category) params.append('category', filters.category);
+    return api.get(`/products?${params.toString()}`);
+  },
+  getById: (id) => api.get(`/products/${id}`),
+  create: (data) => api.post('/products', data),
+  update: (id, data) => api.patch(`/products/${id}`, data),
+  delete: (id) => api.delete(`/products/${id}`), // Soft delete (deactivate)
+  deletePermanent: (id) => api.delete(`/products/${id}/permanent`), // Hard delete
+  reactivate: (id) => api.post(`/products/${id}/reactivate`), // Reactivate
+  uploadImage: (id, file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return api.post(`/products/${id}/image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  getImageUrl: (imageUrl) => {
+    if (!imageUrl) return null;
+    // If it's already a full URL, return it
+    if (imageUrl.startsWith('http')) return imageUrl;
+    // Otherwise, prepend the API base URL
+    return `${SERVER_BASE_URL}${imageUrl}`;
+  },
+};
+
+// Pricing API
+export const pricingAPI = {
+  getAll: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.isActive !== undefined) params.append('isActive', filters.isActive);
+    if (filters.category) params.append('category', filters.category);
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    return api.get(`/pricing?${params.toString()}`);
+  },
+  getActive: (category) => {
+    const params = category ? { category } : {};
+    return api.get('/pricing/active', { params });
+  },
+  getActiveSingle: (pricingCode) => api.get(`/pricing/active/${pricingCode}`),
+  getHistory: (pricingCode) => api.get(`/pricing/history/${pricingCode}`),
+  create: (data) => api.post('/pricing', data),
+  update: (pricingCode, data) => api.put(`/pricing/${pricingCode}`, data),
+  deactivate: (pricingCode) => api.delete(`/pricing/${pricingCode}`),
 };
 
 export default api;

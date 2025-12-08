@@ -112,6 +112,22 @@ router.patch(
     trainingController.updateTrainingPass
 );
 
+// DELETE /api/v1/training/passes/:id - Delete pass (soft delete)
+// Requires: admin only
+router.delete(
+    '/passes/:id',
+    requireMinRole('admin'),
+    trainingController.deleteTrainingPass
+);
+
+// DELETE /api/v1/training/passes/:id/cascade - Delete pass and all related attendance (hard delete)
+// Requires: admin only
+router.delete(
+    '/passes/:id/cascade',
+    requireMinRole('admin'),
+    trainingController.deleteTrainingPassCascade
+);
+
 /**
  * Booking Management
  */

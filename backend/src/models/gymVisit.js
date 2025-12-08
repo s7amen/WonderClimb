@@ -6,6 +6,11 @@ const gymVisitSchema = new mongoose.Schema({
         ref: 'GymPass',
         default: null,
     },
+    familyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Family',
+        default: null,
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -42,6 +47,15 @@ const gymVisitSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
+        default: null,
+    },
+    financeEntryId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'FinanceEntry',
+        default: null,
+    },
+    notes: {
+        type: String,
         default: null,
     },
 }, {

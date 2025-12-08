@@ -1,5 +1,39 @@
 import * as financeService from '../services/financeService.js';
+import * as financeTransactionService from '../services/financeTransactionService.js';
 import logger from '../middleware/logging.js';
+
+/**
+ * POST /api/v1/finance/entries
+
+
+/**
+ * GET /api/v1/finance/transactions
+ * List finance transactions
+ */
+export const getTransactions = async (req, res) => {
+    try {
+        const { startDate, endDate, handledById, payerClimberId, page, limit } = req.query;
+
+        const filters = {};
+        if (startDate) filters.startDate = startDate;
+        if (endDate) filters.endDate = endDate;
+        if (handledById) filters.handledById = handledById;
+        if (payerClimberId) filters.payerClimberId = payerClimberId;
+
+        const pagination = {};
+        if (page) pagination.page = parseInt(page);
+        if (limit) pagination.limit = parseInt(limit);
+
+        const result = await financeTransactionService.getFinanceTransactions(filters, pagination);
+
+        res.json(result);
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error fetching finance transactions');
+        res.status(500).json({
+            error: { message: 'Failed to fetch finance transactions' },
+        });
+    }
+};
 
 /**
  * POST /api/v1/finance/entries
@@ -30,11 +64,13 @@ export const createEntry = async (req, res) => {
  */
 export const getEntries = async (req, res) => {
     try {
-        const { type, area, startDate, endDate, personId, page, limit } = req.query;
+        const { type, area, startDate, endDate, personId, page, limit, source, itemType } = req.query;
 
         const filters = {};
         if (type) filters.type = type;
         if (area) filters.area = area;
+        if (source) filters.source = source;
+        if (itemType) filters.itemType = itemType;
         if (startDate) filters.startDate = startDate;
         if (endDate) filters.endDate = endDate;
         if (personId) filters.personId = personId;

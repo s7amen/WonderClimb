@@ -114,3 +114,80 @@ export const deleteProduct = async (req, res) => {
         });
     }
 };
+
+/**
+ * POST /api/v1/products/:id/image
+ * Upload product image
+ */
+export const uploadProductImage = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!req.file) {
+            return res.status(400).json({
+                error: { message: 'No image file provided' },
+            });
+        }
+
+        // Get product to retrieve name for filename
+        const existingProduct = await productService.getProductById(id);
+
+        const product = await productService.uploadProductImage(
+            id,
+            req.file.buffer,
+            existingProduct.name
+        );
+
+        res.json({
+            message: 'Product image uploaded successfully',
+            product,
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error uploading product image');
+        res.status(400).json({
+            error: { message: error.message || 'Failed to upload product image' },
+        });
+    }
+};
+
+/**
+ * DELETE /api/v1/products/:id/permanent
+ * Hard delete a product
+ */
+export const hardDeleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await productService.deleteProduct(id);
+
+        res.json({
+            message: 'Product permanently deleted',
+            product,
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error deleting product');
+        res.status(400).json({
+            error: { message: error.message || 'Failed to delete product' },
+        });
+    }
+};
+
+/**
+ * POST /api/v1/products/:id/reactivate
+ * Reactivate a product
+ */
+export const reactivateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await productService.reactivateProduct(id);
+
+        res.json({
+            message: 'Product reactivated successfully',
+            product,
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error reactivating product');
+        res.status(400).json({
+            error: { message: error.message || 'Failed to reactivate product' },
+        });
+    }
+};

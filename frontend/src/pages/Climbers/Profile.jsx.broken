@@ -1,0 +1,528 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { API_BASE_URL, adminUsersAPI, gymAPI } from '../../services/api';
+import { financeAPI } from '../../services/financeService';
+import Loading from '../../components/UI/Loading';
+import { useToast } from '../../components/UI/Toast';
+import { getUserFullName } from '../../utils/userUtils';
+import PhotoGallery from '../../components/PhotoGallery';
+import AuthImage from '../../components/AuthImage';
+import ImageLightbox from '../../components/ImageLightbox';
+import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/dateUtils';
+
+// Helper component for Data Sections
+const DataSection = ({ title, data, loading, renderItem, total, onLoadAll, isExpanded, onLoadLess, emptyMessage = "Няма данни" }) => {
+  return (
+    <div className="bg-white rounded-[10px] border border-[rgba(0,0,0,0.1)] p-4 sm:p-6 mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-medium text-neutral-950">{title}</h2>
+        {total > 0 && (
+          <span className="text-sm text-gray-500">
+            Общо: {total}
+          </span>
+        )}
+      </div>
+
+      {loading && !data.length ? (
+        <div className="py-4 text-center text-gray-500">Зареждане...</div>
+      ) : data.length === 0 ? (
+        <div className="py-4 text-center text-gray-500 italic">{emptyMessage}</div>
+      ) : (
+        <div className="space-y-0">
+          <div className="overflow-x-auto">
+            {renderItem(data)}
+          </div>
+        </div>
+      )}
+
+      {total > 10 && (
+        <div className="mt-4 flex justify-center border-t border-gray-100 pt-3">
+          {!isExpanded ? (
+            <button
+              onClick={onLoadAll}
+              className="text-orange-600 hover:text-orange-700 text-sm font-medium"
+            >
+              Зареди всички
+            </button>
+          ) : (
+            <button
+              onClick={onLoadLess}
+              className="text-gray-500 hover:text-gray-700 text-sm font-medium"
+            >
+              Свий списъка
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ClimberProfile = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { showToast, ToastComponent } = useToast();
+  const { user: currentUser } = useAuth();
+
+  const [climber, setClimber] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Data States
+  const [visits, setVisits] = useState([]);
+  const [visitsTotal, setVisitsTotal] = useState(0);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [visitsExpanded, setVisitsExpanded] = useState(false);
+  const [visitsPage, setVisitsPage] = useState(1);
+
+  const [passes, setPasses] = useState([]);
+  const [passesTotal, setPassesTotal] = useState(0);
+  const [passesLoading, setPassesLoading] = useState(false);
+  const [passesExpanded, setPassesExpanded] = useState(false);
+  // Note: GymPass API might not fully support server-side pagination for passes by user yet, 
+  // but we will implement client-slicing logic if needed or standard if supported.
+
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsTotal, setTransactionsTotal] = useState(0);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsExpanded, setTransactionsExpanded] = useState(false);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
+
+  // Check if current user can manage photos (admin or coach)
+  const canManagePhotos = currentUser?.roles?.some(role => ['admin', 'coach'].includes(role));
+
+  useEffect(() => {
+    fetchClimber();
+    fetchVisits(1, 10); // Initial preview
+    fetchPasses();
+    fetchTransactions(1, 10); // Initial preview
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchClimber = async () => {
+    try {
+      setLoading(true);
+      const response = await adminUsersAPI.getById(id);
+      setClimber(response.data.user);
+    } catch (error) {
+      console.error('Error fetching climber:', error);
+      showToast(
+        error.response?.data?.error?.message || 'Грешка при зареждане на профила',
+        'error'
+      );
+      navigate('/admin/climbers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVisits = async (page = 1, limit = 10) => {
+    try {
+      setVisitsLoading(true);
+      const params = { userId: id, page, limit };
+      const response = await gymAPI.getVisits(params);
+      if (limit > 10 || page > 1) {
+        // Full load or pagination
+        setVisits(response.data.visits || []);
+      } else {
+        // Initial load
+        setVisits(response.data.visits || []);
+      }
+      if (response.data.pagination) {
+        setVisitsTotal(response.data.pagination.total);
+      }
+    } catch (error) {
+      console.error('Error fetching visits', error);
+    } finally {
+      setVisitsLoading(false);
+    }
+  };
+
+  const fetchPasses = async () => {
+    try {
+      setPassesLoading(true);
+      // Assuming getAllPasses supports userId filter
+      // If backend doesn't support pagination for this specific call, we get all.
+      const response = await gymAPI.getAllPasses({ userId: id });
+      const allPasses = response.data.passes || [];
+      setPasses(allPasses);
+      setPassesTotal(allPasses.length);
+    } catch (error) {
+      console.error('Error fetching passes', error);
+    } finally {
+      setPassesLoading(false);
+    }
+  };
+
+  const fetchTransactions = async (page = 1, limit = 10) => {
+    try {
+      setTransactionsLoading(true);
+      const response = await financeAPI.getTransactions({ payerClimberId: id }, { page, limit });
+      setTransactions(response.data.transactions || []);
+      if (response.data.pagination) {
+        setTransactionsTotal(response.data.pagination.total);
+      }
+    } catch (error) {
+      console.error('Error fetching transactions', error);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
+  // Handlers for "Load All"
+  const handleLoadAllVisits = () => {
+    setVisitsExpanded(true);
+    setVisitsPage(1);
+    fetchVisits(1, 20); // Switch to 20 per page
+  };
+
+  const handleLoadLessVisits = () => {
+    setVisitsExpanded(false);
+    fetchVisits(1, 10);
+  }
+
+  const handleLoadAllTransactions = () => {
+    setTransactionsExpanded(true);
+    setTransactionsPage(1); // Reset to page 1
+    fetchTransactions(1, 20);
+  };
+
+  const handleLoadLessTransactions = () => {
+    setTransactionsExpanded(false);
+    fetchTransactions(1, 10);
+  }
+
+  const handleLoadAllPasses = () => {
+    // Since we likely fetched all passes already (if API doesn't paginate),
+    // we just toggle the view limit in the render
+    setPassesExpanded(true);
+  };
+
+  const handleLoadLessPasses = () => {
+    setPassesExpanded(false);
+  }
+
+  const handlePhotoUpdate = (updatedPhotos) => {
+    setClimber(prev => ({
+      ...prev,
+      photos: updatedPhotos,
+    }));
+  };
+
+  const openMainPhotoLightbox = () => {
+    if (climber?.photos && climber.photos.length > 0) {
+      const mainPhotoIndex = climber.photos.findIndex(p => p.isMain) || 0;
+      setLightboxImageIndex(mainPhotoIndex);
+      setLightboxOpen(true);
+    }
+  };
+
+  const openGalleryLightbox = (index) => {
+    setLightboxImageIndex(index);
+    setLightboxOpen(true);
+  };
+
+  const getPhotoUrl = (filename) => {
+    return `${API_BASE_URL}/admin/photos/${id}/${filename}`;
+  };
+
+  const handlePrevious = () => {
+    if (climber?.photos && climber.photos.length > 0) {
+      const newIndex = lightboxImageIndex > 0 ? lightboxImageIndex - 1 : climber.photos.length - 1;
+      setLightboxImageIndex(newIndex);
+    }
+  };
+
+  const handleNext = () => {
+    if (climber?.photos && climber.photos.length > 0) {
+      const newIndex = lightboxImageIndex < climber.photos.length - 1 ? lightboxImageIndex + 1 : 0;
+      setLightboxImageIndex(newIndex);
+    }
+  };
+
+
+  const formatDateTime = (dateString, includeTime = true) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const datePart = date.toLocaleDateString('bg-BG', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    if (!includeTime) return datePart;
+
+    const timePart = date.toLocaleTimeString('bg-BG', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `${datePart} ${timePart}`;
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return '-';
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getRoleLabel = (role) => {
+    const roleLabels = {
+      admin: 'Администратор',
+      coach: 'Треньор',
+      climber: 'Катерач',
+      instructor: 'Инструктор',
+    };
+    return roleLabels[role] || role;
+  };
+
+
+  if (loading) {
+    return <Loading text="Зареждане на профил..." />;
+  }
+
+  if (!climber) {
+    return null;
+  }
+
+  return (
+    <div className="bg-[#f3f3f5] min-h-screen py-4 sm:py-6 px-4 sm:px-6">
+      <div className="max-w-[1200px] mx-auto">
+        {/* Header with Back Button */}
+        <div className="bg-white rounded-[10px] border border-[rgba(0,0,0,0.1)] p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => navigate('/climbers')}
+              className="bg-[#ea7a24] h-9 px-4 rounded-lg text-white text-sm font-medium flex items-center gap-2 hover:opacity-90 transition-opacity shrink-0 w-full sm:w-auto self-start"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Назад</span>
+            </button>
+            <div className="flex-1 w-full">
+              <h1 className="text-lg sm:text-[20px] font-medium text-neutral-950 leading-tight sm:leading-[30px] mb-1">
+                {getUserFullName(climber) || '-'}
+              </h1>
+              <p className="text-sm sm:text-[16px] text-[#4a5565] leading-tight sm:leading-[24px]">
+                Пълен профил на катерач
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Profile Card */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Profile Card */}
+            <div className="bg-white rounded-[10px] border border-[rgba(0,0,0,0.1)] p-4 sm:p-6 relative">
+              {/* Main Photo Display */}
+              <div className="flex justify-center mb-6">
+                {climber?.photos && climber.photos.length > 0 ? (() => {
+                  const mainPhoto = climber.photos.find(p => p.isMain) || climber.photos[0];
+                  const photoUrl = getPhotoUrl(mainPhoto.filename);
+                  return (
+                    <div className="bg-[#f3f3f5] border-4 border-[#ea7a24] rounded-[16px] w-[200px] h-[200px] overflow-hidden p-1 hover:opacity-90 transition-opacity cursor-pointer" onClick={openMainPhotoLightbox}>
+                      <AuthImage
+                        src={photoUrl}
+                        alt="Профилна снимка"
+                        className="w-full h-full object-cover rounded-[12px]"
+                      />
+                    </div>
+                  );
+                })() : (
+                  <div className="bg-[#f3f3f5] border-4 border-gray-200 rounded-[16px] w-[200px] h-[200px] flex items-center justify-center text-gray-400">
+                    <span>Няма снимка</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {/* Name Field */}
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Име</p>
+                  <p className="text-sm font-medium text-neutral-950">{climber.firstName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Презиме</p>
+                  <p className="text-sm font-medium text-neutral-950">{climber.middleName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Фамилия</p>
+                  <p className="text-sm font-medium text-neutral-950">{climber.lastName || '-'}</p>
+                </div>
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {/* Contact */}
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Имейл</p>
+                  <p className="text-sm text-neutral-950 break-all">{climber.email || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Телефон</p>
+                  <p className="text-sm text-neutral-950">{climber.phone || '-'}</p>
+                </div>
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {/* Personal */}
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Дата на раждане</p>
+                  <p className="text-sm text-neutral-950">
+                    {climber.dateOfBirth ? formatDate(climber.dateOfBirth) : '-'}
+                    {climber.dateOfBirth && <span className="text-gray-500 ml-1">({calculateAge(climber.dateOfBirth)} г.)</span>}
+                  </p>
+                </div>
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {/* Status & Roles */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Статус</p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${climber.accountStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                      {climber.accountStatus === 'active' ? 'Активен' : 'Неактивен'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Трениращ</p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${climber.isTrainee ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                      {climber.isTrainee ? 'Да' : 'Не'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Роли</p>
+                  <div className="flex flex-wrap gap-1">
+                    {climber.roles && climber.roles.map(role => (
+                      <span key={role} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                        {getRoleLabel(role)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 my-2"></div>
+
+                {/* Notes */}
+                <div>
+                  <p className="text-xs font-medium text-[#4a5565] uppercase tracking-wider mb-1">Бележки</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{climber.notes || '-'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Photos Management */}
+            {canManagePhotos && (
+              <div className="bg-white rounded-[10px] border border-[rgba(0,0,0,0.1)] p-4 sm:p-6">
+                <h3 className="text-sm font-medium text-[#4a5565] uppercase tracking-wider mb-4">Снимки</h3>
+                <PhotoGallery
+                  climberId={id}
+                  photos={climber?.photos || []}
+                  onUpdate={handlePhotoUpdate}
+                  onImageClick={openGalleryLightbox}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Data Sections */}
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* Visits Section */}
+            <DataSection
+              title="Посещения"
+              data={visits}
+              total={visitsTotal}
+              loading={visitsLoading}
+              isExpanded={visitsExpanded}
+              onLoadAll={handleLoadAllVisits}
+              onLoadLess={handleLoadLessVisits}
+              renderItem={(data) => (
+                <>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Дата</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Тип</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Цена</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {data.map(visit => (
+                        <tr key={visit._id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {formatDateTime(visit.date)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {visit.type === 'pass' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Карта
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                Единично
+                              </span>
+                            )}
+                            {visit.notes && <span className="block text-xs text-gray-400 mt-0.5">{visit.notes}</span>}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                            {visit.amount !== undefined ? `€${visit.amount.toFixed(2)}` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {visitsExpanded && visitsTotal > 20 && (
+                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6 mt-2 rounded-b">
+                      <div className="flex-1 flex justify-between sm:hidden">
+                        <button onClick={() => fetchVisits(visitsPage - 1, 20) && setVisitsPage(p => p - 1)} disabled={visitsPage === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</button>
+                        <button onClick={() => fetchVisits(visitsPage + 1, 20) && setVisitsPage(p => p + 1)} disabled={visitsPage * 20 >= visitsTotal} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</button>
+                      </div>
+                      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            Показване на <span className="font-medium">{(visitsPage - 1) * 20 + 1}</span> до <span className="font-medium">{Math.min(visitsPage * 20, visitsTotal)}</span> от <span className="font-medium">{visitsTotal}</span>
+                          </p>
+                        </div>
+                        <div>
+                          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                            <button onClick={() => {
+                              const newPage = Math.max(1, visitsPage - 1);
+                              setVisitsPage(newPage);
+                              fetchVisits(newPage, 20);
+                            }} disabled={visitsPage === 1} className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                              <span>Previous</span>
+                            </button>
+                            <button onClick={() => {
+                              const newPage = visitsPage + 1;
+                              setVisitsPage(newPage);
+                              fetchVisits(newPage, 20);
+                            }} disabled={visitsPage * 20 >= visitsTotal} className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                              <ImageLightbox
+                                isOpen={lightboxOpen}
+                                imageUrl={getPhotoUrl(climber.photos[lightboxImageIndex].filename)}
+                                onClose={() => setLightboxOpen(false)}
+                                onPrevious={climber.photos.length > 1 ? handlePrevious : null}
+                                onNext={climber.photos.length > 1 ? handleNext : null}
+                                showNavigation={climber.photos.length > 1}
+                              />
+          )}
+                            </div>
+                            <ToastComponent />
+                        </div>
+                        );
+};
+
+                        export default ClimberProfile;
+
