@@ -11,10 +11,21 @@ const Header = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024);
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
   const availableRoles = user ? getAvailableRoleDashboards(user) : [];
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize selected role on mount or when user changes
   useEffect(() => {
@@ -398,7 +409,7 @@ const Header = () => {
       </header>
 
       {/* Second Menu - Only for logged in users */}
-      {isAuthenticated && secondMenuItems.length > 0 && (
+      {isAuthenticated && secondMenuItems.length > 0 && (!isMobile || mobileSecondMenuItems.length > 0) && (
         <div className="bg-[#2a2d31] border-b border-gray-700 sticky top-0 z-30">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-4 h-[44px]">
