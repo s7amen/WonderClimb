@@ -66,7 +66,10 @@ const ClimberMobileBottomNav = () => {
     };
 
     return (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#35383d] border-t border-gray-700">
+        <nav
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#35383d] border-t border-gray-700"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
             <div className="grid grid-cols-4 h-16">
                 {navItems.map((item) => {
                     const Icon = item.icon;

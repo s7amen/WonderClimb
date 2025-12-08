@@ -13,7 +13,10 @@ const ClimberLayout = () => {
         <Outlet />
       </main>
 
-      <Footer />
+      {/* Footer - Only on desktop, hidden on mobile */}
+      <div className="hidden lg:block">
+        <Footer />
+      </div>
 
       {/* Mobile Bottom Navigation - Only for climbers */}
       <ClimberMobileBottomNav />
