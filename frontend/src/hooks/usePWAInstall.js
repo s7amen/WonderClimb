@@ -396,13 +396,24 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       if (!isSecure) {
         errorReason += '\n\nPWA изисква HTTPS или localhost.';
       } else {
+        // Check if beforeinstallprompt was fired but prompt is already consumed
+        const hasBeforeInstallPrompt = 'BeforeInstallPromptEvent' in window;
+
         // Add specific reasons if available from diagnostics
         if (debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) {
           errorReason += `\n\nПроблем с манифеста: ${debugInfo.manifestErrors[0]}`;
         } else if (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0) {
           errorReason += `\n\nПроблем със Service Worker: ${debugInfo.serviceWorkerErrors[0]}`;
+        } else if (hasBeforeInstallPrompt) {
+          // Browser supports beforeinstallprompt but we don't have it
+          // Most likely it was already used or dismissed in this session
+          errorReason += '\n\n⚠️ Prompt за инсталация вече е бил използван в тази сесия.\n\n' +
+            '📱 Моля, презаредете страницата и опитайте отново.\n\n' +
+            'Алтернативно:\n' +
+            '• Използвайте "Add to Home Screen" от менюто на браузъра\n' +
+            '• Или затворете и отворете приложението отново';
         } else {
-          errorReason += '\n\nВъзможни причини:\n• Браузърът не е готов (опитайте презареждане)\n• Приложението е било инсталирано наскоро\n• Инсталацията е отказана твърде много пъти';
+          errorReason += '\n\nВъзможни причини:\n• Браузърът не е готов (опитайте презареждане)\n• Приложението е било инсталирано наскоро\n• Браузърът не поддържа PWA инсталация';
         }
       }
 

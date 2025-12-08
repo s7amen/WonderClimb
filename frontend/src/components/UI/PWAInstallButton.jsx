@@ -33,6 +33,11 @@ const PWAInstallButton = ({
     }
   };
 
+  // Check if the error message indicates that the prompt was already used
+  const shouldShowReloadButton = (message) => {
+    return message?.includes('Prompt за инсталация вече е бил използван');
+  };
+
   // Sticky icon variant for mobile
   if (variant === 'sticky') {
     // Hide if in standalone mode (PWA) - no button needed
@@ -47,6 +52,7 @@ const PWAInstallButton = ({
             }}
             message={errorModalData?.message || error}
             debugInfo={errorModalData?.debugInfo || debugInfo}
+            showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
           />
         </>
       );
@@ -64,6 +70,7 @@ const PWAInstallButton = ({
             }}
             message={errorModalData?.message || error}
             debugInfo={errorModalData?.debugInfo || debugInfo}
+            showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
           />
         </>
       );
@@ -132,6 +139,7 @@ const PWAInstallButton = ({
           }}
           message={errorModalData?.message || error}
           debugInfo={errorModalData?.debugInfo || debugInfo}
+          showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
         />
       </>
     );
@@ -151,6 +159,7 @@ const PWAInstallButton = ({
           }}
           message={errorModalData?.message || error}
           debugInfo={errorModalData?.debugInfo || debugInfo}
+          showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
         />
       </>
     );
@@ -195,6 +204,7 @@ const PWAInstallButton = ({
         }}
         message={errorModalData?.message || error}
         debugInfo={errorModalData?.debugInfo || debugInfo}
+        showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
       />
     </>
   );

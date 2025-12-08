@@ -7,7 +7,12 @@ const ErrorModal = ({
   title = 'Грешка',
   message = '',
   debugInfo = null,
+  showReloadButton = false,
 }) => {
+  const handleReload = () => {
+    window.location.reload();
+  };
+
   return (
     <BaseModal
       isOpen={isOpen}
@@ -31,11 +36,20 @@ const ErrorModal = ({
         </div>
       }
       footer={
-        <div className="flex justify-end">
+        <div className="flex flex-col sm:flex-row justify-end gap-2 w-full">
+          {showReloadButton && (
+            <Button
+              variant="secondary"
+              onClick={handleReload}
+              className="w-full sm:w-auto order-2 sm:order-1"
+            >
+              🔄 Презареди
+            </Button>
+          )}
           <Button
             variant="primary"
             onClick={onClose}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto order-1 sm:order-2"
           >
             Затвори
           </Button>
