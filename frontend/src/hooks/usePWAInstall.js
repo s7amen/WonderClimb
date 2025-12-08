@@ -388,28 +388,47 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       }
 
       // No deferred prompt and not iOS - show error in modal
-      const errorMsg = 'PWA инсталацията не е налична.\n\nPWA изисква HTTPS или localhost.';
+      let errorReason = 'PWA инсталацията не е налична в момента.';
+      const isSecure = window.location.protocol === 'https:' ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
 
-      setError(errorMsg);
+      if (!isSecure) {
+        errorReason += '\n\nPWA изисква HTTPS или localhost.';
+      } else {
+        // Add specific reasons if available from diagnostics
+        if (debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) {
+          errorReason += `\n\nПроблем с манифеста: ${debugInfo.manifestErrors[0]}`;
+        } else if (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0) {
+          errorReason += `\n\nПроблем със Service Worker: ${debugInfo.serviceWorkerErrors[0]}`;
+        } else {
+          errorReason += '\n\nВъзможни причини:\n• Браузърът не е готов (опитайте презареждане)\n• Приложението е било инсталирано наскоро\n• Инсталацията е отказана твърде много пъти';
+        }
+      }
+
+      setError(errorReason);
       console.error('[PWA Install] No deferred prompt available', {
         protocol: window.location.protocol,
         hostname: window.location.hostname,
         userAgent: navigator.userAgent,
         hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
+        debugInfo
       });
 
       if (onErrorModalOpen) {
         setShowErrorModal(true);
-        onErrorModalOpen(errorMsg, {
+        onErrorModalOpen(errorReason, {
           protocol: window.location.protocol,
           hostname: window.location.hostname,
           hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
           deferredPrompt: false,
           userAgent: navigator.userAgent,
           browserInfo: debugInfo.browserInfo,
+          manifestErrors: debugInfo.manifestErrors,
+          serviceWorkerErrors: debugInfo.serviceWorkerErrors
         });
       } else {
-        alert(errorMsg);
+        alert(errorReason);
       }
       return;
     }
