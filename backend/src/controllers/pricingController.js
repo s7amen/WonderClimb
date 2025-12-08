@@ -1,5 +1,6 @@
 import * as pricingService from '../services/pricingService.js';
 import logger from '../middleware/logging.js';
+import * as auditService from '../services/auditService.js';
 
 /**
  * Get all active pricings
@@ -113,6 +114,8 @@ export const createPricing = async (req, res) => {
 
         const pricing = await pricingService.createPricing(pricingData, createdById);
 
+        await auditService.log(req.user._id, 'CREATE_PRICING', 'Pricing', pricing._id, pricingData, req);
+
         res.status(201).json({
             success: true,
             data: pricing,
@@ -139,6 +142,8 @@ export const updatePricing = async (req, res) => {
 
         const pricing = await pricingService.updatePricing(pricingCode, updates, updatedById);
 
+        await auditService.log(req.user._id, 'UPDATE_PRICING', 'Pricing', pricing._id, updates, req);
+
         res.json({
             success: true,
             data: pricing,
@@ -160,6 +165,8 @@ export const deactivatePricing = async (req, res) => {
     try {
         const { pricingCode } = req.params;
         const pricing = await pricingService.deactivatePricing(pricingCode);
+
+        await auditService.log(req.user._id, 'DEACTIVATE_PRICING', 'Pricing', pricing._id, { pricingCode }, req);
 
         res.json({
             success: true,

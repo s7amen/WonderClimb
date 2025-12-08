@@ -477,7 +477,7 @@ const Climbers = ({ type }) => {
                           </div>
                         </div>
                       )}
-                      {user.pwaInstalled && (
+                      {type === 'training' && user.pwaInstalled && (
                         <div>
                           <span className="text-sm text-[#4a5565]">App Status:</span>
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
@@ -530,9 +530,11 @@ const Climbers = ({ type }) => {
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Роли
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  App
-                </th>
+                {type === 'training' && (
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    App
+                  </th>
+                )}
                 <th
                   className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer transition-colors hover:bg-gray-100"
                   onClick={() => handleSort('accountStatus')}
@@ -601,17 +603,19 @@ const Climbers = ({ type }) => {
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {user.pwaInstalled ? (
-                        <div className="flex items-center justify-center text-green-600" title={`Инсталирано на ${user.pwaLastUsed ? formatDate(user.pwaLastUsed) : '?'}`}>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </td>
+                    {type === 'training' && (
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        {user.pwaInstalled ? (
+                          <div className="flex items-center justify-center text-green-600" title={`Инсталирано на ${user.pwaLastUsed ? formatDate(user.pwaLastUsed) : '?'}`}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.accountStatus === 'active'

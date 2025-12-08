@@ -6,6 +6,7 @@ import { Pricing } from '../models/pricing.js';
 import { Product } from '../models/product.js';
 import { Family } from '../models/family.js';
 import mongoose from 'mongoose';
+import * as auditService from '../services/auditService.js';
 
 /**
  * Process a sale transaction with multiple items (visits, passes, products)
@@ -283,6 +284,20 @@ export const processSale = async (req, res) => {
             amountPaidEUR = Number(amountPaid);
             changeEUR = amountPaidEUR - totalAmountEUR;
         }
+
+        // Audit Log
+        await auditService.log(
+            userId,
+            'SALE_PROCESSED',
+            'FinanceTransaction',
+            transaction._id,
+            {
+                totalAmount: totalAmountEUR,
+                itemsCount: items.length,
+                payerClimberId: payerClimberId
+            },
+            req
+        );
 
         res.status(201).json({
             message: 'Sale processed successfully',

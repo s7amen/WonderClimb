@@ -5,6 +5,7 @@ import { RefreshToken } from '../models/refreshToken.js';
 import { config } from '../config/env.js';
 import logger from '../middleware/logging.js';
 import { generateToken } from '../middleware/auth.js';
+import * as auditService from '../services/auditService.js';
 
 // Helper to generate a random refresh token string
 const randomTokenString = () => {
@@ -116,6 +117,16 @@ export const login = async (req, res) => {
         await refreshToken.save();
 
         setRefreshTokenCookie(res, refreshTokenString);
+
+        // Audit Log
+        await auditService.log(
+            user._id,
+            'USER_LOGIN',
+            'Auth',
+            user._id,
+            { email: user.email, role: user.roles[0] },
+            req
+        );
 
         res.json({
             message: 'Login successful',

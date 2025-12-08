@@ -108,30 +108,40 @@ const userSchema = new mongoose.Schema({
       default: false,
     },
     membershipHistory: [{
-      userSchema.index({ email: 1 }, {
-        unique: true,
-        sparse: true,
-        partialFilterExpression: { email: { $ne: null } }
-      });
-      userSchema.index({ accountStatus: 1 });
-      userSchema.index({ roles: 1 });
-      userSchema.index({ dateOfBirth: 1 });
-      // Compound index for duplicate checking
-      userSchema.index({ firstName: 1, lastName: 1, dateOfBirth: 1 });
+      startDate: Date,
+      endDate: Date,
+      status: String,
+    }],
+  },
+}, {
+  timestamps: true,
+});
 
-      // Method to compare password
-      userSchema.methods.comparePassword = async function (candidatePassword) {
-        if (!this.passwordHash) {
-          return false; // No password set, cannot compare
-        }
-        return bcrypt.compare(candidatePassword, this.passwordHash);
-      };
+// Indexes
+userSchema.index({ email: 1 }, {
+  unique: true,
+  sparse: true,
+  partialFilterExpression: { email: { $ne: null } }
+});
+userSchema.index({ accountStatus: 1 });
+userSchema.index({ roles: 1 });
+userSchema.index({ dateOfBirth: 1 });
+// Compound index for duplicate checking
+userSchema.index({ firstName: 1, lastName: 1, dateOfBirth: 1 });
 
-      // Static method to hash password
-      userSchema.statics.hashPassword = async function (password) {
-        const saltRounds = 10;
-        return bcrypt.hash(password, saltRounds);
-      };
+// Method to compare password
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.passwordHash) {
+    return false; // No password set, cannot compare
+  }
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
 
-      export const User = mongoose.model('User', userSchema);
+// Static method to hash password
+userSchema.statics.hashPassword = async function (password) {
+  const saltRounds = 10;
+  return bcrypt.hash(password, saltRounds);
+};
+
+export const User = mongoose.model('User', userSchema);
 

@@ -1,6 +1,7 @@
 import * as financeService from '../services/financeService.js';
 import * as financeTransactionService from '../services/financeTransactionService.js';
 import logger from '../middleware/logging.js';
+import * as auditService from '../services/auditService.js';
 
 /**
  * POST /api/v1/finance/entries
@@ -45,6 +46,8 @@ export const createEntry = async (req, res) => {
         const createdById = req.user.id;
 
         const entry = await financeService.createFinanceEntry(entryData, createdById);
+
+        await auditService.log(req.user.id, 'CREATE_FINANCE_ENTRY', 'FinanceEntry', entry._id, entryData, req);
 
         res.status(201).json({
             message: 'Finance entry created successfully',
@@ -119,6 +122,8 @@ export const updateEntry = async (req, res) => {
 
         const entry = await financeService.updateFinanceEntry(id, updates);
 
+        await auditService.log(req.user.id, 'UPDATE_FINANCE_ENTRY', 'FinanceEntry', id, updates, req);
+
         res.json({
             message: 'Finance entry updated successfully',
             entry,
@@ -139,6 +144,8 @@ export const deleteEntry = async (req, res) => {
     try {
         const { id } = req.params;
         const entry = await financeService.deleteFinanceEntry(id);
+
+        await auditService.log(req.user.id, 'DELETE_FINANCE_ENTRY', 'FinanceEntry', id, { deletedEntry: entry }, req);
 
         res.json({
             message: 'Finance entry deleted successfully',
