@@ -1,12 +1,29 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Logo from '../UI/Logo';
 import PWAInstallButton from '../UI/PWAInstallButton';
 
 const Footer = () => {
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024);
   const currentYear = new Date().getFullYear();
 
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Don't show footer on mobile devices
+  if (isMobile) {
+    return null;
+  }
+
   return (
-    <footer 
+    <footer
       className="relative border-t border-[#364153] mt-auto overflow-hidden"
       style={{
         backgroundImage: 'url(/images/clibming-wall-for-footer.webp)',
@@ -17,7 +34,7 @@ const Footer = () => {
     >
       {/* Dark overlay for readability while keeping background visible */}
       <div className="absolute inset-0 bg-black/70"></div>
-      
+
       <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Logo */}
@@ -64,9 +81,9 @@ const Footer = () => {
             <p className="text-[#99a1af] text-base text-center font-normal">
               © СК „Чудните скали" Варна®
             </p>
-            
+
             {/* PWA Install Button */}
-            <PWAInstallButton 
+            <PWAInstallButton
               variant="button"
               className="w-full md:w-auto min-w-[200px]"
             />

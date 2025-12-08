@@ -446,23 +446,25 @@ const Header = () => {
               </nav>
 
               {/* Second Menu Navigation - Mobile (outside hamburger menu) */}
-              <nav className="lg:hidden flex items-center gap-3 overflow-x-auto">
-                {mobileSecondMenuItems.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`
-                      text-[1rem] font-normal transition-colors whitespace-nowrap
-                      ${isActive(item.href)
-                        ? 'text-[#ea7a24] font-medium'
-                        : 'text-[#d1d5dc] hover:text-white'
-                      }
-                    `}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
-              </nav>
+              {mobileSecondMenuItems.length > 0 && (
+                <nav className="lg:hidden flex items-center gap-3 overflow-x-auto">
+                  {mobileSecondMenuItems.map((item) => (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`
+                        text-[1rem] font-normal transition-colors whitespace-nowrap
+                        ${isActive(item.href)
+                          ? 'text-[#ea7a24] font-medium'
+                          : 'text-[#d1d5dc] hover:text-white'
+                        }
+                      `}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </nav>
+              )}
             </div>
           </div>
         </div>

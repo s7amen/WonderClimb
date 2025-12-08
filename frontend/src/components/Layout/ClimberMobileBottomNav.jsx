@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 // Navigation Icons
@@ -29,9 +30,20 @@ const UserIcon = (props) => (
 const ClimberMobileBottomNav = () => {
     const location = useLocation();
     const { isAuthenticated, user } = useAuth();
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024);
 
-    // Only show for authenticated climbers
-    if (!isAuthenticated || !user?.roles?.includes('climber')) {
+    // Handle window resize for mobile detection
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Only show for authenticated climbers on mobile devices
+    if (!isAuthenticated || !user?.roles?.includes('climber') || !isMobile) {
         return null;
     }
 
@@ -67,7 +79,7 @@ const ClimberMobileBottomNav = () => {
 
     return (
         <nav
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#35383d] border-t border-gray-700"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-[#35383d] border-t border-gray-700"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
             <div className="grid grid-cols-4 h-16">
