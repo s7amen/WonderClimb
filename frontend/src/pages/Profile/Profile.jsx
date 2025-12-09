@@ -1,21 +1,23 @@
 ﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { format } from 'date-fns';
-import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import Loading from '../../components/UI/Loading';
 import { useToast } from '../../components/UI/Toast';
 import { parentProfileAPI, parentClimbersAPI } from '../../services/api';
 import ConfirmDialog from '../../components/UI/ConfirmDialog';
-import { formatDate, formatDateForInput } from '../../utils/dateUtils';
+import { formatDate } from '../../utils/dateUtils';
+import AddChildModal from '../../components/Modals/AddChildModal';
 
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+
+  // Modal State
+  const [showChildModal, setShowChildModal] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
+
   const [profileData, setProfileData] = useState({
     firstName: '',
     middleName: '',
@@ -29,14 +31,6 @@ const Profile = () => {
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleteWarning, setDeleteWarning] = useState(null);
   const [bookedSessionsCount, setBookedSessionsCount] = useState(0);
-
-  const [formData, setFormData] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    dateOfBirth: '',
-    notes: '',
-  });
 
   useEffect(() => {
     let isMounted = true;
@@ -138,44 +132,19 @@ const Profile = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const childData = {
-        firstName: formData.firstName,
-        middleName: formData.middleName,
-        lastName: formData.lastName,
-        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : null,
-        notes: formData.notes,
-      };
-
-      if (editingChild) {
-        await parentClimbersAPI.update(editingChild._id, childData);
-        showToast('Детето е обновено успешно', 'success');
-      } else {
-        await parentClimbersAPI.create(childData);
-        showToast('Детето е добавено успешно', 'success');
-      }
-
-      resetForm();
-      fetchData();
-    } catch (error) {
-      console.error('Error creating/updating child:', error);
-      const errorMessage = error.response?.data?.error?.message || error.response?.data?.error?.details || 'Грешка при запазване на дете';
-      showToast(errorMessage, 'error');
-    }
+  const handleOpenAdd = () => {
+    setEditingChild(null);
+    setShowChildModal(true);
   };
 
-  const handleEdit = (child) => {
-    setFormData({
-      firstName: child.firstName,
-      middleName: child.middleName || '',
-      lastName: child.lastName,
-      dateOfBirth: child.dateOfBirth ? formatDateForInput(child.dateOfBirth) : '',
-      notes: child.notes || '',
-    });
+  const handleOpenEdit = (child) => {
     setEditingChild(child);
-    setShowForm(true);
+    setShowChildModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowChildModal(false);
+    setEditingChild(null);
   };
 
   const handleDelete = (childId) => {
@@ -234,18 +203,6 @@ const Profile = () => {
     setBookedSessionsCount(0);
   };
 
-  const resetForm = () => {
-    setFormData({
-      firstName: '',
-      middleName: '',
-      lastName: '',
-      dateOfBirth: '',
-      notes: '',
-    });
-    setEditingChild(null);
-    setShowForm(false);
-  };
-
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return null;
     const today = new Date();
@@ -275,9 +232,11 @@ const Profile = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-neutral-950">Моят профил</h1>
-      </div><ConfirmDialog
+      <div className="flex justify-between items-center sm:hidden px-4 pt-4">
+        <h1 className="text-2xl font-bold text-neutral-950">Моят профил</h1>
+      </div>
+
+      <ConfirmDialog
         isOpen={showDeleteDialog}
         onClose={cancelDelete}
         onConfirm={confirmDelete}
@@ -291,12 +250,53 @@ const Profile = () => {
         variant="danger"
       />
 
+      <AddChildModal
+        isOpen={showChildModal}
+        onClose={handleCloseModal}
+        onSuccess={() => {
+          fetchData();
+          handleCloseModal();
+        }}
+        initialData={editingChild}
+      />
+
       <div className="bg-[#f3f3f5] min-h-screen py-4 sm:py-6 px-4 sm:px-6">
         <div className="max-w-[1600px] mx-auto">
 
           {/* Profile Card */}
           <div className="bg-white rounded-[10px] border border-[rgba(0,0,0,0.1)] p-4 sm:p-6 mb-4 sm:mb-6">
-            <div className="space-y-4 sm:space-y-6">
+            <div className="flex justify-between items-start mb-6">
+              <h1 className="text-[22px] font-bold text-neutral-950 hidden sm:block">Моят профил</h1>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                {isEditingProfile ? (
+                  <div className="hidden sm:flex gap-2">
+                    <Button variant="outline" onClick={() => setIsEditingProfile(false)} className="w-auto flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Отказ
+                    </Button>
+                    <Button variant="primary" onClick={updateProfile} className="w-auto flex items-center gap-2 bg-[#8bc34a] hover:bg-[#7cb342] border-transparent text-white">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Запази
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="secondary" onClick={() => setIsEditingProfile(true)} className="sm:w-auto flex items-center gap-2 bg-[#8bc34a] hover:bg-[#7cb342] border-transparent text-white">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Редактирай профила
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className={`border-t border-gray-100 pt-6 ${isEditingProfile ? 'space-y-6' : ''}`}>
               {isEditingProfile ? (
                 <>
                   {/* Editing Mode: Name fields on first row */}
@@ -364,65 +364,65 @@ const Profile = () => {
                       />
                     </div>
                   </div>
+
+                  {/* Mobile Action Buttons (Centered below form) */}
+                  <div className="flex sm:hidden justify-center gap-4 mt-6">
+                    <Button variant="outline" onClick={() => setIsEditingProfile(false)} className="w-auto px-8 flex items-center justify-center gap-2">
+                      Отказ
+                    </Button>
+                    <Button variant="primary" onClick={updateProfile} className="w-auto px-8 flex items-center justify-center gap-2 bg-[#8bc34a] hover:bg-[#7cb342] border-transparent text-white">
+                      Запази
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <>
                   {/* View Mode: Name, Email, Phone on one row for desktop */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                    <div className="flex flex-col gap-2">
-                      <p className="text-[14px] font-medium text-[#4a5565] leading-[20px]">
-                        Име
-                      </p>
-                      <p className="text-[14px] font-normal text-neutral-950 leading-[20px]">
-                        {getUserFullName() || '-'}
-                      </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 text-[#4a5565]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-gray-400 leading-tight">Име</p>
+                        <p className="text-[15px] font-medium text-neutral-900 truncate">
+                          {getUserFullName() || '-'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <p className="text-[14px] font-medium text-[#4a5565] leading-[20px]">
-                        Имейл
-                      </p>
-                      <p className="text-[14px] font-normal text-neutral-950 leading-[20px]">
-                        {profileData.email || user?.email || '-'}
-                      </p>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-gray-400 leading-tight">Имейл</p>
+                        <p className="text-[15px] font-medium text-neutral-900 truncate">
+                          {profileData.email || user?.email || '-'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <p className="text-[14px] font-medium text-[#4a5565] leading-[20px]">
-                        Телефон
-                      </p>
-                      <p className="text-[14px] font-normal text-neutral-950 leading-[20px]">
-                        {profileData.phone || '-'}
-                      </p>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] text-gray-400 leading-tight">Телефон</p>
+                        <p className="text-[15px] font-medium text-neutral-900 truncate">
+                          {profileData.phone || '-'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
               )}
-
-              {/* Action Buttons */}
-              <div className={`flex gap-2 pt-2 ${isEditingProfile ? 'justify-center sm:justify-end' : 'flex-col sm:flex-row justify-end'}`}>
-                {isEditingProfile ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditingProfile(false)} className="w-auto flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Отказ
-                    </Button>
-                    <Button variant="primary" onClick={updateProfile} className="w-auto flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Запази
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="secondary" onClick={() => setIsEditingProfile(true)} className="w-full sm:w-auto flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Редактирай профил
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
 
@@ -436,106 +436,17 @@ const Profile = () => {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button
-                  variant={showForm ? 'secondary' : 'primary'}
-                  onClick={() => {
-                    if (showForm) {
-                      resetForm();
-                    } else {
-                      setShowForm(true);
-                    }
-                  }}
-                  className="w-full sm:w-auto flex items-center gap-2"
+                  variant="primary"
+                  onClick={handleOpenAdd}
+                  className="w-full sm:w-auto flex items-center gap-2 bg-[#ea7a24] hover:bg-[#d66a1a] border-transparent text-white"
                 >
-                  {showForm ? 'Отказ' : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Добави дете
-                    </>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Добави дете
                 </Button>
               </div>
             </div>
-
-            {showForm && (
-              <div className="mb-6 p-4 sm:p-6 bg-[#f3f3f5] rounded-[10px]">
-                <h3 className="text-base font-medium text-neutral-950 mb-4">
-                  {editingChild ? 'Редактирай дете' : 'Добави ново дете'}
-                </h3>
-                <form onSubmit={handleSubmit}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    <Input
-                      label="Име"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      required
-                      className="mb-0"
-                    />
-                    <Input
-                      label="Презиме"
-                      value={formData.middleName}
-                      onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                      className="mb-0"
-                    />
-                    <Input
-                      label="Фамилия"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      required
-                      className="mb-0"
-                    />
-                    <Input
-                      label="Дата на раждане (dd/mm/yyyy)"
-                      type="date"
-                      value={formData.dateOfBirth}
-                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                      className="mb-0"
-                      placeholder="dd/mm/yyyy"
-                    />
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-neutral-950 mb-1">
-                      Бележки
-                    </label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950"
-                      rows={3}
-                      placeholder="Специални бележки или информация за детето ви..."
-                    />
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Button type="submit" variant="primary" className="w-full sm:w-auto flex items-center gap-2">
-                      {editingChild ? (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Обнови
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          Добави дете
-                        </>
-                      )}
-                    </Button>
-                    <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Отказ
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
 
             <div className="space-y-4">
               {children.length === 0 ? (
@@ -544,48 +455,59 @@ const Profile = () => {
                 </div>
               ) : (
                 children.map((child) => {
-                  // Defensive check - if child is null or undefined, skip it
                   if (!child) return null;
-
                   const age = calculateAge(child.dateOfBirth);
 
                   return (
                     <div
                       key={child._id || Math.random()}
-                      className="p-4 sm:p-6 border border-[rgba(0,0,0,0.1)] rounded-[10px] hover:shadow-sm transition-shadow"
+                      className="p-4 bg-gray-50/50 rounded-[10px] hover:bg-gray-50 transition-colors"
                     >
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div className="flex-1">
-                          <h3 className="text-base font-medium text-neutral-950 mb-2">
-                            {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
-                          </h3>
-                          <div className="space-y-1">
+                      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          {/* Avatar Circle */}
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: child.color || '#ea7a24' }}>
+                            <span className="text-white font-medium text-sm">
+                              {child.firstName?.[0]}{child.lastName?.[0]}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 min-w-0">
+                            <h3 className="text-[15px] font-medium text-neutral-900 truncate">
+                              {[child.firstName, child.middleName, child.lastName].filter(Boolean).join(' ')}
+                            </h3>
                             {child.dateOfBirth && (
-                              <p className="text-sm text-[#4a5565] flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <p className="text-[13px] text-gray-500 flex items-center gap-1">
+                                <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                Дата на раждане: {formatDate(child.dateOfBirth)}
-                                {age !== null && ` (${age} години)`}
+                                <span className="truncate">Дата на раждане: <span className="text-gray-700">{formatDate(child.dateOfBirth)}</span></span>
+                                {age !== null && <span className="text-gray-500 shrink-0">({age} г.)</span>}
                               </p>
-                            )}
-                            {child.notes && (
-                              <p className="text-sm text-[#4a5565]">{child.notes}</p>
                             )}
                           </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                          <Button variant="secondary" onClick={() => handleEdit(child)} className="w-full sm:w-auto flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+
+                        <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
+                          <Button
+                            variant="secondary"
+                            onClick={() => handleOpenEdit(child)}
+                            className="shrink-0 w-9 h-9 p-0 sm:w-auto sm:px-4 flex items-center justify-center gap-2 bg-[#8bc34a] hover:bg-[#7cb342] border-transparent text-white text-sm"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                             </svg>
-                            Редактирай
+                            <span className="hidden sm:inline">Редактирай</span>
                           </Button>
-                          <Button variant="danger" onClick={() => handleDelete(child._id)} className="w-full sm:w-auto flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <Button
+                            variant="danger"
+                            onClick={() => handleDelete(child._id)}
+                            className="shrink-0 flex items-center justify-center gap-2 bg-[#dc2626] hover:bg-[#b91c1c] border-transparent text-white w-9 h-9 p-0 rounded-md"
+                            title="Изтрий"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                            Изтрий
                           </Button>
                         </div>
                       </div>

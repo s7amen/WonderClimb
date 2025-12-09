@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import BaseModal from '../UI/BaseModal';
 import Button from '../UI/Button';
 import { useToast } from '../UI/Toast';
 import { parentClimbersAPI } from '../../services/api';
 import { formatDate } from '../../utils/dateUtils';
 
-const AddChildModal = ({ isOpen, onClose, onSuccess }) => {
+const AddChildModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -15,6 +15,21 @@ const AddChildModal = ({ isOpen, onClose, onSuccess }) => {
         email: '',
     });
     const [foundExistingProfile, setFoundExistingProfile] = useState(null);
+
+    // Initialize form with data when initialData changes or modal opens
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setFormData({
+                firstName: initialData.firstName || '',
+                lastName: initialData.lastName || '',
+                dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth).toISOString().split('T')[0] : '',
+                email: initialData.email || '',
+            });
+        } else if (isOpen) {
+            setFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
+        }
+        setFoundExistingProfile(null);
+    }, [isOpen, initialData]);
 
     const resetForm = () => {
         setFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
@@ -41,25 +56,35 @@ const AddChildModal = ({ isOpen, onClose, onSuccess }) => {
                 dateOfBirth: formData.dateOfBirth || undefined,
             };
 
-            const response = await parentClimbersAPI.create(childData);
+            if (initialData) {
+                // Update existing child
+                await parentClimbersAPI.update(initialData._id, {
+                    ...childData,
+                    notes: initialData.notes // Preserve notes if they exist, though not editable here yet
+                });
+                showToast('Детето е обновено успешно', 'success');
+            } else {
+                // Create new child
+                const response = await parentClimbersAPI.create(childData);
 
-            // Check if duplicate found
-            if (response.data.duplicate && response.data.existingProfile) {
-                setFoundExistingProfile(response.data.existingProfile);
-                setLoading(false);
-                return;
+                // Check if duplicate found (only relevant for creation)
+                if (response.data.duplicate && response.data.existingProfile) {
+                    setFoundExistingProfile(response.data.existingProfile);
+                    setLoading(false);
+                    return;
+                }
+                showToast('Детето е добавено успешно', 'success');
             }
 
-            // New child created successfully
-            showToast('Детето е добавено успешно', 'success');
             onSuccess?.();
             handleClose();
         } catch (error) {
-            if (error.response?.data?.error?.existingProfile) {
+            if (!initialData && error.response?.data?.error?.existingProfile) {
                 setFoundExistingProfile(error.response.data.error.existingProfile);
             } else {
                 showToast(
-                    error.response?.data?.error?.message || 'Грешка при добавяне на дете',
+                    error.response?.data?.error?.message ||
+                    (initialData ? 'Грешка при обновяване на дете' : 'Грешка при добавяне на дете'),
                     'error'
                 );
             }
@@ -91,7 +116,7 @@ const AddChildModal = ({ isOpen, onClose, onSuccess }) => {
         <BaseModal
             isOpen={isOpen}
             onClose={handleClose}
-            title={foundExistingProfile ? 'Свържи съществуващ профил' : 'Добави дете'}
+            title={foundExistingProfile ? 'Свържи съществуващ профил' : (initialData ? 'Редактирай дете' : 'Добави дете')}
             size="md"
         >
             <div className="p-1">
@@ -217,14 +242,23 @@ const AddChildModal = ({ isOpen, onClose, onSuccess }) => {
                                 className="flex-1 flex items-center justify-center gap-2"
                             >
                                 {loading ? (
-                                    'Добавяне...'
+                                    initialData ? 'Запазване...' : 'Добавяне...'
                                 ) : (
-                                    <>
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                        </svg>
-                                        Добави дете
-                                    </>
+                                    initialData ? (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Запази
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Добави дете
+                                        </>
+                                    )
                                 )}
                             </Button>
                         </div>

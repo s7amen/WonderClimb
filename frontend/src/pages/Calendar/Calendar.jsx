@@ -881,6 +881,13 @@ const Calendar = () => {
         size="lg"
         footer={
           <div className="flex flex-col sm:flex-row gap-2 justify-end w-full">
+            <Button
+              variant="outline"
+              onClick={() => setSelectedSession(null)}
+              className="w-full sm:w-auto"
+            >
+              Затвори
+            </Button>
             {selectedSession?.type !== 'competition' && selectedSession?.status === 'active' && (
               <Button
                 variant="primary"
@@ -897,13 +904,6 @@ const Calendar = () => {
                 {!isAuthenticated ? 'Влез за да запазиш' : 'Запази час'}
               </Button>
             )}
-            <Button
-              variant="secondary"
-              onClick={() => setSelectedSession(null)}
-              className="w-full sm:w-auto"
-            >
-              Затвори
-            </Button>
           </div>
         }
       >

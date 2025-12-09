@@ -264,7 +264,12 @@ const Dashboard = () => {
     }));
   };
 
-  const totalBookings = bookings.length;
+  // Calculate future bookings count (active bookings for future sessions)
+  const futureBookingsCount = bookings.filter(booking => {
+    if (booking.status !== 'booked' || !booking.session?.date) return false;
+    // Check if session date is in the future (or today)
+    return new Date(booking.session.date) >= startOfDay(new Date());
+  }).length;
 
   // Get reservations for a session
   const getReservationsForSessionInList = (sessionId, sessionBookings) => {
@@ -1303,10 +1308,10 @@ const Dashboard = () => {
               <svg className="w-4 h-4 text-neutral-950" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M8 0C3.58 0 0 3.58 0 8C0 12.42 3.58 16 8 16C12.42 16 16 12.42 16 8C16 3.58 12.42 0 8 0ZM8 14C4.69 14 2 11.31 2 8C2 4.69 4.69 2 8 2C11.31 2 14 4.69 14 8C14 11.31 11.31 14 8 14ZM7.5 4V8.25L11 10L10.25 11.25L6.5 9V4H7.5Z" fill="currentColor" />
               </svg>
-              <p className="text-sm font-normal text-neutral-950">Общо резервации</p>
+              <p className="text-sm font-normal text-neutral-950">Запазени</p>
             </div>
             <p className="text-base font-normal text-neutral-950">
-              {totalBookings} {totalBookings === 1 ? 'тренировка' : 'тренировки'}
+              {futureBookingsCount} {futureBookingsCount === 1 ? 'тренировка' : 'тренировки'}
             </p>
           </div>
 
@@ -1502,6 +1507,7 @@ const Dashboard = () => {
                     )}
                     <Button
                       type="button"
+                      variant="outline"
                       onClick={() => {
                         setShowSessionModal(false);
                         setSelectedSession(null);

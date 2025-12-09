@@ -561,6 +561,7 @@ const MySessions = () => {
                         )}
                         <Button
                           type="button"
+                          variant="outline"
                           onClick={() => {
                             setShowSessionModal(false);
                             setSelectedSession(null);

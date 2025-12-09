@@ -36,8 +36,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     const checkPWARequirements = async () => {
       const diagnostics = {
         // Basic checks
-        isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+        // Basic checks
+        isStandalone: window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(display-mode: fullscreen)').matches ||
+          window.matchMedia('(display-mode: minimal-ui)').matches,
         isIOSStandalone: 'standalone' in window.navigator && window.navigator.standalone === true,
+        // Check for Android TWA/PWA launch via referrer
+        isAndroidPWA: document.referrer.includes('android-app://'),
         localStorageInstalled: localStorage.getItem('pwa-installed') === 'true',
         userAgent: navigator.userAgent,
         protocol: window.location.protocol,
@@ -68,7 +73,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
       // Check if installed
       // If we're in standalone mode, PWA is definitely installed and open
-      if (diagnostics.isStandalone || diagnostics.isIOSStandalone) {
+      if (diagnostics.isStandalone || diagnostics.isIOSStandalone || diagnostics.isAndroidPWA) {
         setIsInstalled(true);
         // Make sure localStorage is set
         if (!diagnostics.localStorageInstalled) {
@@ -279,12 +284,17 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       // This might indicate uninstallation, but we can't be 100% sure
       // So we'll be conservative and only clear if we're sure
       const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: minimal-ui)').matches;
+
       const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
+      const isAndroidPWA = document.referrer.includes('android-app://');
 
       // If we're not in standalone and we have a deferred prompt, it means app was uninstalled
       // because beforeinstallprompt only fires when app is NOT installed
-      if (!isStandalone && !isIOSStandalone && hasLocalStorageInstalled && deferredPrompt) {
+      if (!isStandalone && !isIOSStandalone && !isAndroidPWA && hasLocalStorageInstalled && deferredPrompt) {
         console.log('[PWA Install] Detected app was uninstalled (beforeinstallprompt fired again), resetting status');
         setIsInstalled(false);
         localStorage.removeItem('pwa-installed');
@@ -500,7 +510,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   };
 
   // Check if currently running in PWA mode (standalone)
-  const isRunningInPWA = debugInfo.isStandalone || debugInfo.isIOSStandalone || false;
+  const isRunningInPWA = debugInfo.isStandalone || debugInfo.isIOSStandalone || debugInfo.isAndroidPWA || false;
 
   // Report usage/installation to backend
   useEffect(() => {
