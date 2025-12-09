@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 
+// Track open modals count for body overflow management
+let openModalsCount = 0;
+
 /**
  * BaseModal - Standardized modal wrapper for all modal dialogs
  * 
@@ -23,6 +26,7 @@ const BaseModal = ({
     closeOnBackdrop = true,
     closeOnEsc = true,
     className = '',
+    zIndex = 9999, // Default z-index, can be overridden for nested modals
 }) => {
     const modalRef = useRef(null);
     const previousActiveElement = useRef(null);
@@ -42,18 +46,20 @@ const BaseModal = ({
     }, [isOpen, closeOnEsc, onClose]);
 
     // Prevent body scroll when modal is open
+    // Use a counter to handle nested modals correctly
     useEffect(() => {
         if (isOpen) {
             previousActiveElement.current = document.activeElement;
-            document.body.style.overflow = 'hidden';
+            openModalsCount++;
+            if (openModalsCount === 1) {
+                document.body.style.overflow = 'hidden';
+            }
 
             // Focus the modal for accessibility
             if (modalRef.current) {
                 modalRef.current.focus();
             }
         } else {
-            document.body.style.overflow = '';
-
             // Restore focus to previous element
             if (previousActiveElement.current) {
                 previousActiveElement.current.focus();
@@ -61,7 +67,12 @@ const BaseModal = ({
         }
 
         return () => {
-            document.body.style.overflow = '';
+            if (isOpen) {
+                openModalsCount--;
+                if (openModalsCount === 0) {
+                    document.body.style.overflow = '';
+                }
+            }
         };
     }, [isOpen]);
 
@@ -117,7 +128,8 @@ const BaseModal = ({
 
     return (
         <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fadeIn"
+            className={`fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fadeIn`}
+            style={{ zIndex }}
             onClick={handleOverlayClick}
             role="dialog"
             aria-modal="true"
@@ -186,6 +198,7 @@ BaseModal.propTypes = {
     closeOnBackdrop: PropTypes.bool,
     closeOnEsc: PropTypes.bool,
     className: PropTypes.string,
+    zIndex: PropTypes.number,
 };
 
 export default BaseModal;

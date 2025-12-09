@@ -110,6 +110,21 @@ const Sessions = () => {
 
   // Add child modal state
   const [showAddChildModal, setShowAddChildModal] = useState(false);
+  const [bookingModalRefreshTrigger, setBookingModalRefreshTrigger] = useState(0);
+
+  // Handler for adding child from BookingModal
+  const handleAddChildFromBooking = () => {
+    setShowAddChildModal(true);
+  };
+
+  // Handler for successful child addition - refresh climbers in BookingModal
+  const handleAddChildSuccess = async () => {
+    await fetchUserData();
+    // Trigger refresh in BookingModal by incrementing refreshTrigger
+    setBookingModalRefreshTrigger(prev => prev + 1);
+    // Close AddChildModal but keep BookingModal open
+    setShowAddChildModal(false);
+  };
 
   // Sticky button state for mobile
   const [isSticky, setIsSticky] = useState(false);
@@ -932,6 +947,8 @@ const Sessions = () => {
         }}
         sessions={bookingSessions}
         preSelectedClimberIds={bookingDefaultClimberIds}
+        onAddChild={handleAddChildFromBooking}
+        refreshTrigger={bookingModalRefreshTrigger}
         onSuccess={async () => {
           setShowBookingModal(false);
           setBookingSessionIds([]);
@@ -953,11 +970,12 @@ const Sessions = () => {
 
       {/* OLD MODALS REMOVED - Now using unified BookingModal */}
 
-      {/* Add Child Modal */}
+      {/* Add Child Modal - Higher z-index when BookingModal is open */}
       <AddChildModal
         isOpen={showAddChildModal}
         onClose={() => setShowAddChildModal(false)}
-        onSuccess={fetchUserData}
+        onSuccess={handleAddChildSuccess}
+        zIndex={showBookingModal ? 10000 : 9999}
       />
 
 
@@ -974,6 +992,8 @@ const Sessions = () => {
         sessions={bookingSessions}
         defaultSelectedClimberIds={bookingDefaultClimberIds}
         showToast={showToast}
+        onAddChild={handleAddChildFromBooking}
+        refreshTrigger={bookingModalRefreshTrigger}
         onBookingSuccess={async (results) => {
           // Refresh sessions to update booked counts
           await fetchSessions();

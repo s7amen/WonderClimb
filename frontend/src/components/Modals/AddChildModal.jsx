@@ -5,7 +5,7 @@ import { useToast } from '../UI/Toast';
 import { parentClimbersAPI } from '../../services/api';
 import { formatDate } from '../../utils/dateUtils';
 
-const AddChildModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
+const AddChildModal = ({ isOpen, onClose, onSuccess, initialData = null, zIndex = 10000 }) => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -118,6 +118,7 @@ const AddChildModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
             onClose={handleClose}
             title={foundExistingProfile ? 'Свържи съществуващ профил' : (initialData ? 'Редактирай дете' : 'Добави дете')}
             size="md"
+            zIndex={zIndex}
         >
             <div className="p-1">
                 {foundExistingProfile ? (

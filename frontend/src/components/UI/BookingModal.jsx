@@ -16,7 +16,9 @@ const BookingModal = ({
   sessions = [],
   onBookingSuccess,
   defaultSelectedClimberIds = [],
-  showToast // Accept showToast as prop to ensure toast persists after modal close
+  showToast, // Accept showToast as prop to ensure toast persists after modal close
+  onAddChild, // Callback to open AddChildModal
+  refreshTrigger // Trigger to refresh climbers list (increment to trigger refresh)
 }) => {
   const { user } = useAuth();
   // Remove internal useToast to prevent toast disappearing on close
@@ -46,7 +48,7 @@ const BookingModal = ({
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, user]);
+  }, [isOpen, user, refreshTrigger]);
 
   const fetchClimbers = async () => {
     try {
@@ -412,11 +414,48 @@ const BookingModal = ({
                       </label>
                     );
                   })}
+                  {/* Add Child Button */}
+                  {onAddChild && (userRoles.includes('climber') || userRoles.includes('admin')) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddChild();
+                      }}
+                      className="w-full h-[48px] flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
+                    >
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <span className="text-base font-medium">Добави дете</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-sm text-[#64748b]">Няма налични катерачи за резервиране.</p>
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">За кого резервирате?</h3>
+                <div className="text-center py-8">
+                  <p className="text-sm text-[#64748b] mb-4">Няма налични катерачи за резервиране.</p>
+                  {/* Add Child Button when no climbers */}
+                  {onAddChild && (userRoles.includes('climber') || userRoles.includes('admin')) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onAddChild();
+                      }}
+                      className="h-[48px] flex items-center gap-2 px-4 py-2 mx-auto border-2 border-dashed border-gray-300 rounded-xl hover:border-[#ff6900] hover:bg-orange-50 transition-all text-[#64748b] hover:text-[#ff6900]"
+                    >
+                      <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <span className="text-base font-medium">Добави дете</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </>

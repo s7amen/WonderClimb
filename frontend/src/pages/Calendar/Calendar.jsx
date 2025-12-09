@@ -27,8 +27,20 @@ const Calendar = () => {
 
   const [userBookings, setUserBookings] = useState([]);
   const [selectedFilters, setSelectedFilters] = useState(() => {
+    // Initialize with all base filters
     const defaultFilters = ['beginner', 'experienced', 'advanced', 'competition'];
-    // Add 'reserved' only if user is authenticated (will be updated in useEffect)
+    // Check if user is authenticated from localStorage to include 'reserved' from start
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user?.roles?.includes('climber') || user?.roles?.includes('admin')) {
+          defaultFilters.push('reserved');
+        }
+      }
+    } catch (e) {
+      // Ignore localStorage errors
+    }
     return new Set(defaultFilters);
   });
 
@@ -39,7 +51,7 @@ const Calendar = () => {
   useEffect(() => {
     if (isAuthenticated && user && (user.roles?.includes('climber') || user.roles?.includes('admin'))) {
       fetchUserBookings();
-      // Add 'reserved' to filters if not already present
+      // Ensure 'reserved' is in filters
       setSelectedFilters(prev => {
         if (!prev.has('reserved')) {
           const newFilters = new Set(prev);
@@ -57,7 +69,7 @@ const Calendar = () => {
         return newFilters.size > 0 ? newFilters : new Set(['beginner', 'experienced', 'advanced', 'competition']);
       });
     }
-  }, [user, isAuthenticated, currentDate, view]);
+  }, [user, isAuthenticated]);
 
   const fetchSessions = async () => {
     try {
@@ -205,43 +217,48 @@ const Calendar = () => {
       }
 
       // Check if session matches any selected filter
-      let matchesFilter = false;
+      let matchesOtherFilters = false;
+      let matchesReservedFilter = false;
 
       // Check competition filter
       if (session.type === 'competition') {
-        matchesFilter = selectedFilters.has('competition');
+        matchesOtherFilters = selectedFilters.has('competition');
       } else {
         // For regular sessions, check targetGroups
         if (session.status === 'active') {
           const targetGroups = session.targetGroups || [];
           if (targetGroups.includes('beginner') && selectedFilters.has('beginner')) {
-            matchesFilter = true;
+            matchesOtherFilters = true;
           }
           if (targetGroups.includes('experienced') && selectedFilters.has('experienced')) {
-            matchesFilter = true;
+            matchesOtherFilters = true;
           }
           if (targetGroups.includes('advanced') && selectedFilters.has('advanced')) {
-            matchesFilter = true;
+            matchesOtherFilters = true;
           }
         }
       }
 
-      // If "reserved" filter is selected, session must have a booking
+      // Check if "reserved" filter is selected and session has a booking
       if (selectedFilters.has('reserved')) {
-        const hasReservation = hasBooking(session._id);
-        if (!hasReservation) {
-          return false;
-        }
-        // If only "reserved" is selected, show all reserved sessions
-        if (selectedFilters.size === 1) {
-          return true;
-        }
-        // If other filters are also selected, session must match both reserved AND other filters
-        return matchesFilter;
+        matchesReservedFilter = hasBooking(session._id);
       }
 
-      // If "reserved" is not selected, show sessions based on other filters (regardless of booking status)
-      return matchesFilter;
+      // Show session if it matches any selected filter (OR logic)
+      // If only "reserved" is selected, show all reserved sessions
+      if (selectedFilters.size === 1 && selectedFilters.has('reserved')) {
+        return matchesReservedFilter;
+      }
+
+      // If "reserved" is selected along with other filters, show sessions that match:
+      // - Other filters (beginner/experienced/advanced/competition) OR
+      // - Reserved filter
+      if (selectedFilters.has('reserved')) {
+        return matchesOtherFilters || matchesReservedFilter;
+      }
+
+      // If "reserved" is not selected, show sessions based on other filters only
+      return matchesOtherFilters;
     });
   };
 
@@ -450,54 +467,59 @@ const Calendar = () => {
   const renderMonthViewMobile = () => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <div className="space-y-4">
+      <div className="grid grid-cols-7 gap-0.5 w-full">
+        {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day, index) => (
+          <div key={`mobile-day-${index}`} className="p-1 text-center text-[11px] font-semibold text-gray-700">
+            {day}
+          </div>
+        ))}
         {days.map((day) => {
           const daySessions = getSessionsForDate(day);
+          const isCurrentMonth = isSameMonth(day, currentDate);
           const isToday = isSameDay(day, new Date());
-
-          if (daySessions.length === 0) return null;
 
           return (
             <div
               key={day.toISOString()}
-              className={`bg-white border border-[rgba(0,0,0,0.1)] rounded-[10px] p-4 ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}`}
+              className={`
+                min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[6px]
+                ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
+                ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
+              `}
             >
-              <div className="font-medium text-base text-neutral-950 mb-3">
-                {format(day, 'EEEE, d MMMM yyyy', { locale: bg })}
+              <div className={`text-xs font-medium mb-1 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
+                {format(day, 'd')}
               </div>
-              <div className="space-y-2">
-                {daySessions.map((event) => {
+              <div className="space-y-0.5">
+                {daySessions.slice(0, 1).map((event) => {
                   const colorStyle = getSessionColor(event);
                   const isBooked = hasBooking(event._id);
                   return (
                     <div
                       key={event._id}
                       onClick={() => setSelectedSession(event)}
-                      className={`p-3 rounded-[10px] cursor-pointer text-white relative ${isBooked ? 'ring-2 ring-black ring-offset-1' : ''}`}
+                      className={`text-[9px] px-0.5 py-0.5 rounded-[4px] truncate text-white text-center font-medium cursor-pointer hover:opacity-80 transition-opacity ${isBooked ? 'ring-1 ring-black' : ''}`}
                       style={colorStyle}
+                      title={`${format(new Date(event.date), 'HH:mm')} - ${event.title || (event.type === 'competition' ? 'Състезание' : 'Тренировка')}`}
                     >
-                      <div className="font-medium text-sm">
-                        {isBooked && '✓ '}
-                        {event.type === 'competition' && '🏆 '}
-                        {event.type === 'competition'
-                          ? `${event.location || ''}${event.groups ? ` - ${event.groups}` : ''} - ${event.title}`
-                          : `${format(new Date(event.date), 'HH:mm')} - ${event.title}`}
-                      </div>
+                      {isBooked && '✓ '}
+                      {event.type === 'competition' && '🏆 '}
+                      {format(new Date(event.date), 'HH:mm')}
                     </div>
                   );
                 })}
+                {daySessions.length > 1 && (
+                  <div className="text-[9px] text-[#4a5565] text-center font-medium">+{daySessions.length - 1}</div>
+                )}
               </div>
             </div>
           );
         })}
-        {days.every(day => getSessionsForDate(day).length === 0) && (
-          <div className="text-center text-gray-500 py-8">
-            Няма сесии за този месец
-          </div>
-        )}
       </div>
     );
   };
