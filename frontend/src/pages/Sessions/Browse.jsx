@@ -17,6 +17,7 @@ import ScrollToTop from '../../components/UI/ScrollToTop';
 import PWAInstallButton from '../../components/UI/PWAInstallButton';
 import useCancelBooking from '../../hooks/useCancelBooking';
 import CancellationModal from '../../components/Booking/CancellationModal';
+import AddChildModal from '../../components/Modals/AddChildModal';
 
 const Sessions = () => {
   const { isAuthenticated, user } = useAuth();
@@ -109,14 +110,6 @@ const Sessions = () => {
 
   // Add child modal state
   const [showAddChildModal, setShowAddChildModal] = useState(false);
-  const [addChildFormData, setAddChildFormData] = useState({
-    firstName: '',
-    lastName: '',
-    dateOfBirth: '',
-    email: '',
-  });
-  const [addChildLoading, setAddChildLoading] = useState(false);
-  const [foundExistingProfile, setFoundExistingProfile] = useState(null);
 
   // Sticky button state for mobile
   const [isSticky, setIsSticky] = useState(false);
@@ -539,74 +532,7 @@ const Sessions = () => {
 
   // OLD confirmBulkBooking REMOVED - Now using unified BookingModal
 
-  const handleAddChild = async (e) => {
-    e.preventDefault();
-    if (!addChildFormData.firstName || !addChildFormData.lastName) {
-      showToast('Моля, попълнете поне име и фамилия', 'error');
-      return;
-    }
 
-    setAddChildLoading(true);
-    try {
-      const childData = {
-        firstName: addChildFormData.firstName.trim(),
-        lastName: addChildFormData.lastName.trim(),
-        dateOfBirth: addChildFormData.dateOfBirth || undefined,
-      };
-
-      const response = await parentClimbersAPI.create(childData);
-
-      // Check if duplicate found
-      if (response.data.duplicate && response.data.existingProfile) {
-        setFoundExistingProfile(response.data.existingProfile);
-        setAddChildLoading(false);
-        return;
-      }
-
-      // New child created successfully
-      showToast('Детето е добавено успешно', 'success');
-      setShowAddChildModal(false);
-      setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-      setFoundExistingProfile(null);
-
-      // Refresh children list
-      await fetchUserData();
-    } catch (error) {
-      if (error.response?.data?.error?.existingProfile) {
-        setFoundExistingProfile(error.response.data.error.existingProfile);
-      } else {
-        showToast(
-          error.response?.data?.error?.message || 'Грешка при добавяне на дете',
-          'error'
-        );
-      }
-    } finally {
-      setAddChildLoading(false);
-    }
-  };
-
-  const handleLinkExistingChild = async () => {
-    if (!foundExistingProfile?._id) return;
-
-    setAddChildLoading(true);
-    try {
-      await parentClimbersAPI.linkExisting(foundExistingProfile._id);
-      showToast('Профилът е свързан успешно', 'success');
-      setShowAddChildModal(false);
-      setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-      setFoundExistingProfile(null);
-
-      // Refresh children list
-      await fetchUserData();
-    } catch (error) {
-      showToast(
-        error.response?.data?.error?.message || 'Грешка при свързване на профил',
-        'error'
-      );
-    } finally {
-      setAddChildLoading(false);
-    }
-  };
 
   const handleLoginSuccess = () => {
     // After successful login, stay on the same page
@@ -853,8 +779,6 @@ const Sessions = () => {
           getUserDisplayName={getUserDisplayName}
           onAddChild={() => {
             setShowAddChildModal(true);
-            setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-            setFoundExistingProfile(null);
           }}
           onSaveFilters={saveFilters}
         />
@@ -1030,177 +954,11 @@ const Sessions = () => {
       {/* OLD MODALS REMOVED - Now using unified BookingModal */}
 
       {/* Add Child Modal */}
-      {showAddChildModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-slideUp">
-            <div className="px-6 py-5 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-[#0f172b]">
-                  {foundExistingProfile ? 'Свържи съществуващ профил' : 'Добави дете'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowAddChildModal(false);
-                    setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                    setFoundExistingProfile(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                  disabled={addChildLoading}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {foundExistingProfile ? (
-                <div>
-                  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800 mb-2">
-                      Намерен е съществуващ профил с тези данни:
-                    </p>
-                    <div className="text-sm text-gray-700">
-                      <p><strong>Име:</strong> {foundExistingProfile.firstName} {foundExistingProfile.lastName}</p>
-                      {foundExistingProfile.dateOfBirth && (
-                        <p><strong>Дата на раждане:</strong> {formatDate(foundExistingProfile.dateOfBirth)}</p>
-                      )}
-                      {foundExistingProfile.email && (
-                        <p><strong>Имейл:</strong> {foundExistingProfile.email}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mb-4 p-3 bg-blue-50 rounded-md">
-                    <p className="text-sm text-gray-700">
-                      Искате ли да свържете този профил към вашия акаунт?
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setFoundExistingProfile(null);
-                        setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                      }}
-                      disabled={addChildLoading}
-                      className="flex-1 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Отказ
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={handleLinkExistingChild}
-                      disabled={addChildLoading}
-                      className="flex-1 flex items-center justify-center gap-2"
-                    >
-                      {addChildLoading ? (
-                        'Свързване...'
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                          </svg>
-                          Свържи профил
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleAddChild}>
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Име <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={addChildFormData.firstName}
-                        onChange={(e) => setAddChildFormData({ ...addChildFormData, firstName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6900] focus:border-[#ff6900] outline-none"
-                        required
-                        disabled={addChildLoading}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Фамилия <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={addChildFormData.lastName}
-                        onChange={(e) => setAddChildFormData({ ...addChildFormData, lastName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6900] focus:border-[#ff6900] outline-none"
-                        required
-                        disabled={addChildLoading}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Дата на раждане (dd/mm/yyyy)
-                      </label>
-                      <input
-                        type="date"
-                        value={addChildFormData.dateOfBirth}
-                        onChange={(e) => setAddChildFormData({ ...addChildFormData, dateOfBirth: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6900] focus:border-[#ff6900] outline-none"
-                        disabled={addChildLoading}
-                        placeholder="dd/mm/yyyy"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setShowAddChildModal(false);
-                        setAddChildFormData({ firstName: '', lastName: '', dateOfBirth: '', email: '' });
-                        setFoundExistingProfile(null);
-                      }}
-                      disabled={addChildLoading}
-                      className="flex-1 flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Отказ
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      disabled={addChildLoading}
-                      className="flex-1 flex items-center justify-center gap-2"
-                    >
-                      {addChildLoading ? (
-                        'Добавяне...'
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          Добави дете
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <AddChildModal
+        isOpen={showAddChildModal}
+        onClose={() => setShowAddChildModal(false)}
+        onSuccess={fetchUserData}
+      />
 
 
       {/* Booking Modal - Unified for Single and Bulk Bookings */}

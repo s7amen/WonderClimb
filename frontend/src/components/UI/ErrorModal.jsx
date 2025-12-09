@@ -47,7 +47,7 @@ const ErrorModal = ({
             </Button>
           )}
           <Button
-            variant="primary"
+            variant="outline"
             onClick={onClose}
             className="w-full sm:w-auto order-1 sm:order-2"
           >
@@ -81,6 +81,9 @@ const ErrorModal = ({
             )}
             {debugInfo.deferredPrompt !== undefined && (
               <div>Deferred prompt: {debugInfo.deferredPrompt ? 'true' : 'false'}</div>
+            )}
+            {debugInfo.promptEverReceived !== undefined && (
+              <div>Prompt received this session: {debugInfo.promptEverReceived ? 'true' : 'false'}</div>
             )}
             {debugInfo.userAgent && (
               <div className="break-all">User Agent: {debugInfo.userAgent}</div>

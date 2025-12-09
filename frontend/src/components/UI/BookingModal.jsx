@@ -286,7 +286,7 @@ const BookingModal = ({
           <div className="flex gap-3">
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               onClick={onClose}
               className="flex-1 flex items-center justify-center gap-2"
               disabled={isBooking}

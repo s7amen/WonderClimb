@@ -165,7 +165,7 @@ const GymCheckInModal = ({ isOpen, onClose, onSuccess }) => {
             title="Ново посещение"
             footer={
                 <div className="flex justify-end gap-3">
-                    <Button variant="secondary" onClick={onClose} disabled={loading}>
+                    <Button variant="outline" onClick={onClose} disabled={loading}>
                         Отказ
                     </Button>
                     <Button variant="primary" onClick={handleSubmit} isLoading={loading}>

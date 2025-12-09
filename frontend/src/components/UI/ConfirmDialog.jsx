@@ -25,7 +25,7 @@ const ConfirmDialog = ({
       footer={
         <div className="flex flex-col sm:flex-row gap-2 justify-end">
           <Button
-            variant="secondary"
+            variant="outline"
             onClick={onClose}
             className="w-full sm:w-auto"
           >

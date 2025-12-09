@@ -252,7 +252,7 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
                 </div>
 
                 <div className="flex justify-end pt-6 mt-6 border-t gap-3">
-                    <Button variant="secondary" onClick={handleClose}>Отказ</Button>
+                    <Button variant="outline" onClick={handleClose}>Отказ</Button>
                     <Button variant="primary" onClick={handleSave} disabled={loading}>
                         {loading ? 'Запазване...' : 'Запази'}
                     </Button>

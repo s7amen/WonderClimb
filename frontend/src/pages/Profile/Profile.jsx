@@ -398,20 +398,20 @@ const Profile = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 pt-2 justify-end">
+              <div className={`flex gap-2 pt-2 ${isEditingProfile ? 'justify-center sm:justify-end' : 'flex-col sm:flex-row justify-end'}`}>
                 {isEditingProfile ? (
                   <>
-                    <Button variant="primary" onClick={updateProfile} className="w-full sm:w-auto flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Запази
-                    </Button>
-                    <Button variant="secondary" onClick={() => setIsEditingProfile(false)} className="w-full sm:w-auto flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsEditingProfile(false)} className="w-auto flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                       Отказ
+                    </Button>
+                    <Button variant="primary" onClick={updateProfile} className="w-auto flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Запази
                     </Button>
                   </>
                 ) : (
@@ -526,7 +526,7 @@ const Profile = () => {
                         </>
                       )}
                     </Button>
-                    <Button type="button" variant="secondary" onClick={resetForm} className="w-full sm:w-auto flex items-center gap-2">
+                    <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>

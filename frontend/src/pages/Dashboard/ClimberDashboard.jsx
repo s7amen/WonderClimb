@@ -13,6 +13,7 @@ import { useSynchronizedWidths } from '../../hooks/useSynchronizedWidths';
 import SessionCalendar from '../../components/Calendar/SessionCalendar';
 import useCancelBooking from '../../hooks/useCancelBooking';
 import CancellationModal from '../../components/Booking/CancellationModal';
+import AddChildModal from '../../components/Modals/AddChildModal';
 
 const Dashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -29,6 +30,9 @@ const Dashboard = () => {
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
   const [cancelBookingSessionId, setCancelBookingSessionId] = useState(null);
   const [cancelBookingBookings, setCancelBookingBookings] = useState([]);
+
+  // Add Child Modal State
+  const [showAddChildModal, setShowAddChildModal] = useState(false);
 
   // Get toast functions from useToast hook
   const { showToast } = useToast();
@@ -1318,7 +1322,7 @@ const Dashboard = () => {
               Запази час
             </button>
             <button
-              onClick={() => navigate('/parent/profile')}
+              onClick={() => setShowAddChildModal(true)}
               className="w-full bg-[#ea7a24] text-white text-base font-normal py-3 px-4 rounded-[10px] hover:bg-[#d96a1a] transition-colors flex items-center justify-center gap-2"
             >
               <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1329,6 +1333,13 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Child Modal */}
+      <AddChildModal
+        isOpen={showAddChildModal}
+        onClose={() => setShowAddChildModal(false)}
+        onSuccess={fetchData}
+      />
 
       {/* Session Details Modal */}
       {showSessionModal && selectedSession && (

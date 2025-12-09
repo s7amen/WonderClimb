@@ -111,7 +111,7 @@ const AddCardModal = ({ isOpen, onClose, onSubmit, prices = [] }) => {
             title="Добави нова карта"
             footer={
                 <div className="flex flex-col sm:flex-row gap-2 justify-end w-full">
-                    <Button variant="secondary" onClick={handleClose} className="sm:w-auto w-full">
+                    <Button variant="outline" onClick={handleClose} className="sm:w-auto w-full">
                         Отказ
                     </Button>
                     <div className="flex flex-col sm:flex-row gap-2 sm:w-auto w-full">

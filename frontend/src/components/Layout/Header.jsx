@@ -522,7 +522,11 @@ const Header = () => {
 
               {/* User Info Section */}
               {isAuthenticated && (
-                <div className="p-4 border-b border-gray-700">
+                <Link
+                  to="/profile"
+                  onClick={() => setShowMobileMenu(false)}
+                  className="block p-4 border-b border-gray-700 hover:bg-[#3d4146] transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#ea7a24] flex items-center justify-center">
                       <svg
@@ -551,7 +555,7 @@ const Header = () => {
                       )}
                     </div>
                   </div>
-                </div>
+                </Link>
               )}
 
               {/* Main Menu Links */}

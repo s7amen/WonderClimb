@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 export const usePWAInstall = (onErrorModalOpen = null) => {
@@ -8,6 +8,8 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const [error, setError] = useState(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [debugInfo, setDebugInfo] = useState({});
+  // Track if beforeinstallprompt event was ever received in this session
+  const promptEverReceived = useRef(false);
 
   useEffect(() => {
     // Early device detection - skip all PWA checks on desktop devices
@@ -237,6 +239,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
       console.log('[PWA Install] beforeinstallprompt event received', e);
+      promptEverReceived.current = true;
 
       // If beforeinstallprompt fires and we have localStorage saying installed, 
       // it means the app was uninstalled (because beforeinstallprompt only fires when NOT installed)
@@ -406,12 +409,23 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           errorReason += `\n\nПроблем със Service Worker: ${debugInfo.serviceWorkerErrors[0]}`;
         } else if (hasBeforeInstallPrompt) {
           // Browser supports beforeinstallprompt but we don't have it
-          // Most likely it was already used or dismissed in this session
-          errorReason += '\n\n⚠️ Prompt за инсталация вече е бил използван в тази сесия.\n\n' +
-            '📱 Моля, презаредете страницата и опитайте отново.\n\n' +
-            'Алтернативно:\n' +
-            '• Използвайте "Add to Home Screen" от менюто на браузъра\n' +
-            '• Или затворете и отворете приложението отново';
+          if (promptEverReceived.current) {
+            // Event was fired but prompt was already used this session
+            errorReason += '\n\n⚠️ Prompt за инсталация вече беше показан в тази сесия.\n\n' +
+              '📱 Моля, презаредете страницата и опитайте отново.\n\n' +
+              'Алтернативно:\n' +
+              '• Използвайте менюто на браузъра (⋮) → "Add to Home Screen"\n' +
+              '• Или затворете и отворете приложението отново';
+          } else {
+            // Event never fired - Chrome is rate-limiting or PWA was recently dismissed
+            errorReason += '\n\n⏳ Chrome временно блокира инсталацията.\n\n' +
+              'Това се случва когато:\n' +
+              '• Инсталацията е била отказана наскоро\n' +
+              '• Приложението вече е инсталирано\n\n' +
+              '📱 Опитайте:\n' +
+              '1. Използвайте менюто на браузъра (⋮) → "Add to Home Screen"\n' +
+              '2. Или изчакайте няколко минути и опитайте отново';
+          }
         } else {
           errorReason += '\n\nВъзможни причини:\n• Браузърът не е готов (опитайте презареждане)\n• Приложението е било инсталирано наскоро\n• Браузърът не поддържа PWA инсталация';
         }
@@ -423,6 +437,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         hostname: window.location.hostname,
         userAgent: navigator.userAgent,
         hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
+        promptEverReceivedThisSession: promptEverReceived.current,
         debugInfo
       });
 
@@ -433,6 +448,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           hostname: window.location.hostname,
           hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
           deferredPrompt: false,
+          promptEverReceived: promptEverReceived.current,
           userAgent: navigator.userAgent,
           browserInfo: debugInfo.browserInfo,
           manifestErrors: debugInfo.manifestErrors,

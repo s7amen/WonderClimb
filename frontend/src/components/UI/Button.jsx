@@ -20,6 +20,8 @@ const Button = ({
     danger: 'bg-red-600 !text-white hover:bg-red-700 focus:ring-red-500 disabled:bg-red-300 disabled:cursor-not-allowed',
     // Success: keep green for success states (white text for contrast)
     success: 'bg-green-600 !text-white hover:bg-green-700 focus:ring-green-500 disabled:bg-green-300 disabled:cursor-not-allowed',
+    // Outline: orange border, orange text, white background (for Cancel/Close)
+    outline: 'bg-white border-2 border-orange-brand !text-orange-brand hover:bg-orange-50 focus:ring-orange-brand disabled:opacity-50 disabled:cursor-not-allowed',
   };
 
   return (
