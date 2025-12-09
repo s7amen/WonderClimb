@@ -472,9 +472,9 @@ const Calendar = () => {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <div className="grid grid-cols-7 gap-0.5 w-full">
+      <div className="grid grid-cols-7 gap-0 w-full">
         {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day, index) => (
-          <div key={`mobile-day-${index}`} className="p-1 text-center text-[11px] font-semibold text-gray-700">
+          <div key={`mobile-day-${index}`} className="p-1.5 text-center text-xs font-semibold text-gray-700 border-r border-[rgba(0,0,0,0.05)] last:border-r-0">
             {day}
           </div>
         ))}
@@ -487,23 +487,23 @@ const Calendar = () => {
             <div
               key={day.toISOString()}
               className={`
-                min-h-[60px] p-1 border border-[rgba(0,0,0,0.1)] rounded-[6px]
+                min-h-[80px] p-1.5 border-r border-b border-[rgba(0,0,0,0.1)] last:border-r-0
                 ${isCurrentMonth ? 'bg-white' : 'bg-[#f3f3f5]'}
-                ${isToday ? 'ring-2 ring-[#ea7a24]' : ''}
+                ${isToday ? 'ring-2 ring-[#ea7a24] ring-inset' : ''}
               `}
             >
-              <div className={`text-xs font-medium mb-1 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
+              <div className={`text-sm font-medium mb-1.5 text-center ${isCurrentMonth ? 'text-neutral-950' : 'text-[#99a1af]'}`}>
                 {format(day, 'd')}
               </div>
-              <div className="space-y-0.5">
-                {daySessions.slice(0, 1).map((event) => {
+              <div className="space-y-1">
+                {daySessions.slice(0, 2).map((event) => {
                   const colorStyle = getSessionColor(event);
                   const isBooked = hasBooking(event._id);
                   return (
                     <div
                       key={event._id}
                       onClick={() => setSelectedSession(event)}
-                      className={`text-[9px] px-0.5 py-0.5 rounded-[4px] truncate text-white text-center font-medium cursor-pointer hover:opacity-80 transition-opacity ${isBooked ? 'ring-1 ring-black' : ''}`}
+                      className={`text-[10px] px-1 py-1 rounded-[4px] truncate text-white text-center font-medium cursor-pointer hover:opacity-80 transition-opacity ${isBooked ? 'ring-1 ring-black' : ''}`}
                       style={colorStyle}
                       title={`${format(new Date(event.date), 'HH:mm')} - ${event.title || (event.type === 'competition' ? 'Състезание' : 'Тренировка')}`}
                     >
@@ -513,8 +513,8 @@ const Calendar = () => {
                     </div>
                   );
                 })}
-                {daySessions.length > 1 && (
-                  <div className="text-[9px] text-[#4a5565] text-center font-medium">+{daySessions.length - 1}</div>
+                {daySessions.length > 2 && (
+                  <div className="text-[10px] text-[#4a5565] text-center font-medium">+{daySessions.length - 2}</div>
                 )}
               </div>
             </div>
@@ -532,14 +532,7 @@ const Calendar = () => {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <>
-        {/* Mobile List View */}
-        <div className="md:hidden">
-          {renderMonthViewMobile()}
-        </div>
-
-        {/* Desktop Grid View */}
-        <div className="hidden md:grid md:grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1">
           {['Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб', 'Нед'].map((day) => (
             <div key={day} className="p-2 text-center font-semibold text-gray-700">
               {day}
@@ -590,7 +583,6 @@ const Calendar = () => {
             );
           })}
         </div>
-      </>
     );
   };
 
@@ -815,8 +807,8 @@ const Calendar = () => {
         </div>
       </div>
 
-      <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+      <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 px-4 pt-4 md:px-6 md:pt-6">
           <Button
             variant="secondary"
             onClick={() => navigateDate('prev')}
@@ -847,7 +839,18 @@ const Calendar = () => {
           </Button>
         </div>
 
-        {view === 'month' && renderMonthView()}
+        {view === 'month' && (
+          <>
+            {/* Mobile Calendar - Full Width */}
+            <div className="md:hidden w-screen relative left-1/2 -ml-[50vw] px-2 pb-4">
+              {renderMonthViewMobile()}
+            </div>
+            {/* Desktop Calendar */}
+            <div className="hidden md:block px-6 pb-6">
+              {renderMonthView()}
+            </div>
+          </>
+        )}
         {view === 'week' && renderWeekView()}
         {view === 'day' && renderDayView()}
 

@@ -21,6 +21,12 @@ const CalendarIcon = (props) => (
     </svg>
 );
 
+const CalendarViewIcon = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 2v2m12-2v2M3 10h18M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zm2 4v8m4-8v8m4-8v8" />
+    </svg>
+);
+
 const UserIcon = (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -64,6 +70,11 @@ const ClimberMobileBottomNav = () => {
             icon: CalendarIcon,
         },
         {
+            name: 'Календар',
+            href: '/calendar',
+            icon: CalendarViewIcon,
+        },
+        {
             name: 'Профил',
             href: '/profile',
             icon: UserIcon,
@@ -74,6 +85,9 @@ const ClimberMobileBottomNav = () => {
         if (path === '/sessions') {
             return location.pathname === '/sessions' || location.pathname.startsWith('/sessions');
         }
+        if (path === '/calendar') {
+            return location.pathname === '/calendar' || location.pathname.startsWith('/calendar');
+        }
         return location.pathname === path || location.pathname.startsWith(path + '/');
     };
 
@@ -82,7 +96,7 @@ const ClimberMobileBottomNav = () => {
             className="fixed bottom-0 left-0 right-0 z-50 bg-[#35383d] border-t border-gray-700"
             style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
-            <div className="grid grid-cols-4 h-16">
+            <div className="grid grid-cols-5 h-16">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href);
