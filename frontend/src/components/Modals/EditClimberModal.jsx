@@ -20,7 +20,8 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
         dateOfBirth: '',
         notes: '',
         accountStatus: 'active',
-        isTrainee: false
+        isTrainee: false,
+        isCurrentMember: false // Add club membership state
     });
     const [roles, setRoles] = useState([]);
     const [originalRoles, setOriginalRoles] = useState([]);
@@ -43,7 +44,8 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
                 dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
                 notes: user.notes || '',
                 accountStatus: user.accountStatus || 'active',
-                isTrainee: user.isTrainee || false
+                isTrainee: user.isTrainee || false,
+                isCurrentMember: user.clubMembership?.isCurrentMember || false
             });
             setRoles(user.roles || []);
             setOriginalRoles(user.roles || []);
@@ -62,7 +64,8 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
             formData.dateOfBirth !== (user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '') ||
             formData.notes !== (user.notes || '') ||
             formData.accountStatus !== (user.accountStatus || 'active') ||
-            formData.isTrainee !== (user.isTrainee || false);
+            formData.isTrainee !== (user.isTrainee || false) ||
+            formData.isCurrentMember !== (user.clubMembership?.isCurrentMember || false);
 
         const rolesChanged = JSON.stringify(roles.sort()) !== JSON.stringify(originalRoles.sort());
 
@@ -94,7 +97,15 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
             }
 
             // Update details
-            await adminUsersAPI.update(user.id, formData);
+            const payload = {
+                ...formData,
+                clubMembership: {
+                    isCurrentMember: formData.isCurrentMember
+                }
+            };
+            delete payload.isCurrentMember; // Remove flat field before sending
+
+            await adminUsersAPI.update(user.id, payload);
 
             // Update roles if changed
             if (JSON.stringify(roles.sort()) !== JSON.stringify(originalRoles.sort())) {
@@ -215,6 +226,18 @@ const EditClimberModal = ({ isOpen, onClose, user, onSuccess }) => {
                             <select
                                 value={formData.isTrainee ? 'true' : 'false'}
                                 onChange={(e) => setFormData({ ...formData, isTrainee: e.target.value === 'true' })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                            >
+                                <option value="true">Да</option>
+                                <option value="false">Не</option>
+                            </select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-sm font-medium text-gray-700">Член на клуба</label>
+                            <select
+                                value={formData.isCurrentMember ? 'true' : 'false'}
+                                onChange={(e) => setFormData({ ...formData, isCurrentMember: e.target.value === 'true' })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
                             >
                                 <option value="true">Да</option>

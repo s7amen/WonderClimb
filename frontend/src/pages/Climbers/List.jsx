@@ -49,13 +49,14 @@ const Climbers = ({ type }) => {
     }
   }, [type]);
 
+  // Reset to page 1 when filters change
   useEffect(() => {
-    fetchUsers();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    setPage(1);
+  }, [searchQuery, filterStatus, filterTraining, filterRole]);
 
   useEffect(() => {
     fetchUsers();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [page, limit, sortField, sortDirection, filterStatus, filterRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchUsers = async () => {
     try {

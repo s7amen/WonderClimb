@@ -382,8 +382,8 @@ const ClimberProfile = () => {
                   <p className="font-semibold text-gray-900 mb-0.5">Статус</p>
                   <p className="text-sm text-gray-500">{climber.accountStatus === 'active' ? 'Активен' : 'Неактивен'}</p>
                 </div>
-                <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${climber.accountStatus === 'active' ? 'bg-[#565d6d]' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 ${climber.accountStatus === 'active' ? 'left-6 shadow-sm' : 'left-1'}`} />
+                <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${climber.accountStatus === 'active' ? 'bg-[#ea7a24]' : 'bg-gray-200'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${climber.accountStatus === 'active' ? 'left-6' : 'left-1'}`} />
                 </div>
               </div>
 
@@ -393,8 +393,19 @@ const ClimberProfile = () => {
                   <p className="font-semibold text-gray-900 mb-0.5">Трениращ</p>
                   <p className="text-sm text-gray-500">{climber.isTrainee ? 'Да' : 'Не'}</p>
                 </div>
-                <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${climber.isTrainee ? 'bg-[#565d6d]' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 ${climber.isTrainee ? 'left-6 shadow-sm' : 'left-1'}`} />
+                <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${climber.isTrainee ? 'bg-[#ea7a24]' : 'bg-gray-200'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${climber.isTrainee ? 'left-6' : 'left-1'}`} />
+                </div>
+              </div>
+
+              {/* Club Membership Status */}
+              <div className="bg-gray-50 rounded-xl p-4 flex justify-between items-center">
+                <div>
+                  <p className="font-semibold text-gray-900 mb-0.5">Член на клуба</p>
+                  <p className="text-sm text-gray-500">{climber.clubMembership?.isCurrentMember ? 'Да' : 'Не'}</p>
+                </div>
+                <div className={`w-12 h-7 rounded-full relative transition-colors duration-200 ${climber.clubMembership?.isCurrentMember ? 'bg-[#ea7a24]' : 'bg-gray-200'}`}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${climber.clubMembership?.isCurrentMember ? 'left-6' : 'left-1'}`} />
                 </div>
               </div>
             </div>

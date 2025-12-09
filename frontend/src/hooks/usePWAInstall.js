@@ -74,6 +74,18 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       // Check if installed
       // If we're in standalone mode, PWA is definitely installed and open
       if (diagnostics.isStandalone || diagnostics.isIOSStandalone || diagnostics.isAndroidPWA) {
+        console.log('[PWA Install] ✅ PWA is INSTALLED and running in standalone mode', {
+          isStandalone: diagnostics.isStandalone,
+          isIOSStandalone: diagnostics.isIOSStandalone,
+          isAndroidPWA: diagnostics.isAndroidPWA,
+          referrer: document.referrer,
+          displayMode: {
+            standalone: window.matchMedia('(display-mode: standalone)').matches,
+            fullscreen: window.matchMedia('(display-mode: fullscreen)').matches,
+            minimalUi: window.matchMedia('(display-mode: minimal-ui)').matches,
+            browser: window.matchMedia('(display-mode: browser)').matches,
+          }
+        });
         setIsInstalled(true);
         // Make sure localStorage is set
         if (!diagnostics.localStorageInstalled) {
@@ -81,6 +93,19 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         }
       } else {
         // Not in standalone mode - check localStorage to see if PWA was previously installed
+        console.log('[PWA Install] ⚠️ NOT in standalone mode', {
+          isStandalone: diagnostics.isStandalone,
+          isIOSStandalone: diagnostics.isIOSStandalone,
+          isAndroidPWA: diagnostics.isAndroidPWA,
+          referrer: document.referrer,
+          displayMode: {
+            standalone: window.matchMedia('(display-mode: standalone)').matches,
+            fullscreen: window.matchMedia('(display-mode: fullscreen)').matches,
+            minimalUi: window.matchMedia('(display-mode: minimal-ui)').matches,
+            browser: window.matchMedia('(display-mode: browser)').matches,
+          }
+        });
+
         // If localStorage says installed, PWA is installed but user is viewing in browser
         if (diagnostics.localStorageInstalled) {
           setIsInstalled(true);
