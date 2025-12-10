@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BaseModal from '../UI/BaseModal';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
@@ -40,6 +40,7 @@ const CreatePassModal = ({
     const [formErrors, setFormErrors] = useState({});
     const [generatedCardNumber, setGeneratedCardNumber] = useState('');
     const [initialFormState, setInitialFormState] = useState(null);
+    const physicalCardInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
         userId: '',
@@ -58,6 +59,7 @@ const CreatePassModal = ({
         remainingEntries: '',
         amount: '',
         isActive: true,
+        physicalCardCode: '',
     });
 
     // Unsaved changes warning
@@ -97,6 +99,7 @@ const CreatePassModal = ({
                     remainingEntries: '',
                     amount: '',
                     isActive: true,
+                    physicalCardCode: '',
                 };
                 setFormData(initialData);
                 setInitialFormState(JSON.stringify(initialData));
@@ -125,12 +128,23 @@ const CreatePassModal = ({
                     remainingEntries: editingPass.remainingEntries?.toString() || '',
                     amount: editingPass.amount?.toString() || '',
                     isActive: editingPass.isActive !== undefined ? editingPass.isActive : true,
+                    physicalCardCode: editingPass.physicalCardId ? '' : '', // Don't show physical card code in edit mode for security
                 };
                 setFormData(editData);
                 setInitialFormState(JSON.stringify(editData));
             }
 
             setFormErrors({});
+        }
+    }, [isOpen, editingPass]);
+
+    // Auto-focus physical card input when modal opens (only for new cards)
+    useEffect(() => {
+        if (isOpen && !editingPass && physicalCardInputRef.current) {
+            // Small delay to ensure modal is fully rendered
+            setTimeout(() => {
+                physicalCardInputRef.current?.focus();
+            }, 100);
         }
     }, [isOpen, editingPass]);
 
@@ -198,6 +212,15 @@ const CreatePassModal = ({
     // Handle close with unsaved changes check
     const handleClose = () => {
         confirmClose(onClose);
+    };
+
+    const handlePhysicalCardCodeChange = (e) => {
+        const value = e.target.value.trim();
+        // Only allow digits
+        const digitsOnly = value.replace(/\D/g, '');
+        // Limit to 6 digits
+        const limited = digitsOnly.slice(0, 6);
+        handleInputChange('physicalCardCode', limited);
     };
 
     const handleInputChange = (field, value) => {
@@ -308,6 +331,7 @@ const CreatePassModal = ({
                 totalEntries: formData.remainingEntries ? parseInt(formData.remainingEntries) : null,
                 remainingEntries: formData.remainingEntries ? parseInt(formData.remainingEntries) : null,
                 isActive: formData.isActive,
+                physicalCardCode: formData.physicalCardCode.trim() || null,
             };
 
             if (submitActionType === 'direct' && onDirectSale) {
@@ -538,7 +562,28 @@ const CreatePassModal = ({
                         </div>
                     </div>
 
-                    {/* Row 4: Card Number */}
+                    {/* Row 4: Physical Card Code */}
+                    {!editingPass && (
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-950 mb-1">
+                                Физическа карта (6 цифри)
+                            </label>
+                            <div className="relative">
+                                <input
+                                    ref={physicalCardInputRef}
+                                    type="text"
+                                    value={formData.physicalCardCode}
+                                    onChange={handlePhysicalCardCodeChange}
+                                    placeholder="Сканирай или въведи код..."
+                                    maxLength={6}
+                                    className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950 font-mono"
+                                />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Оставете празно ако картата е виртуална</p>
+                        </div>
+                    )}
+
+                    {/* Row 4.5: Card Number */}
                     <div>
                         <label className="block text-sm font-medium text-neutral-950 mb-1">
                             Номер на карта

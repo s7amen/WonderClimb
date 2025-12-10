@@ -4,26 +4,31 @@
 Write-Host "=== WonderClimb Local Development Setup ===" -ForegroundColor Cyan
 Write-Host ""
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 # Step 1: Check Node.js
 Write-Host "[1/6] Checking Node.js..." -ForegroundColor Yellow
+$nodeCheck = $false
 try {
     $nodeVersion = node --version 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Node.js not found"
-    }
-    Write-Host "  ✓ Node.js $nodeVersion is installed" -ForegroundColor Green
-    
-    # Check if version is >= 20
-    $versionMatch = $nodeVersion -match 'v(\d+)\.'
-    if ($versionMatch) {
-        $majorVersion = [int]$matches[1]
-        if ($majorVersion -lt 20) {
-            Write-Host "  ⚠ Warning: Node.js 20.x or higher is recommended" -ForegroundColor Yellow
+    if ($LASTEXITCODE -eq 0 -or $nodeVersion -match 'v\d+\.\d+\.\d+') {
+        Write-Host "  ✓ Node.js $nodeVersion is installed" -ForegroundColor Green
+        $nodeCheck = $true
+        
+        # Check if version is >= 20
+        $versionMatch = $nodeVersion -match 'v(\d+)\.'
+        if ($versionMatch) {
+            $majorVersion = [int]$matches[1]
+            if ($majorVersion -lt 20) {
+                Write-Host "  ⚠ Warning: Node.js 20.x or higher is recommended" -ForegroundColor Yellow
+            }
         }
     }
 } catch {
+    $nodeCheck = $false
+}
+
+if (-not $nodeCheck) {
     Write-Host "  ✗ Node.js is not installed" -ForegroundColor Red
     Write-Host ""
     Write-Host "Please install Node.js 20.x or higher from: https://nodejs.org" -ForegroundColor Yellow
@@ -37,22 +42,32 @@ $mongoAvailable = $false
 $useDocker = $false
 
 # Check Docker first
+$dockerCheck = $false
 try {
     $dockerVersion = docker --version 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    if ($LASTEXITCODE -eq 0 -or $dockerVersion -match 'Docker version') {
         Write-Host "  ✓ Docker is installed" -ForegroundColor Green
         $useDocker = $true
+        $dockerCheck = $true
         
         # Check if MongoDB container is running
-        $mongoContainer = docker ps --filter "name=wonderclimb-mongodb" --format "{{.Names}}" 2>&1
-        if ($mongoContainer -eq "wonderclimb-mongodb") {
-            Write-Host "  ✓ MongoDB container is already running" -ForegroundColor Green
-            $mongoAvailable = $true
-        } else {
+        try {
+            $mongoContainer = docker ps --filter "name=wonderclimb-mongodb" --format "{{.Names}}" 2>&1
+            if ($mongoContainer -eq "wonderclimb-mongodb") {
+                Write-Host "  ✓ MongoDB container is already running" -ForegroundColor Green
+                $mongoAvailable = $true
+            } else {
+                Write-Host "  ℹ MongoDB container not running, will start it" -ForegroundColor Cyan
+            }
+        } catch {
             Write-Host "  ℹ MongoDB container not running, will start it" -ForegroundColor Cyan
         }
     }
 } catch {
+    $dockerCheck = $false
+}
+
+if (-not $dockerCheck) {
     Write-Host "  ℹ Docker not found, checking for local MongoDB..." -ForegroundColor Cyan
 }
 
@@ -94,15 +109,20 @@ if ($useDocker -and -not $mongoAvailable) {
     Write-Host ""
     Write-Host "[2.5/6] Starting MongoDB with Docker..." -ForegroundColor Yellow
     try {
-        docker-compose up -d mongodb
-        Write-Host "  ✓ MongoDB container started" -ForegroundColor Green
-        Write-Host "  ℹ Waiting for MongoDB to be ready..." -ForegroundColor Cyan
-        Start-Sleep -Seconds 5
-        $mongoAvailable = $true
+        $dockerResult = docker-compose up -d mongodb 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  ✓ MongoDB container started" -ForegroundColor Green
+            Write-Host "  ℹ Waiting for MongoDB to be ready..." -ForegroundColor Cyan
+            Start-Sleep -Seconds 5
+            $mongoAvailable = $true
+        } else {
+            Write-Host "  ✗ Failed to start MongoDB container" -ForegroundColor Red
+            Write-Host "    You can start it manually with: docker-compose up -d mongodb" -ForegroundColor Yellow
+        }
     } catch {
         Write-Host "  ✗ Failed to start MongoDB container" -ForegroundColor Red
         Write-Host "    Error: $_" -ForegroundColor Red
-        exit 1
+        Write-Host "    You can start it manually with: docker-compose up -d mongodb" -ForegroundColor Yellow
     }
 }
 
@@ -155,7 +175,7 @@ if (Test-Path "node_modules") {
     Write-Host "  Installing dependencies (this may take a few minutes)..." -ForegroundColor Cyan
 }
 npm install
-if ($LASTEXITCODE -ne 0) {
+if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
     Write-Host "  ✗ Failed to install backend dependencies" -ForegroundColor Red
     Set-Location ..
     exit 1
@@ -173,7 +193,7 @@ if (Test-Path "node_modules") {
     Write-Host "  Installing dependencies (this may take a few minutes)..." -ForegroundColor Cyan
 }
 npm install
-if ($LASTEXITCODE -ne 0) {
+if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $null) {
     Write-Host "  ✗ Failed to install frontend dependencies" -ForegroundColor Red
     Set-Location ..
     exit 1
