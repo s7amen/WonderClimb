@@ -93,6 +93,11 @@ const gymPassSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
+    physicalCardId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PhysicalCard',
+        default: null,
+    },
 }, {
     timestamps: true,
 });

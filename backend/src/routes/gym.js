@@ -103,6 +103,18 @@ router.delete(
 );
 
 /**
+ * Physical card endpoints
+ */
+
+// GET /api/v1/gym/cards/find-by-card-code - Find climber by physical card code
+// Requires: instructor, coach, or admin
+router.get(
+    '/cards/find-by-card-code',
+    requireMinRole('instructor'),
+    gymController.findClimberByCardCode
+);
+
+/**
  * Pricing endpoints
  */
 

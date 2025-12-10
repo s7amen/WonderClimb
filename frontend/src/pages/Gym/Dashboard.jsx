@@ -33,6 +33,12 @@ const GymDashboard = () => {
     const [selectedClimberId, setSelectedClimberId] = useState('');
     const [selectedClimberName, setSelectedClimberName] = useState('');
 
+    // Card scanner state
+    const [cardCode, setCardCode] = useState('');
+    const [isLoadingCardScan, setIsLoadingCardScan] = useState(false);
+    const [cardScanError, setCardScanError] = useState('');
+    const cardScannerInputRef = useRef(null);
+
     // Refs for sticky cart behavior
     const cartRef = useRef(null);
     const cartContainerRef = useRef(null);
@@ -121,7 +127,71 @@ const GymDashboard = () => {
         setSelectedClimberId('');
         setSelectedClimberName('');
         setClimberDetails({ isMember: false, activePass: null, lastPass: null, loaded: false });
+        setCardCode('');
+        setCardScanError('');
     };
+
+    // Handle card code input change
+    const handleCardCodeChange = (e) => {
+        const value = e.target.value.trim();
+        // Only allow digits
+        const digitsOnly = value.replace(/\D/g, '');
+        // Limit to 6 digits
+        const limited = digitsOnly.slice(0, 6);
+        setCardCode(limited);
+        setCardScanError('');
+    };
+
+    // Handle card code scan/search
+    useEffect(() => {
+        const searchByCardCode = async () => {
+            if (!cardCode || cardCode.length !== 6) {
+                return;
+            }
+
+            setIsLoadingCardScan(true);
+            setCardScanError('');
+
+            try {
+                const response = await gymAPI.findClimberByCardCode(cardCode);
+                const { userId, familyId, clientInfo } = response.data;
+
+                if (userId || familyId) {
+                    // Set the selected climber
+                    setSelectedClimberId(userId || familyId);
+                    if (clientInfo) {
+                        setSelectedClimberName(clientInfo.name);
+                    }
+                    // Clear card code after successful scan
+                    setCardCode('');
+                } else {
+                    setCardScanError('Катерач не е намерен');
+                }
+            } catch (error) {
+                console.error('Error finding climber by card code:', error);
+                const errorMessage = error.response?.data?.error?.message || 'Картата не е намерена или не е активна';
+                setCardScanError(errorMessage);
+            } finally {
+                setIsLoadingCardScan(false);
+            }
+        };
+
+        // Debounce: wait 300ms after user stops typing
+        const timeoutId = setTimeout(() => {
+            if (cardCode.length === 6) {
+                searchByCardCode();
+            }
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [cardCode]);
+
+    // Auto-focus card scanner input on mount
+    useEffect(() => {
+        if (cardScannerInputRef.current) {
+            cardScannerInputRef.current.focus();
+        }
+    }, []);
 
     // Fetch details when climber is selected
     useEffect(() => {
@@ -714,6 +784,35 @@ const GymDashboard = () => {
             {/* Global Climber Selector - Compact Layout */}
             <Card className="p-3">
                 <div className="flex flex-wrap items-center gap-4">
+                    {/* Card Scanner */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium text-neutral-950 whitespace-nowrap">
+                            Карта:
+                        </label>
+                        <div className="relative">
+                            <input
+                                ref={cardScannerInputRef}
+                                type="text"
+                                value={cardCode}
+                                onChange={handleCardCodeChange}
+                                placeholder="Сканирай карта..."
+                                maxLength={6}
+                                className={`px-3 py-1.5 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950 w-32 font-mono ${
+                                    cardScanError ? 'border-red-500' : ''
+                                } ${isLoadingCardScan ? 'opacity-50' : ''}`}
+                                disabled={isLoadingCardScan}
+                            />
+                            {isLoadingCardScan && (
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ea7a24]"></div>
+                                </div>
+                            )}
+                        </div>
+                        {cardScanError && (
+                            <span className="text-xs text-red-600 whitespace-nowrap">{cardScanError}</span>
+                        )}
+                    </div>
+
                     {/* Selector */}
                     <div className="flex items-center gap-2 min-w-[200px]">
                         <label className="text-sm font-medium text-neutral-950 whitespace-nowrap">

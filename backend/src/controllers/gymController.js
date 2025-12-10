@@ -1,6 +1,7 @@
 import * as gymService from '../services/gymService.js';
 import * as trainingService from '../services/trainingService.js';
 import * as parentClimberService from '../services/parentClimberService.js';
+import * as physicalCardService from '../services/physicalCardService.js';
 import { Pricing } from '../models/pricing.js';
 import logger from '../middleware/logging.js';
 
@@ -511,6 +512,73 @@ export const extendAllPasses = async (req, res) => {
         logger.error({ error: error.message }, 'Error extending passes');
         res.status(500).json({
             error: { message: error.message || 'Failed to extend passes' },
+        });
+    }
+};
+
+/**
+ * GET /api/v1/gym/cards/find-by-card-code
+ * Find climber by physical card code
+ */
+export const findClimberByCardCode = async (req, res) => {
+    try {
+        const { cardCode } = req.query;
+
+        if (!cardCode) {
+            return res.status(400).json({
+                error: { message: 'cardCode is required' },
+            });
+        }
+
+        // Validate format: exactly 6 digits
+        const trimmedCode = cardCode.trim();
+        if (!/^\d{6}$/.test(trimmedCode)) {
+            return res.status(400).json({
+                error: { message: 'Card code must be exactly 6 digits' },
+            });
+        }
+
+        // Get active pass by card code
+        const { physicalCard, gymPass } = await physicalCardService.getActivePassByCardCode(trimmedCode);
+
+        // Extract client info
+        let userId = null;
+        let familyId = null;
+        let clientInfo = null;
+
+        if (gymPass.userId) {
+            userId = gymPass.userId._id || gymPass.userId;
+            clientInfo = {
+                id: userId,
+                name: `${gymPass.userId.firstName} ${gymPass.userId.lastName}`,
+                email: gymPass.userId.email,
+                phone: gymPass.userId.phone,
+                type: 'user',
+            };
+        } else if (gymPass.familyId) {
+            familyId = gymPass.familyId._id || gymPass.familyId;
+            clientInfo = {
+                id: familyId,
+                name: gymPass.familyId.name,
+                type: 'family',
+            };
+        }
+
+        res.json({
+            userId,
+            familyId,
+            gymPass,
+            clientInfo,
+            physicalCard: {
+                id: physicalCard._id,
+                physicalCardCode: physicalCard.physicalCardCode,
+                status: physicalCard.status,
+            },
+        });
+    } catch (error) {
+        logger.error({ error: error.message, cardCode: req.query.cardCode }, 'Error finding climber by card code');
+        res.status(404).json({
+            error: { message: error.message || 'Card not found or not active' },
         });
     }
 };

@@ -7,6 +7,7 @@ import { Product } from '../models/product.js';
 import { Family } from '../models/family.js';
 import mongoose from 'mongoose';
 import * as auditService from '../services/auditService.js';
+import * as physicalCardService from '../services/physicalCardService.js';
 
 /**
  * Process a sale transaction with multiple items (visits, passes, products)
@@ -184,6 +185,27 @@ export const processSale = async (req, res) => {
                         validUntilDate = addDuration(validFromDate, pricing.validityDays, pricing.validityType || 'days');
                     }
 
+                    // Handle physical card if provided (only for first card if quantity > 1)
+                    let physicalCardId = null;
+                    if (item.physicalCardCode && i === 0) {
+                        try {
+                            const trimmedCode = item.physicalCardCode.trim();
+                            let physicalCard = await physicalCardService.findByCardCode(trimmedCode);
+                            if (!physicalCard) {
+                                physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+                            } else if (physicalCard.status === 'linked') {
+                                const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
+                                if (linkedPass && linkedPass.isActive) {
+                                    throw new Error('Physical card is already linked to an active pass');
+                                }
+                            }
+                            physicalCardId = physicalCard._id;
+                        } catch (error) {
+                            console.error('Error handling physical card:', error);
+                            // Continue without physical card if there's an error
+                        }
+                    }
+
                     // Create GymPass
                     console.log('Creating GymPass with:', {
                         userId: passOwnerId,
@@ -208,10 +230,21 @@ export const processSale = async (req, res) => {
                         amount: unitPrice, // Historical record on pass
                         paymentStatus: 'paid',
                         createdById: userId,
+                        physicalCardId: physicalCardId || null,
                         financeTransactionId: transaction._id // Link back if desired in future models
                     });
 
                     await newPass.save();
+
+                    // Link physical card to pass if provided
+                    if (physicalCardId && item.physicalCardCode && i === 0) {
+                        try {
+                            await physicalCardService.linkToPass(item.physicalCardCode.trim(), newPass._id);
+                        } catch (error) {
+                            console.error('Error linking physical card to pass:', error);
+                        }
+                    }
+
                     createdRecords.passes.push(newPass);
                     createdPassesForThisItem.push(newPass);
                 }

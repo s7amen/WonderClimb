@@ -361,6 +361,9 @@ export const gymAPI = {
   checkIn: (data) => api.post('/gym/check-in', data),
   getVisits: (params) => api.get('/gym/visits', { params }),
   getTodaysVisits: () => api.get('/gym/visits/today'),
+
+  // Physical card endpoints
+  findClimberByCardCode: (cardCode) => api.get('/gym/cards/find-by-card-code', { params: { cardCode } }),
 };
 
 // Training API

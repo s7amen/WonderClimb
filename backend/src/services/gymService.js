@@ -5,6 +5,7 @@ import { FinanceEntry } from '../models/financeEntry.js';
 import { FinanceTransaction } from '../models/financeTransaction.js';
 import { User } from '../models/user.js';
 import { Family } from '../models/family.js';
+import * as physicalCardService from './physicalCardService.js';
 import logger from '../middleware/logging.js';
 
 /**
@@ -442,6 +443,36 @@ export const createGymPass = async (passData, createdById) => {
             passType = 'prepaid_entries';
         }
 
+        // Handle physical card if provided
+        let physicalCardId = null;
+        if (passData.physicalCardCode) {
+            const trimmedCode = passData.physicalCardCode.trim();
+            
+            // Try to find existing card or create new one
+            let physicalCard;
+            try {
+                physicalCard = await physicalCardService.findByCardCode(trimmedCode);
+                if (!physicalCard) {
+                    // Card doesn't exist, create it
+                    physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+                } else if (physicalCard.status === 'linked') {
+                    // Check if linked pass is still active
+                    const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
+                    if (linkedPass && linkedPass.isActive) {
+                        throw new Error('Physical card is already linked to an active pass');
+                    }
+                }
+            } catch (error) {
+                if (error.message.includes('already linked')) {
+                    throw error;
+                }
+                // If card doesn't exist, create it
+                physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+            }
+            
+            physicalCardId = physicalCard._id;
+        }
+
         // Create pass
         const gymPass = await GymPass.create({
             userId: userId || null, // Can be null for family pass
@@ -463,13 +494,20 @@ export const createGymPass = async (passData, createdById) => {
             discountReason: discountReason || '',
             createdById,
             updatedById: createdById,
+            physicalCardId: physicalCardId || null,
         });
+
+        // Link physical card to pass if provided
+        if (physicalCardId && passData.physicalCardCode) {
+            await physicalCardService.linkToPass(passData.physicalCardCode.trim(), gymPass._id);
+        }
 
         logger.info({
             gymPassId: gymPass._id,
             userId,
             pricingId,
             amount: finalAmount,
+            physicalCardId,
         }, 'Gym pass created');
 
         return gymPass;
@@ -632,6 +670,10 @@ export const updatePass = async (passId, updates, updatedById) => {
 
         filteredUpdates.updatedById = updatedById;
 
+        // Check if we're deactivating the pass
+        const wasDeactivating = filteredUpdates.isActive === false;
+        const passBeforeUpdate = wasDeactivating ? await GymPass.findById(passId) : null;
+
         const pass = await GymPass.findByIdAndUpdate(
             passId,
             filteredUpdates,
@@ -640,6 +682,11 @@ export const updatePass = async (passId, updates, updatedById) => {
 
         if (!pass) {
             throw new Error('Gym pass not found');
+        }
+
+        // If pass was deactivated and had a physical card, unlink it
+        if (wasDeactivating && passBeforeUpdate && passBeforeUpdate.physicalCardId) {
+            await physicalCardService.unlinkFromPass(passBeforeUpdate.physicalCardId);
         }
 
         logger.info({ passId, updates: Object.keys(filteredUpdates) }, 'Gym pass updated');
@@ -659,6 +706,11 @@ export const deletePass = async (passId) => {
         const pass = await GymPass.findById(passId);
         if (!pass) {
             throw new Error('Gym pass not found');
+        }
+
+        // Unlink physical card if exists
+        if (pass.physicalCardId) {
+            await physicalCardService.unlinkFromPass(pass.physicalCardId);
         }
 
         // Soft delete - set isActive to false
@@ -682,6 +734,11 @@ export const deletePassCascade = async (passId) => {
         const pass = await GymPass.findById(passId);
         if (!pass) {
             throw new Error('Gym pass not found');
+        }
+
+        // Unlink physical card if exists
+        if (pass.physicalCardId) {
+            await physicalCardService.unlinkFromPass(pass.physicalCardId);
         }
 
         // Delete all related gym visits
