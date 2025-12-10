@@ -105,6 +105,8 @@ const CreatePassModal = ({
                 setInitialFormState(JSON.stringify(initialData));
             } else {
                 // Edit mode - populate form
+                console.log('Edit mode - editingPass:', editingPass);
+                console.log('Edit mode - physicalCardId:', editingPass.physicalCardId);
                 setGeneratedCardNumber(editingPass.passId || '');
                 const validFromFormatted = editingPass.validFrom ? formatDateForInput(editingPass.validFrom) : '';
                 const validUntilFormatted = editingPass.validUntil ? formatDateForInput(editingPass.validUntil) : '';

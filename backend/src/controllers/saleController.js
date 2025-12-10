@@ -109,6 +109,7 @@ export const processSale = async (req, res) => {
 
         // Second pass: Process each item
         for (const item of items) {
+            console.log('=== Processing item ===', 'Type:', item.type, 'physicalCardCode:', item.physicalCardCode);
             // Validate item.userId specifically for logic that needs it
             // Convert empty string to null for proper family pass handling
             const itemUserId = (item.userId && item.userId.trim() !== '') ? item.userId : null;
