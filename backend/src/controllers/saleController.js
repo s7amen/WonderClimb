@@ -187,13 +187,19 @@ export const processSale = async (req, res) => {
 
                     // Handle physical card if provided (only for first card if quantity > 1)
                     let physicalCardId = null;
-                    if (item.physicalCardCode && i === 0) {
+                    if (item.physicalCardCode && item.physicalCardCode.trim() && i === 0) {
                         try {
                             const trimmedCode = item.physicalCardCode.trim();
+                            
+                            // Validate format first
+                            if (!/^\d{6}$/.test(trimmedCode)) {
+                                throw new Error('Physical card code must be exactly 6 digits');
+                            }
+                            
                             let physicalCard = await physicalCardService.findByCardCode(trimmedCode);
                             if (!physicalCard) {
                                 physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
-                            } else if (physicalCard.status === 'linked') {
+                            } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
                                 const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
                                 if (linkedPass && linkedPass.isActive) {
                                     throw new Error('Physical card is already linked to an active pass');
@@ -239,9 +245,11 @@ export const processSale = async (req, res) => {
                     // Link physical card to pass if provided
                     if (physicalCardId && item.physicalCardCode && i === 0) {
                         try {
-                            await physicalCardService.linkToPass(item.physicalCardCode.trim(), newPass._id);
+                            const trimmedCode = item.physicalCardCode.trim();
+                            await physicalCardService.linkToPass(trimmedCode, newPass._id);
                         } catch (error) {
                             console.error('Error linking physical card to pass:', error);
+                            // Don't throw - card is created but not linked
                         }
                     }
 

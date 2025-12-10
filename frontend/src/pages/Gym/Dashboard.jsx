@@ -482,7 +482,8 @@ const GymDashboard = () => {
                     pricingId: cardData.pricingId,
                     totalEntries: cardData.totalEntries,
                     validFrom: cardData.validFrom,
-                    validUntil: cardData.validUntil
+                    validUntil: cardData.validUntil,
+                    physicalCardCode: cardData.physicalCardCode || null
                 }],
                 amountPaid: cardData.amount,
                 currency: 'EUR'
@@ -530,7 +531,8 @@ const GymDashboard = () => {
                 totalEntries: cardData.totalEntries,
                 remainingEntries: cardData.remainingEntries,
                 validFrom: cardData.validFrom,
-                validUntil: cardData.validUntil
+                validUntil: cardData.validUntil,
+                physicalCardCode: cardData.physicalCardCode || null
             };
             setCartItems(prev => [...prev, cartItem]);
         } catch (error) {
@@ -692,7 +694,8 @@ const GymDashboard = () => {
                     productId: item.productId || null,
                     pricingId: item.pricingId || null,
                     validFrom: item.validFrom || null,
-                    validUntil: item.validUntil || null
+                    validUntil: item.validUntil || null,
+                    physicalCardCode: item.physicalCardCode || null
                 })),
                 currency: paymentData.currency,
                 amountPaid: paymentData.amountPaid

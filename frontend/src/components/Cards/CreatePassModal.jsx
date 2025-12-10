@@ -305,7 +305,7 @@ const CreatePassModal = ({
     };
 
     const handlePhysicalCardCodeChange = (e) => {
-        const value = e.target.value.trim();
+        const value = e.target.value;
         // Only allow digits
         const digitsOnly = value.replace(/\D/g, '');
         // Limit to 6 digits
@@ -421,7 +421,7 @@ const CreatePassModal = ({
                 totalEntries: formData.remainingEntries ? parseInt(formData.remainingEntries) : null,
                 remainingEntries: formData.remainingEntries ? parseInt(formData.remainingEntries) : null,
                 isActive: formData.isActive,
-                physicalCardCode: formData.physicalCardCode.trim() || null,
+                physicalCardCode: formData.physicalCardCode && formData.physicalCardCode.trim() ? formData.physicalCardCode.trim() : null,
             };
 
             if (submitActionType === 'direct' && onDirectSale) {
