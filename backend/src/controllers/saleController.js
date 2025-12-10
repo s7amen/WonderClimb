@@ -190,15 +190,21 @@ export const processSale = async (req, res) => {
                     if (item.physicalCardCode && item.physicalCardCode.trim() && i === 0) {
                         try {
                             const trimmedCode = item.physicalCardCode.trim();
+                            console.log('Processing physical card code:', trimmedCode);
                             
                             // Validate format first
                             if (!/^\d{6}$/.test(trimmedCode)) {
-                                throw new Error('Physical card code must be exactly 6 digits');
+                                console.error('Invalid physical card code format:', trimmedCode, 'Length:', trimmedCode.length);
+                                throw new Error(`Physical card code must be exactly 6 digits, got: ${trimmedCode} (length: ${trimmedCode.length})`);
                             }
                             
                             let physicalCard = await physicalCardService.findByCardCode(trimmedCode);
+                            console.log('Found physical card:', physicalCard ? 'Yes' : 'No');
+                            
                             if (!physicalCard) {
+                                console.log('Creating new physical card with code:', trimmedCode);
                                 physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+                                console.log('Physical card created:', physicalCard._id);
                             } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
                                 const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
                                 if (linkedPass && linkedPass.isActive) {
@@ -206,8 +212,9 @@ export const processSale = async (req, res) => {
                                 }
                             }
                             physicalCardId = physicalCard._id;
+                            console.log('Physical card ID set:', physicalCardId);
                         } catch (error) {
-                            console.error('Error handling physical card:', error);
+                            console.error('Error handling physical card:', error.message, error.stack);
                             // Continue without physical card if there's an error
                         }
                     }
@@ -217,6 +224,7 @@ export const processSale = async (req, res) => {
                         userId: passOwnerId,
                         familyId: familyId,
                         isFamilyPass: !!familyId,
+                        physicalCardId: physicalCardId,
                         passId: `PASS-${Date.now()}-${Math.floor(Math.random() * 1000)}`
                     });
 
@@ -241,16 +249,36 @@ export const processSale = async (req, res) => {
                     });
 
                     await newPass.save();
+                    console.log('GymPass saved with ID:', newPass._id, 'physicalCardId:', newPass.physicalCardId);
 
                     // Link physical card to pass if provided
                     if (physicalCardId && item.physicalCardCode && i === 0) {
                         try {
                             const trimmedCode = item.physicalCardCode.trim();
+                            console.log('Linking physical card', trimmedCode, 'to pass', newPass._id, 'physicalCardId:', physicalCardId);
+                            
+                            // Verify physical card exists before linking
+                            const verifyCard = await physicalCardService.findByCardCode(trimmedCode);
+                            if (!verifyCard) {
+                                throw new Error(`Physical card ${trimmedCode} not found before linking`);
+                            }
+                            console.log('Physical card verified:', verifyCard._id, 'status:', verifyCard.status);
+                            
                             await physicalCardService.linkToPass(trimmedCode, newPass._id);
+                            console.log('Physical card linked successfully');
+                            
+                            // Verify the link - reload pass from DB
+                            const updatedPass = await GymPass.findById(newPass._id).populate('physicalCardId');
+                            console.log('Updated pass physicalCardId:', updatedPass.physicalCardId);
+                            if (updatedPass.physicalCardId) {
+                                console.log('Physical card code:', updatedPass.physicalCardId.physicalCardCode);
+                            }
                         } catch (error) {
-                            console.error('Error linking physical card to pass:', error);
+                            console.error('Error linking physical card to pass:', error.message, error.stack);
                             // Don't throw - card is created but not linked
                         }
+                    } else {
+                        console.log('Skipping physical card link - physicalCardId:', physicalCardId, 'physicalCardCode:', item.physicalCardCode, 'i:', i);
                     }
 
                     createdRecords.passes.push(newPass);

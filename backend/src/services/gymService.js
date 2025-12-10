@@ -599,6 +599,7 @@ export const getAllPasses = async (filters = {}, pagination = {}) => {
                 .populate('userId', 'firstName middleName lastName email')
                 .populate('familyId', 'name')
                 .populate('pricingId')
+                .populate('physicalCardId', 'physicalCardCode status')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
