@@ -128,7 +128,7 @@ const CreatePassModal = ({
                     remainingEntries: editingPass.remainingEntries?.toString() || '',
                     amount: editingPass.amount?.toString() || '',
                     isActive: editingPass.isActive !== undefined ? editingPass.isActive : true,
-                    physicalCardCode: editingPass.physicalCardId ? '' : '', // Don't show physical card code in edit mode for security
+                    physicalCardCode: '', // Don't allow editing physical card code
                 };
                 setFormData(editData);
                 setInitialFormState(JSON.stringify(editData));
@@ -146,6 +146,96 @@ const CreatePassModal = ({
                 physicalCardInputRef.current?.focus();
             }, 100);
         }
+    }, [isOpen, editingPass]);
+
+    // Global keyboard listener for scanner input (works even without focus)
+    useEffect(() => {
+        if (!isOpen || editingPass) return;
+
+        let buffer = '';
+        let timeoutId = null;
+        let lastKeyTime = Date.now();
+
+        const handleKeyPress = (e) => {
+            const target = e.target;
+            const now = Date.now();
+            
+            // If user is typing in any input/textarea, let it handle normally
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+                // If it's our physical card input, let it handle normally
+                if (target === physicalCardInputRef.current) {
+                    return;
+                }
+                // Clear buffer if user is typing elsewhere
+                buffer = '';
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                return;
+            }
+
+            // Check if it's a digit
+            if (e.key >= '0' && e.key <= '9') {
+                // If too much time passed since last key, reset buffer (scanner sends fast)
+                if (now - lastKeyTime > 200) {
+                    buffer = '';
+                }
+                
+                buffer += e.key;
+                lastKeyTime = now;
+                
+                // Clear previous timeout
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+
+                // If buffer reaches 6 digits, update the field immediately
+                if (buffer.length === 6) {
+                    e.preventDefault();
+                    handleInputChange('physicalCardCode', buffer);
+                    // Focus the input to show the value
+                    if (physicalCardInputRef.current) {
+                        physicalCardInputRef.current.focus();
+                        // Move cursor to end
+                        setTimeout(() => {
+                            if (physicalCardInputRef.current) {
+                                physicalCardInputRef.current.setSelectionRange(6, 6);
+                            }
+                        }, 0);
+                    }
+                    buffer = '';
+                } else {
+                    // Set timeout to clear buffer if no more input (user typing slowly)
+                    timeoutId = setTimeout(() => {
+                        buffer = '';
+                    }, 300);
+                }
+            } else if (e.key === 'Enter' && buffer.length > 0) {
+                // Scanner might send Enter after the code
+                e.preventDefault();
+                if (buffer.length === 6) {
+                    handleInputChange('physicalCardCode', buffer);
+                    if (physicalCardInputRef.current) {
+                        physicalCardInputRef.current.focus();
+                    }
+                }
+                buffer = '';
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+            }
+        };
+
+        document.addEventListener('keypress', handleKeyPress);
+
+        return () => {
+            document.removeEventListener('keypress', handleKeyPress);
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [isOpen, editingPass]);
 
     const fetchUsers = async () => {
@@ -563,7 +653,7 @@ const CreatePassModal = ({
                     </div>
 
                     {/* Row 4: Physical Card Code */}
-                    {!editingPass && (
+                    {!editingPass ? (
                         <div>
                             <label className="block text-sm font-medium text-neutral-950 mb-1">
                                 Физическа карта (6 цифри)
@@ -574,12 +664,33 @@ const CreatePassModal = ({
                                     type="text"
                                     value={formData.physicalCardCode}
                                     onChange={handlePhysicalCardCodeChange}
+                                    onKeyDown={(e) => {
+                                        // Allow Enter key to submit if scanner sends it
+                                        if (e.key === 'Enter' && formData.physicalCardCode.length === 6) {
+                                            e.preventDefault();
+                                        }
+                                    }}
                                     placeholder="Сканирай или въведи код..."
                                     maxLength={6}
                                     className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950 font-mono"
                                 />
                             </div>
                             <p className="mt-1 text-xs text-gray-500">Оставете празно ако картата е виртуална</p>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-950 mb-1">
+                                Физическа карта
+                            </label>
+                            <input
+                                type="text"
+                                value={
+                                    editingPass.physicalCardId?.physicalCardCode || 
+                                    (editingPass.physicalCardId ? 'Зареждане...' : 'Няма физическа карта')
+                                }
+                                readOnly
+                                className="w-full px-3 py-2 bg-gray-100 border border-[#d1d5dc] rounded-[10px] text-sm text-gray-500 cursor-not-allowed font-mono"
+                            />
                         </div>
                     )}
 

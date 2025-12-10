@@ -448,26 +448,23 @@ export const createGymPass = async (passData, createdById) => {
         if (passData.physicalCardCode) {
             const trimmedCode = passData.physicalCardCode.trim();
             
+            // Validate format first
+            if (!/^\d{6}$/.test(trimmedCode)) {
+                throw new Error('Physical card code must be exactly 6 digits');
+            }
+            
             // Try to find existing card or create new one
-            let physicalCard;
-            try {
-                physicalCard = await physicalCardService.findByCardCode(trimmedCode);
-                if (!physicalCard) {
-                    // Card doesn't exist, create it
-                    physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
-                } else if (physicalCard.status === 'linked') {
-                    // Check if linked pass is still active
-                    const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
-                    if (linkedPass && linkedPass.isActive) {
-                        throw new Error('Physical card is already linked to an active pass');
-                    }
-                }
-            } catch (error) {
-                if (error.message.includes('already linked')) {
-                    throw error;
-                }
-                // If card doesn't exist, create it
+            let physicalCard = await physicalCardService.findByCardCode(trimmedCode);
+            
+            if (!physicalCard) {
+                // Card doesn't exist, create it
                 physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+            } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
+                // Check if linked pass is still active
+                const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
+                if (linkedPass && linkedPass.isActive) {
+                    throw new Error('Physical card is already linked to an active pass');
+                }
             }
             
             physicalCardId = physicalCard._id;
@@ -632,6 +629,7 @@ export const getPassById = async (passId) => {
         const pass = await GymPass.findById(passId)
             .populate('userId', 'firstName lastName email phone')
             .populate('pricingId')
+            .populate('physicalCardId', 'physicalCardCode status')
             .lean();
 
         if (!pass) {
