@@ -808,15 +808,46 @@ const Calendar = () => {
       </div>
 
       <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 px-4 pt-4 md:px-6 md:pt-6">
+        {/* Mobile Layout */}
+        <div className="md:hidden flex flex-col gap-3 mb-4 px-4 pt-4">
+          <h2 className="text-base font-medium text-neutral-950 text-center">
+            {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
+            {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
+            {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
+          </h2>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => navigateDate('prev')}
+              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-2 py-1.5 transition-colors"
+            >
+              ←
+            </button>
+            <Button
+              variant="secondary"
+              onClick={goToToday}
+              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-3 py-1.5"
+            >
+              Днес
+            </Button>
+            <button
+              onClick={() => navigateDate('next')}
+              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-2 py-1.5 transition-colors"
+            >
+              →
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden md:flex flex-row justify-between items-center gap-4 mb-4 px-6 pt-6">
           <Button
             variant="secondary"
             onClick={() => navigateDate('prev')}
-            className="w-full sm:w-auto bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
+            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
           >
             ← Предишен
           </Button>
-          <div className="flex flex-col sm:flex-row items-center gap-2">
+          <div className="flex flex-row items-center gap-2">
             <h2 className="text-base font-medium text-neutral-950 text-center">
               {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
               {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
@@ -833,7 +864,7 @@ const Calendar = () => {
           <Button
             variant="secondary"
             onClick={() => navigateDate('next')}
-            className="w-full sm:w-auto bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
+            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
           >
             Следващ →
           </Button>

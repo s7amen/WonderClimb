@@ -52,9 +52,13 @@ export const getAvailableSessions = async (filters = {}) => {
       filteredSessions = sessions;
     } else {
       // No explicit date range, apply booking horizon filter
-      filteredSessions = sessions.filter(session =>
-        isWithinBookingHorizon(session.date)
-      );
+      const filtered = [];
+      for (const session of sessions) {
+        if (await isWithinBookingHorizon(session.date)) {
+          filtered.push(session);
+        }
+      }
+      filteredSessions = filtered;
     }
 
     // Add booking counts for each session

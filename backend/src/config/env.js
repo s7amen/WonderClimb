@@ -28,7 +28,7 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 
   // Booking configuration
-  bookingHorizonDays: parseInt(process.env.BOOKING_HORIZON_DAYS || '30', 10),
+  bookingHorizonHours: parseInt(process.env.BOOKING_HORIZON_HOURS || '720', 10), // Default: 30 days = 720 hours
   cancellationWindowHours: parseInt(process.env.CANCELLATION_WINDOW_HOURS || '4', 10),
 
   // Logging

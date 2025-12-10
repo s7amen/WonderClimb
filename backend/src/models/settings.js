@@ -74,11 +74,25 @@ const settingsSchema = new mongoose.Schema({
     type: String,
     default: 'Периодът за отмяна е изтекъл',
   },
+  // Training booking configuration
+  bookingHorizonHours: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 720, // 30 days * 24 hours = 720 hours (default)
+  },
+  cancellationWindowHours: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 4,
+  },
 }, {
   timestamps: true,
 });
 
 export const Settings = mongoose.model('Settings', settingsSchema);
+
 
 
 

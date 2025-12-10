@@ -23,7 +23,13 @@ const CalendarIcon = (props) => (
 
 const CalendarViewIcon = (props) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props}>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 2v2m12-2v2M3 10h18M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1zm2 4v8m4-8v8m4-8v8" />
+        <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth={2} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 2v4m8-4v4M3 10h18" />
+        <circle cx="7" cy="14" r="0.5" fill="currentColor" />
+        <circle cx="12" cy="14" r="0.5" fill="currentColor" />
+        <circle cx="17" cy="14" r="0.5" fill="currentColor" />
+        <circle cx="7" cy="18" r="0.5" fill="currentColor" />
+        <circle cx="12" cy="18" r="0.5" fill="currentColor" />
     </svg>
 );
 

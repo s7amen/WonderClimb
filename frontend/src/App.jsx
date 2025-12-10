@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/UI/Toast';
 import RequireMinRole from './components/RequireMinRole';
@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Loading from './components/UI/Loading';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+import lazyWithRetry from './utils/lazyWithRetry';
 
 // Lazy load layouts
 import AdminLayout from './components/Layout/AdminLayout';
@@ -15,76 +16,76 @@ import ClimberLayout from './components/Layout/ClimberLayout';
 import UniversalLayout from './components/Layout/UniversalLayout';
 
 // Lazy load pages - NEW STRUCTURE
-const Login = lazy(() => import('./pages/Auth/Login'));
-const Register = lazy(() => import('./pages/Auth/Register'));
-const TermsOfService = lazy(() => import('./pages/Public/TermsOfService'));
+const Login = lazyWithRetry(() => import('./pages/Auth/Login'), { fallback: 'Login' });
+const Register = lazyWithRetry(() => import('./pages/Auth/Register'), { fallback: 'Register' });
+const TermsOfService = lazyWithRetry(() => import('./pages/Public/TermsOfService'), { fallback: 'TermsOfService' });
 // Use the restored Home page
-const Landing = lazy(() => import('./pages/Home/Home'));
+const Landing = lazyWithRetry(() => import('./pages/Home/Home'), { fallback: 'Landing' });
 
 // Dashboards
-const AdminDashboard = lazy(() => import('./pages/Dashboard/AdminDashboard'));
-const CoachDashboard = lazy(() => import('./pages/Dashboard/CoachDashboard'));
-const InstructorDashboard = lazy(() => import('./pages/Dashboard/InstructorDashboard'));
-const ClimberDashboard = lazy(() => import('./pages/Dashboard/ClimberDashboard'));
-const ClimberSchedule = lazy(() => import('./pages/Dashboard/ClimberSchedule'));
-const CoachAttendance = lazy(() => import('./pages/Dashboard/CoachAttendance'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/Dashboard/AdminDashboard'), { fallback: 'AdminDashboard' });
+const CoachDashboard = lazyWithRetry(() => import('./pages/Dashboard/CoachDashboard'), { fallback: 'CoachDashboard' });
+const InstructorDashboard = lazyWithRetry(() => import('./pages/Dashboard/InstructorDashboard'), { fallback: 'InstructorDashboard' });
+const ClimberDashboard = lazyWithRetry(() => import('./pages/Dashboard/ClimberDashboard'), { fallback: 'ClimberDashboard' });
+const ClimberSchedule = lazyWithRetry(() => import('./pages/Dashboard/ClimberSchedule'), { fallback: 'ClimberSchedule' });
+const CoachAttendance = lazyWithRetry(() => import('./pages/Dashboard/CoachAttendance'), { fallback: 'CoachAttendance' });
 
 // Sessions
-const SessionsBrowse = lazy(() => import('./pages/Sessions/Browse'));
-const SessionsManage = lazy(() => import('./pages/Sessions/Manage'));
+const SessionsBrowse = lazyWithRetry(() => import('./pages/Sessions/Browse'), { fallback: 'SessionsBrowse' });
+const SessionsManage = lazyWithRetry(() => import('./pages/Sessions/Manage'), { fallback: 'SessionsManage' });
 
 // Competitions
-const CompetitionsBrowse = lazy(() => import('./pages/Competitions/Browse'));
-const CompetitionsPublicDetail = lazy(() => import('./pages/Competitions/PublicDetail'));
-const CompetitionsManage = lazy(() => import('./pages/Competitions/Manage'));
-const CompetitionsManageDetail = lazy(() => import('./pages/Competitions/ManageDetail'));
+const CompetitionsBrowse = lazyWithRetry(() => import('./pages/Competitions/Browse'), { fallback: 'CompetitionsBrowse' });
+const CompetitionsPublicDetail = lazyWithRetry(() => import('./pages/Competitions/PublicDetail'), { fallback: 'CompetitionsPublicDetail' });
+const CompetitionsManage = lazyWithRetry(() => import('./pages/Competitions/Manage'), { fallback: 'CompetitionsManage' });
+const CompetitionsManageDetail = lazyWithRetry(() => import('./pages/Competitions/ManageDetail'), { fallback: 'CompetitionsManageDetail' });
 
 // Climbers
-const ClimbersList = lazy(() => import('./pages/Climbers/List'));
-const ClimberProfile = lazy(() => import('./pages/Climbers/Profile'));
-const FamilyList = lazy(() => import('./pages/Families/FamilyList'));
-const FamilyProfile = lazy(() => import('./pages/Families/Profile'));
+const ClimbersList = lazyWithRetry(() => import('./pages/Climbers/List'), { fallback: 'ClimbersList' });
+const ClimberProfile = lazyWithRetry(() => import('./pages/Climbers/Profile'), { fallback: 'ClimberProfile' });
+const FamilyList = lazyWithRetry(() => import('./pages/Families/FamilyList'), { fallback: 'FamilyList' });
+const FamilyProfile = lazyWithRetry(() => import('./pages/Families/Profile'), { fallback: 'FamilyProfile' });
 
 
 // Gym
-const GymDashboard = lazy(() => import('./pages/Gym/Dashboard'));
-const GymCheckIn = lazy(() => import('./pages/Gym/CheckIn'));
-const GymPasses = lazy(() => import('./pages/Gym/Passes'));
-const GymVisits = lazy(() => import('./pages/Gym/Visits'));
-const GymPrices = lazy(() => import('./pages/Gym/Prices'));
+const GymDashboard = lazyWithRetry(() => import('./pages/Gym/Dashboard'), { fallback: 'GymDashboard' });
+const GymCheckIn = lazyWithRetry(() => import('./pages/Gym/CheckIn'), { fallback: 'GymCheckIn' });
+const GymPasses = lazyWithRetry(() => import('./pages/Gym/Passes'), { fallback: 'GymPasses' });
+const GymVisits = lazyWithRetry(() => import('./pages/Gym/Visits'), { fallback: 'GymVisits' });
+const GymPrices = lazyWithRetry(() => import('./pages/Gym/Prices'), { fallback: 'GymPrices' });
 
 // Training
-const TrainingDashboard = lazy(() => import('./pages/Training/Dashboard'));
-const TrainingBookings = lazy(() => import('./pages/Training/Bookings'));
-const TrainingSessions = lazy(() => import('./pages/Training/Sessions'));
-const TrainingPasses = lazy(() => import('./pages/Training/Passes'));
-const TrainingAttendance = lazy(() => import('./pages/Training/Attendance'));
+const TrainingDashboard = lazyWithRetry(() => import('./pages/Training/Dashboard'), { fallback: 'TrainingDashboard' });
+const TrainingBookings = lazyWithRetry(() => import('./pages/Training/Bookings'), { fallback: 'TrainingBookings' });
+const TrainingSessions = lazyWithRetry(() => import('./pages/Training/Sessions'), { fallback: 'TrainingSessions' });
+const TrainingPasses = lazyWithRetry(() => import('./pages/Training/Passes'), { fallback: 'TrainingPasses' });
+const TrainingAttendance = lazyWithRetry(() => import('./pages/Training/Attendance'), { fallback: 'TrainingAttendance' });
 
 // Finance
-const FinanceDashboard = lazy(() => import('./pages/Finance/Dashboard'));
-const FinanceEntries = lazy(() => import('./pages/Finance/Entries'));
-const FinanceReports = lazy(() => import('./pages/Finance/Reports'));
-const GymReport = lazy(() => import('./pages/Finance/GymReport'));
-const TrainingReport = lazy(() => import('./pages/Finance/TrainingReport'));
-const CoachFeesReport = lazy(() => import('./pages/Finance/CoachFees'));
+const FinanceDashboard = lazyWithRetry(() => import('./pages/Finance/Dashboard'), { fallback: 'FinanceDashboard' });
+const FinanceEntries = lazyWithRetry(() => import('./pages/Finance/Entries'), { fallback: 'FinanceEntries' });
+const FinanceReports = lazyWithRetry(() => import('./pages/Finance/Reports'), { fallback: 'FinanceReports' });
+const GymReport = lazyWithRetry(() => import('./pages/Finance/GymReport'), { fallback: 'GymReport' });
+const TrainingReport = lazyWithRetry(() => import('./pages/Finance/TrainingReport'), { fallback: 'TrainingReport' });
+const CoachFeesReport = lazyWithRetry(() => import('./pages/Finance/CoachFees'), { fallback: 'CoachFeesReport' });
 
 // Products
-const ProductsList = lazy(() => import('./pages/Products/List'));
-const ProductDetail = lazy(() => import('./pages/Products/Detail'));
+const ProductsList = lazyWithRetry(() => import('./pages/Products/List'), { fallback: 'ProductsList' });
+const ProductDetail = lazyWithRetry(() => import('./pages/Products/Detail'), { fallback: 'ProductDetail' });
 
 // Calendar
-const Calendar = lazy(() => import('./pages/Calendar/Calendar'));
+const Calendar = lazyWithRetry(() => import('./pages/Calendar/Calendar'), { fallback: 'Calendar' });
 
 // Settings
-const Settings = lazy(() => import('./pages/Settings/index')); // Imports index.jsx
+const Settings = lazyWithRetry(() => import('./pages/Settings/index'), { fallback: 'Settings' }); // Imports index.jsx
 
 // User
-const Profile = lazy(() => import('./pages/Profile/Profile'));
-const MyBookings = lazy(() => import('./pages/MyBookings/MyBookings'));
-const Subscriptions = lazy(() => import('./pages/Climber/Subscriptions'));
+const Profile = lazyWithRetry(() => import('./pages/Profile/Profile'), { fallback: 'Profile' });
+const MyBookings = lazyWithRetry(() => import('./pages/MyBookings/MyBookings'), { fallback: 'MyBookings' });
+const Subscriptions = lazyWithRetry(() => import('./pages/Climber/Subscriptions'), { fallback: 'Subscriptions' });
 
 // Admin
-const AdminPricing = lazy(() => import('./pages/Admin/Pricing'));
+const AdminPricing = lazyWithRetry(() => import('./pages/Admin/Pricing'), { fallback: 'AdminPricing' });
 
 
 // Home component - redirects authenticated users to their dashboard
@@ -329,6 +330,7 @@ function App() {
                   <Route index element={<Navigate to="/settings/messages" replace />} />
                   <Route path="messages" element={<Settings />} />
                   <Route path="cards" element={<Settings />} />
+                  <Route path="training" element={<Settings />} />
                   <Route path="pricing" element={<AdminPricing />} />
                 </Route>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import MessageSettings from './Messages.jsx';
 import Cards from './Cards.jsx';
+import TrainingSettings from './Training.jsx';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ const Settings = () => {
   const tabs = [
     { id: 'messages', name: 'Настройки на съобщения', path: '/settings/messages' },
     { id: 'cards', name: 'Карти', path: '/settings/cards' },
+    { id: 'training', name: 'Тренировки', path: '/settings/training' },
   ];
 
   const getActiveTab = () => {
@@ -25,7 +27,7 @@ const Settings = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-medium text-neutral-950">Настройки на съобщения</h1>
+        <h1 className="text-2xl font-medium text-neutral-950">Настройки</h1>
       </div>
 
       {/* Tabs */}
@@ -56,6 +58,7 @@ const Settings = () => {
       <div>
         {activeTab === 'messages' && <MessageSettings />}
         {activeTab === 'cards' && <Cards />}
+        {activeTab === 'training' && <TrainingSettings />}
         <Outlet />
       </div>
     </div>

@@ -98,7 +98,7 @@ export const createBooking = async (sessionId, climberId, bookedById, userRoles 
     }
 
     // Check booking horizon
-    if (!isWithinBookingHorizon(session.date)) {
+    if (!(await isWithinBookingHorizon(session.date))) {
       const error = new Error(await getMessage('sessionOutsideBookingHorizon'));
       error.statusCode = 400;
       throw error;
@@ -263,14 +263,14 @@ export const cancelBooking = async (bookingId, userId, userRoles = []) => {
       }
 
       // Check cancellation window
-      if (!isCancellationAllowed(sessionDoc.date)) {
+      if (!(await isCancellationAllowed(sessionDoc.date))) {
         const error = new Error(await getMessage('cancellationPeriodExpired'));
         error.statusCode = 400;
         throw error;
       }
     } else {
       // Check cancellation window
-      if (!isCancellationAllowed(session.date)) {
+      if (!(await isCancellationAllowed(session.date))) {
         const error = new Error(await getMessage('cancellationPeriodExpired'));
         error.statusCode = 400;
         throw error;
@@ -332,16 +332,20 @@ export const createRecurringBookings = async (climberId, bookedById, userRoles, 
       6: 'saturday',
     };
 
-    const filteredSessions = matchingSessions.filter(session => {
+    // Filter sessions - need to check booking horizon async
+    const filteredSessions = [];
+    for (const session of matchingSessions) {
       const sessionDate = new Date(session.date);
       const sessionDayOfWeek = dayOfWeekMap[sessionDate.getDay()];
       const sessionTime = sessionDate.toTimeString().substring(0, 5); // HH:MM
 
-      return daysOfWeek.includes(sessionDayOfWeek.toLowerCase()) &&
+      if (daysOfWeek.includes(sessionDayOfWeek.toLowerCase()) &&
         (!time || sessionTime === time) &&
-        isWithinBookingHorizon(session.date) &&
-        session.date > now;
-    });
+        (await isWithinBookingHorizon(session.date)) &&
+        session.date > now) {
+        filteredSessions.push(session);
+      }
+    }
 
     const results = {
       successful: [],

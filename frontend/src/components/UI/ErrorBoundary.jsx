@@ -4,7 +4,7 @@ import Button from './Button';
 class ErrorBoundary extends React.Component {
     constructor(props) {
         super(props);
-        this.state = { hasError: false, error: null, errorInfo: null };
+        this.state = { hasError: false, error: null, errorInfo: null, retryCount: 0 };
     }
 
     static getDerivedStateFromError(error) {
@@ -18,12 +18,41 @@ class ErrorBoundary extends React.Component {
         this.setState({ error, errorInfo });
     }
 
+    // Check if error is a dynamic import/chunk loading error
+    isChunkLoadError = () => {
+        const { error } = this.state;
+        if (!error) return false;
+
+        const errorMessage = error.message || error.toString();
+        const errorName = error.name || '';
+
+        return (
+            errorMessage.includes('Failed to fetch dynamically imported module') ||
+            errorMessage.includes('Loading chunk') ||
+            errorMessage.includes('ChunkLoadError') ||
+            errorName === 'ChunkLoadError' ||
+            (errorName === 'TypeError' && errorMessage.includes('fetch'))
+        );
+    };
+
+    handleRetry = () => {
+        // Reset error state to allow retry
+        this.setState({ 
+            hasError: false, 
+            error: null, 
+            errorInfo: null,
+            retryCount: this.state.retryCount + 1
+        });
+    };
+
     handleReload = () => {
         window.location.reload();
     };
 
     render() {
         if (this.state.hasError) {
+            const isChunkError = this.isChunkLoadError();
+            
             // You can render any custom fallback UI
             return (
                 <div className="min-h-screen flex items-center justify-center bg-[#f3f3f5] p-4">
@@ -35,11 +64,14 @@ class ErrorBoundary extends React.Component {
                         </div>
 
                         <h2 className="text-xl font-bold text-neutral-950 mb-2">
-                            Възникна грешка
+                            {isChunkError ? 'Проблем при зареждане на страницата' : 'Възникна грешка'}
                         </h2>
 
                         <p className="text-gray-600 mb-6">
-                            Съжаляваме, нещо се обърка. Моля, опитайте да презаредите страницата.
+                            {isChunkError 
+                                ? 'Страницата не можа да се зареди. Това може да се дължи на мрежов проблем или бързо превключване между страници. Моля, опитайте отново.'
+                                : 'Съжаляваме, нещо се обърка. Моля, опитайте да презаредите страницата.'
+                            }
                         </p>
 
                         {/* Optional details for dev/debugging - hidden in production ideally, or visible for now */}
@@ -54,9 +86,24 @@ class ErrorBoundary extends React.Component {
                             </details>
                         )}
 
-                        <Button variant="primary" onClick={this.handleReload} className="w-full justify-center">
-                            Презареди страницата
-                        </Button>
+                        <div className="flex gap-3">
+                            {isChunkError && (
+                                <Button 
+                                    variant="secondary" 
+                                    onClick={this.handleRetry} 
+                                    className="flex-1 justify-center"
+                                >
+                                    Опитай отново
+                                </Button>
+                            )}
+                            <Button 
+                                variant="primary" 
+                                onClick={this.handleReload} 
+                                className={isChunkError ? "flex-1 justify-center" : "w-full justify-center"}
+                            >
+                                Презареди страницата
+                            </Button>
+                        </div>
                     </div>
                 </div>
             );

@@ -30,7 +30,7 @@ export const NAVIGATION_CONFIG = {
                 { label: 'Треньори', path: '/team', icon: 'Team' },
                 { label: 'Състезания', path: '/competitions/manage', icon: 'Trophy' },
                 { label: 'Карти', path: '/training/passes', icon: 'Card' },
-
+                { label: 'Настройки', path: '/settings/training', icon: 'Settings' },
                 { label: 'Плащания', path: '/finance/reports/coach-fees', icon: 'Money' },
             ]
         },

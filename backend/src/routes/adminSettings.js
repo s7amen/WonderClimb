@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/roles.js';
 import { getSettings, updateSettings } from '../services/settingsService.js';
+import { clearSettingsCache } from '../services/configService.js';
 
 const router = express.Router();
 
@@ -30,6 +31,12 @@ router.put('/settings', async (req, res, next) => {
   try {
     const updates = req.body;
     const settings = await updateSettings(updates);
+    
+    // Clear config cache if training-related settings were updated
+    if (updates.bookingHorizonHours !== undefined || updates.cancellationWindowHours !== undefined) {
+      clearSettingsCache();
+    }
+    
     res.json({ settings });
   } catch (error) {
     next(error);
@@ -37,6 +44,7 @@ router.put('/settings', async (req, res, next) => {
 });
 
 export default router;
+
 
 
 

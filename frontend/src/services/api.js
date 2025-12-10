@@ -63,6 +63,58 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Handle 429 errors (rate limiting) with exponential backoff retry
+    if (error.response?.status === 429) {
+      const retryCount = originalRequest._retryCount || 0;
+      const maxRetries = 3;
+
+      if (retryCount < maxRetries) {
+        // Get Retry-After header from server (in seconds) or use exponential backoff
+        const retryAfterHeader = error.response?.headers['retry-after'];
+        let delayMs;
+
+        if (retryAfterHeader) {
+          // Use server-provided retry-after time (convert seconds to milliseconds)
+          delayMs = parseInt(retryAfterHeader, 10) * 1000;
+        } else {
+          // Exponential backoff: 1s, 2s, 4s (max 10s)
+          delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        }
+
+        // Increment retry count
+        originalRequest._retryCount = retryCount + 1;
+
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+
+        // Retry the request
+        return api(originalRequest);
+      } else {
+        // All retries exhausted - show user-friendly error
+        const retryAfterHeader = error.response?.headers['retry-after'];
+        const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 900; // Default 15 minutes
+        const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
+
+        const errorMessage = error.response?.data?.error?.message || 
+          `Твърде много заявки. Моля опитайте отново след ${retryAfterMinutes} ${retryAfterMinutes === 1 ? 'минута' : 'минути'}.`;
+
+        // Create enhanced error with user-friendly message
+        const enhancedError = {
+          ...error,
+          userMessage: errorMessage,
+          retryAfter: retryAfterSeconds,
+        };
+
+        console.error('Rate limit exceeded after retries:', {
+          url: originalRequest.url,
+          retryCount,
+          retryAfter: retryAfterSeconds,
+        });
+
+        return Promise.reject(enhancedError);
+      }
+    }
+
     // Handle 401 errors (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
