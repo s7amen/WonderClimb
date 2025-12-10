@@ -186,8 +186,14 @@ export const processSale = async (req, res) => {
                     }
 
                     // Handle physical card if provided (only for first card if quantity > 1)
+                    console.log(`[Pass ${i + 1}/${quantity}] Item physicalCardCode:`, item.physicalCardCode, 'Type:', typeof item.physicalCardCode);
+                    const hasPhysicalCardCode = item.physicalCardCode && 
+                        typeof item.physicalCardCode === 'string' && 
+                        item.physicalCardCode.trim().length > 0;
+                    console.log(`[Pass ${i + 1}/${quantity}] Has physical card code:`, hasPhysicalCardCode, 'i === 0:', i === 0);
+                    
                     let physicalCardId = null;
-                    if (item.physicalCardCode && item.physicalCardCode.trim() && i === 0) {
+                    if (hasPhysicalCardCode && i === 0) {
                         try {
                             const trimmedCode = item.physicalCardCode.trim();
                             console.log('Processing physical card code:', trimmedCode);

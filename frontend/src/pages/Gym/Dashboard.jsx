@@ -469,6 +469,7 @@ const GymDashboard = () => {
     const handleDirectCardSale = async (cardData) => {
         try {
             console.log('Processing direct card sale:', cardData);
+            console.log('Physical card code from cardData:', cardData.physicalCardCode);
 
             const saleData = {
                 items: [{
@@ -488,6 +489,9 @@ const GymDashboard = () => {
                 amountPaid: cardData.amount,
                 currency: 'EUR'
             };
+
+            console.log('Sale data being sent:', JSON.stringify(saleData, null, 2));
+            console.log('Item physicalCardCode:', saleData.items[0].physicalCardCode);
 
             await processSale(saleData);
 
