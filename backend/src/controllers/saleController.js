@@ -46,6 +46,11 @@ export const processSale = async (req, res) => {
 
         // First pass: Validate all items and calc total
         for (const item of items) {
+            // Log item details for debugging
+            if (item.type === 'pass') {
+                console.log('=== Processing item === Type:', item.type, 'physicalCardCode:', item.physicalCardCode, 'typeof:', typeof item.physicalCardCode);
+            }
+            
             // Validate Item
             if (!item.type || item.price === undefined || !item.quantity) {
                 throw new Error(`Invalid item data: missing type, price, or quantity. Item: ${JSON.stringify(item)}`);
@@ -188,16 +193,22 @@ export const processSale = async (req, res) => {
 
                     // Handle physical card if provided (only for first card if quantity > 1)
                     console.log(`[Pass ${i + 1}/${quantity}] Item physicalCardCode:`, item.physicalCardCode, 'Type:', typeof item.physicalCardCode);
-                    const hasPhysicalCardCode = item.physicalCardCode && 
-                        typeof item.physicalCardCode === 'string' && 
-                        item.physicalCardCode.trim().length > 0;
-                    console.log(`[Pass ${i + 1}/${quantity}] Has physical card code:`, hasPhysicalCardCode, 'i === 0:', i === 0);
+                    console.log(`[Pass ${i + 1}/${quantity}] Full item:`, JSON.stringify(item, null, 2));
+                    
+                    // Convert to string if it's a number
+                    let physicalCardCodeStr = null;
+                    if (item.physicalCardCode !== null && item.physicalCardCode !== undefined) {
+                        physicalCardCodeStr = String(item.physicalCardCode).trim();
+                    }
+                    
+                    const hasPhysicalCardCode = physicalCardCodeStr && physicalCardCodeStr.length > 0;
+                    console.log(`[Pass ${i + 1}/${quantity}] Has physical card code:`, hasPhysicalCardCode, 'Code:', physicalCardCodeStr, 'i === 0:', i === 0);
                     
                     let physicalCardId = null;
                     if (hasPhysicalCardCode && i === 0) {
                         try {
-                            const trimmedCode = item.physicalCardCode.trim();
-                            console.log('Processing physical card code:', trimmedCode);
+                            const trimmedCode = physicalCardCodeStr;
+                            console.log('=== Processing physical card code:', trimmedCode, '===');
                             
                             // Validate format first
                             if (!/^\d{6}$/.test(trimmedCode)) {
@@ -219,10 +230,14 @@ export const processSale = async (req, res) => {
                                 }
                             }
                             physicalCardId = physicalCard._id;
-                            console.log('Physical card ID set:', physicalCardId);
+                            console.log('=== Physical card ID set:', physicalCardId, '===');
                         } catch (error) {
-                            console.error('Error handling physical card:', error.message, error.stack);
+                            console.error('=== ERROR handling physical card ===');
+                            console.error('Error message:', error.message);
+                            console.error('Error stack:', error.stack);
+                            console.error('Physical card code that failed:', physicalCardCodeStr);
                             // Continue without physical card if there's an error
+                            // But log it prominently so we can see it
                         }
                     }
 
@@ -256,13 +271,16 @@ export const processSale = async (req, res) => {
                     });
 
                     await newPass.save();
-                    console.log('GymPass saved with ID:', newPass._id, 'physicalCardId:', newPass.physicalCardId);
+                    console.log('=== GymPass saved ===');
+                    console.log('Pass ID:', newPass._id);
+                    console.log('physicalCardId:', newPass.physicalCardId);
+                    console.log('physicalCardCode from item:', physicalCardCodeStr);
 
                     // Link physical card to pass if provided
-                    if (physicalCardId && item.physicalCardCode && i === 0) {
+                    if (physicalCardId && physicalCardCodeStr && i === 0) {
                         try {
-                            const trimmedCode = item.physicalCardCode.trim();
-                            console.log('Linking physical card', trimmedCode, 'to pass', newPass._id, 'physicalCardId:', physicalCardId);
+                            const trimmedCode = physicalCardCodeStr;
+                            console.log('=== Linking physical card', trimmedCode, 'to pass', newPass._id, 'physicalCardId:', physicalCardId, '===');
                             
                             // Verify physical card exists before linking
                             const verifyCard = await physicalCardService.findByCardCode(trimmedCode);
