@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, refreshToken, logout, me, updatePWAStatus } from '../controllers/authController.js';
+import { register, login, refreshToken, logout, me, updatePWAStatus, activate, resendActivation, resendActivationByEmail, googleAuth, googleCallback } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 import { validateRegister, validateLogin } from '../middleware/validation/authValidation.js';
 import { authRateLimiter } from '../middleware/rateLimit.js';
@@ -53,10 +53,15 @@ const checkCaptcha = async (req, res, next) => {
 
 router.post('/register', authRateLimiter, validateRegister, checkCaptcha, register);
 router.post('/login', authRateLimiter, validateLogin, login);
+router.post('/activate', activate);
+router.post('/resend-activation', authenticate, resendActivation);
+router.post('/resend-activation-by-email', authRateLimiter, resendActivationByEmail);
 router.post('/refresh', refreshToken);
 router.post('/logout', logout);
 router.get('/me', authenticate, me);
 router.post('/pwa-status', authenticate, updatePWAStatus);
+router.get('/google', googleAuth);
+router.get('/google/callback', googleCallback);
 
 export default router;
 

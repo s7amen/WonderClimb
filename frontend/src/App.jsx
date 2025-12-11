@@ -18,6 +18,9 @@ import UniversalLayout from './components/Layout/UniversalLayout';
 // Lazy load pages - NEW STRUCTURE
 const Login = lazyWithRetry(() => import('./pages/Auth/Login'), { fallback: 'Login' });
 const Register = lazyWithRetry(() => import('./pages/Auth/Register'), { fallback: 'Register' });
+const Activate = lazyWithRetry(() => import('./pages/Auth/Activate'), { fallback: 'Activate' });
+const CheckEmail = lazyWithRetry(() => import('./pages/Auth/CheckEmail'), { fallback: 'CheckEmail' });
+const Callback = lazyWithRetry(() => import('./pages/Auth/Callback'), { fallback: 'Callback' });
 const TermsOfService = lazyWithRetry(() => import('./pages/Public/TermsOfService'), { fallback: 'TermsOfService' });
 // Use the restored Home page
 const Landing = lazyWithRetry(() => import('./pages/Home/Home'), { fallback: 'Landing' });
@@ -137,6 +140,9 @@ function App() {
                 {/* Public routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/activate" element={<Activate />} />
+                <Route path="/check-email" element={<CheckEmail />} />
+                <Route path="/auth/callback" element={<Callback />} />
                 <Route path="/terms-of-service" element={<TermsOfService />} />
                 <Route path="/" element={<Home />} />
 
@@ -330,6 +336,7 @@ function App() {
                 >
                   <Route index element={<Navigate to="/settings/messages" replace />} />
                   <Route path="messages" element={<Settings />} />
+                  <Route path="notifications" element={<Settings />} />
                   <Route path="cards" element={<Settings />} />
                   <Route path="training" element={<Settings />} />
                   <Route path="pricing" element={<AdminPricing />} />

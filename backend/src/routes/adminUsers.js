@@ -36,7 +36,7 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
 
     // Build query
     let usersQuery = User.find(query)
-      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
+      .select('_id firstName middleName lastName email roles phone accountStatus emailVerified emailActivationStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
       .sort(sort);
 
     // Apply pagination if limit is set
@@ -60,6 +60,8 @@ router.get('/users', requireRole('admin', 'coach', 'instructor'), async (req, re
         phone: user.phone || '',
         roles: user.roles,
         accountStatus: user.accountStatus,
+        emailVerified: user.emailVerified || false,
+        emailActivationStatus: user.emailActivationStatus || null,
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
@@ -177,7 +179,7 @@ router.post('/users', requireRole('admin', 'coach', 'instructor'), async (req, r
 router.get('/users/:id', requireRole('admin', 'coach', 'instructor'), async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('_id firstName middleName lastName email roles phone accountStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
+      .select('_id firstName middleName lastName email roles phone accountStatus emailVerified emailActivationStatus isTrainee dateOfBirth notes photos photo photoHistory clubMembership createdAt updatedAt')
       .lean();
 
     if (!user) {
@@ -199,6 +201,8 @@ router.get('/users/:id', requireRole('admin', 'coach', 'instructor'), async (req
         phone: user.phone || '',
         roles: user.roles,
         accountStatus: user.accountStatus,
+        emailVerified: user.emailVerified || false,
+        emailActivationStatus: user.emailActivationStatus || null,
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
@@ -373,6 +377,8 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
         phone: user.phone || '',
         roles: user.roles,
         accountStatus: user.accountStatus,
+        emailVerified: user.emailVerified || false,
+        emailActivationStatus: user.emailActivationStatus || null,
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',
@@ -394,6 +400,62 @@ router.put('/users/:id', requireRole('admin'), async (req, res, next) => {
         },
       });
     }
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/admin/users/:id/activate-email
+ * Manually activate user email (admin only)
+ * Accessible to: admin only
+ */
+router.post('/users/:id/activate-email', requireRole('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          message: 'User not found',
+        },
+      });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        error: {
+          message: 'User does not have an email address',
+        },
+      });
+    }
+
+    // Activate email
+    user.emailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.emailActivationStatus = 'activated';
+    if (user.accountStatus === 'inactive') {
+      user.accountStatus = 'active';
+    }
+    await user.save();
+
+    logger.info({ 
+      userId: user._id, 
+      email: user.email, 
+      activatedBy: req.user.id 
+    }, 'Email manually activated by admin');
+
+    res.json({
+      message: 'Email activated successfully',
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        emailVerified: user.emailVerified,
+        emailActivationStatus: user.emailActivationStatus,
+        accountStatus: user.accountStatus,
+      },
+    });
+  } catch (error) {
     next(error);
   }
 });
@@ -465,6 +527,8 @@ router.put('/users/:id/roles', requireRole('admin'), async (req, res, next) => {
         phone: user.phone || '',
         roles: user.roles,
         accountStatus: user.accountStatus,
+        emailVerified: user.emailVerified || false,
+        emailActivationStatus: user.emailActivationStatus || null,
         isTrainee: user.isTrainee !== undefined ? user.isTrainee : false,
         dateOfBirth: user.dateOfBirth,
         notes: user.notes || '',

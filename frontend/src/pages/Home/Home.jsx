@@ -1,105 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
-import { sessionsAPI } from '../../services/api';
-import { format, addDays, startOfDay } from 'date-fns';
 import Button from '../../components/UI/Button';
-import Input from '../../components/UI/Input';
 import Card from '../../components/UI/Card';
-import Loading from '../../components/UI/Loading';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import ClimberMobileBottomNav from '../../components/Layout/ClimberMobileBottomNav';
-import SessionList from '../../components/Sessions/SessionList';
-import BookingModal from '../../components/UI/BookingModal';
+import Gallery from '../../components/Homepage/Gallery';
 
 const Home = () => {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedSessionId, setSelectedSessionId] = useState(null);
-  const [selectedSession, setSelectedSession] = useState(null);
-  const sessionsSectionRef = useRef(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
-
-  // Intersection Observer for fade-in on scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('fade-in-visible');
-            entry.target.classList.remove('opacity-0');
-            observer.unobserve(entry.target); // Stop observing after animation
-          }
-        });
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '0px 0px 0px 0px',
-      }
-    );
-
-    const currentRef = sessionsSectionRef.current;
-    if (currentRef) {
-      // Observe the inner div, not the section
-      const innerDiv = currentRef.querySelector('.sessions-content');
-      if (innerDiv) {
-        observer.observe(innerDiv);
-      }
-    }
-
-    return () => {
-      if (currentRef) {
-        const innerDiv = currentRef.querySelector('.sessions-content');
-        if (innerDiv) {
-          observer.unobserve(innerDiv);
-        }
-      }
-    };
-  }, [loading, sessions.length]);
-
-  const fetchSessions = async () => {
-    try {
-      setLoading(true);
-      const today = startOfDay(new Date());
-      const endDate = addDays(today, 5); // Next 5 days only
-
-      const response = await sessionsAPI.getAvailable({
-        startDate: today.toISOString(),
-        endDate: endDate.toISOString(),
-      });
-
-      // Filter out competitions - only show training sessions
-      const allSessions = response.data.sessions || [];
-      const trainingSessions = allSessions.filter(session => {
-        const sessionDate = new Date(session.date);
-        return sessionDate >= today &&
-          session.status === 'active' &&
-          session.type !== 'competition';
-      }).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      setSessions(trainingSessions);
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const onLoginSubmit = async (data) => {
     setLoginError('');
@@ -126,39 +46,6 @@ const Home = () => {
     setLoginLoading(false);
   };
 
-  const formatTime = (date) => {
-    return format(new Date(date), 'HH:mm');
-  };
-
-  const getEndTime = (startDate, durationMinutes) => {
-    const end = new Date(new Date(startDate).getTime() + durationMinutes * 60000);
-    return format(end, 'HH:mm');
-  };
-
-  const getBulgarianDayName = (date) => {
-    const dayNames = ['Нед', 'Пон', 'Вто', 'Сря', 'Чет', 'Пет', 'Съб'];
-    return dayNames[date.getDay()];
-  };
-
-  const getBookedCount = (sessionId) => {
-    const session = sessions.find(s => s._id === sessionId);
-    if (session?.bookedCount !== undefined) {
-      return session.bookedCount;
-    }
-    return 0;
-  };
-
-  const getFilteredSessions = () => {
-    return sessions;
-  };
-
-  const hasActiveFilters = () => {
-    return false; // No filters on home page
-  };
-
-  const clearAllFilters = () => {
-    // No filters to clear
-  };
 
   return (
     <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
@@ -276,86 +163,126 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Sessions section below the fold */}
-      <section ref={sessionsSectionRef} className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
-        <div className="sessions-content max-w-[1600px] mx-auto opacity-0">
-          <div className="mb-8">
-            <h2 className="text-2xl font-rubik font-medium text-neutral-950 mb-2">
-              График за тренировки
+      {/* Training Info Section */}
+      <section className="bg-white py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-rubik font-medium text-neutral-950 mb-4">
+              Тренировки по катерене
             </h2>
-            <p className="text-base text-[#4a5565]">
-              Предстоящи тренировки за следващите 5 дни
-            </p>
+            <div className="space-y-4 text-lg text-[#4a5565] max-w-3xl mx-auto">
+              <p>
+                Заниманията са подходящи за начинаещи и напреднали деца, на възраст над 4 години. 
+                Провеждат се в малки групи (до 6 деца / инструктор).
+              </p>
+              <p className="text-base">
+                Спортното и скално катерене са спортове, които развиват комплексни качества. 
+                Това е естествена физическа дейност, при която децата развиват сила, издръжливост, 
+                гъвкавост и ловкост. Те усъвършенстват координацията, фокуса и развиват умения за 
+                справяне с проблеми.
+              </p>
+              <p className="text-base">
+                Нашата цел е не само да научим малките катерачи на основите на спортното катерене, 
+                но и да развиват умения за работа в екип и да ги вдъхновим да изследват света около тях 
+                чрез този прекрасен спорт. Катеренето е един от спортовете, които най-добре укрепват 
+                психиката. Всяко направено движение по стената и всеки изкачен маршрут носят удовлетворение 
+                и повишават увереността в собствените сили и умения.
+              </p>
+            </div>
           </div>
-
-          {loading ? (
-            <Loading text="Зареждане на сесии..." />
-          ) : sessions.length === 0 ? (
-            <Card className="text-center py-8">
-              <p className="text-[#4a5565]">Няма предстоящи сесии</p>
-            </Card>
-          ) : (
-            <>
-              <SessionList
-                sessions={sessions}
-                getFilteredSessions={getFilteredSessions}
-                hasActiveFilters={hasActiveFilters}
-                clearAllFilters={clearAllFilters}
-                getBookedCount={getBookedCount}
-                getBulgarianDayName={getBulgarianDayName}
-                formatTime={formatTime}
-                getEndTime={getEndTime}
-                mode="public"
-                onReserve={(sessionId) => {
-                  if (!isAuthenticated) {
-                    navigate('/login');
-                  } else {
-                    const session = sessions.find(s => {
-                      const sId = typeof s._id === 'object' && s._id?.toString ? s._id.toString() : String(s._id);
-                      const targetId = typeof sessionId === 'object' && sessionId?.toString ? sessionId.toString() : String(sessionId);
-                      return sId === targetId;
-                    });
-                    setSelectedSessionId(sessionId);
-                    setSelectedSession(session || null);
-                    setShowBookingModal(true);
-                  }
-                }}
-                selectedSessionIds={[]}
-                user={null}
-                children={[]}
-                selectedClimberForSession={{}}
-                userBookings={[]}
-              />
-
-              <div className="mt-8 text-center">
-                <Button
-                  variant="primary"
-                  onClick={() => navigate('/sessions')}
-                  className="px-8"
-                >
-                  Виж всички
-                </Button>
-              </div>
-            </>
-          )}
         </div>
       </section>
 
-      {/* Booking Modal */}
-      <BookingModal
-        isOpen={showBookingModal}
-        onClose={() => {
-          setShowBookingModal(false);
-          setSelectedSessionId(null);
-          setSelectedSession(null);
-        }}
-        sessionIds={selectedSessionId ? [selectedSessionId] : []}
-        sessions={selectedSession ? [selectedSession] : []}
-        onBookingSuccess={async () => {
-          // Refresh sessions list
-          await fetchSessions();
-        }}
-      />
+      {/* What to Bring Section */}
+      <section className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-rubik font-medium text-neutral-950 mb-4">
+              Какво да носят децата
+            </h2>
+            <div className="grid md:grid-cols-3 gap-8 mt-8">
+              <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[#ea7a24]/10 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#ea7a24]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-neutral-950 mb-2">Обувки</h3>
+                <p className="text-[#4a5565]">
+                  Чисти обувки или обувки за катерене
+                </p>
+              </Card>
+              <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[#ea7a24]/10 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#ea7a24]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-neutral-950 mb-2">Дрехи</h3>
+                <p className="text-[#4a5565]">
+                  Подходящи удобни дрехи за сезона
+                </p>
+              </Card>
+              <Card className="text-center p-6 hover:shadow-lg transition-shadow">
+                <div className="w-16 h-16 mx-auto mb-4 bg-[#ea7a24]/10 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#ea7a24]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-medium text-neutral-950 mb-2">Вода</h3>
+                <p className="text-[#4a5565]">
+                  Бутилка вода за хидратация
+                </p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="bg-white py-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-rubik font-medium text-neutral-950 mb-4">
+              Цени
+            </h2>
+            <div className="grid md:grid-cols-2 gap-8 mt-8">
+              <Card className="p-8 text-center hover:shadow-lg transition-shadow border-2 border-transparent hover:border-[#ea7a24]/20">
+                <div className="mb-4">
+                  <h3 className="text-2xl font-medium text-neutral-950 mb-2">Една тренировка</h3>
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <span className="text-4xl font-bold text-[#ea7a24]">24 лв</span>
+                    <span className="text-2xl text-[#4a5565]">/</span>
+                    <span className="text-3xl font-semibold text-[#4a5565]">€12</span>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-8 text-center hover:shadow-lg transition-shadow border-2 border-transparent hover:border-[#ea7a24]/20">
+                <div className="mb-4">
+                  <h3 className="text-2xl font-medium text-neutral-950 mb-2">Карта</h3>
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <span className="text-4xl font-bold text-[#ea7a24]">144 лв</span>
+                    <span className="text-2xl text-[#4a5565]">/</span>
+                    <span className="text-3xl font-semibold text-[#4a5565]">€72</span>
+                  </div>
+                  <p className="text-sm text-[#4a5565] mt-2">8 тренировки</p>
+                  <p className="text-xs text-[#4a5565] mt-1 italic">Със срок на ползване 2 месеца</p>
+                </div>
+              </Card>
+            </div>
+            <div className="mt-8">
+              <Card className="bg-[#ea7a24]/5 border border-[#ea7a24]/20 p-4 inline-block">
+                <p className="text-sm text-[#4a5565]">
+                  <span className="font-medium text-[#ea7a24]">Бележка:</span> Има отстъпки за семейства и членове на клуба
+                </p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery Section */}
+      <Gallery />
 
       <Footer />
 

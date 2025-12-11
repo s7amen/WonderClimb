@@ -208,6 +208,12 @@ export const authAPI = {
   logout: () => api.post('/auth/logout', {}, { withCredentials: true }),
   refresh: () => api.post('/auth/refresh', {}, { withCredentials: true }),
   updatePWAStatus: (installed) => api.post('/auth/pwa-status', { installed }),
+  activate: (token) => api.post('/auth/activate', { token }),
+  resendActivation: () => api.post('/auth/resend-activation'),
+  resendActivationEmailByEmail: (email) => api.post('/auth/resend-activation-by-email', { email }),
+  googleAuth: () => {
+    window.location.href = `${API_BASE_URL}/auth/google`;
+  },
 };
 
 // Sessions API
@@ -302,6 +308,7 @@ export const adminUsersAPI = {
   updateRoles: (id, roles) => api.put(`/admin/users/${id}/roles`, { roles }),
   getCoaches: () => api.get('/admin/users?role=coach'),
   create: (data) => api.post('/admin/users', data),
+  activateEmail: (id) => api.post(`/admin/users/${id}/activate-email`),
 };
 
 // Climber Photos API

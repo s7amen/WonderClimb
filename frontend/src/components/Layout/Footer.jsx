@@ -38,8 +38,8 @@ const Footer = () => {
       <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Logo */}
-          <div className="flex flex-col gap-4">
-            <Logo showText={true} showSubtitle={true} size="md" />
+          <div className="flex items-center gap-4">
+            <Logo showText={true} showSubtitle={true} size="md" logoHeight="auto" />
           </div>
 
           {/* Links */}
@@ -76,8 +76,8 @@ const Footer = () => {
         </div>
 
         {/* Copyright and Install Button */}
-        <div className="border-t border-[#4a5565] pt-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4" style={{ minHeight: '60px' }}>
+        <div className="border-t border-[#4a5565] pt-3 pb-3">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4">
             <p className="text-[#99a1af] text-base text-center font-normal">
               © СК „Чудните скали" Варна®
             </p>

@@ -408,6 +408,45 @@ const ClimberProfile = () => {
                   <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all duration-200 shadow-sm ${climber.clubMembership?.isCurrentMember ? 'left-6' : 'left-1'}`} />
                 </div>
               </div>
+
+              {/* Email Activation Status */}
+              {climber.email && (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="font-semibold text-gray-900">Email активация</p>
+                    {(() => {
+                      const status = climber.emailActivationStatus || (climber.emailVerified ? 'activated' : null);
+                      const statusConfig = {
+                        'activated': { label: 'Активиран', color: 'bg-green-500', textColor: 'text-green-700' },
+                        'email_sent': { label: 'Имейл изпратен', color: 'bg-yellow-500', textColor: 'text-yellow-700' },
+                        'not_activated': { label: 'Неактивиран', color: 'bg-red-500', textColor: 'text-red-700' },
+                      };
+                      const config = statusConfig[status] || { label: 'Неизвестен', color: 'bg-gray-500', textColor: 'text-gray-700' };
+                      return (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.textColor} ${config.color.replace('500', '100')}`}>
+                          {config.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  {currentUser?.roles?.includes('admin') && climber.emailActivationStatus !== 'activated' && climber.emailActivationStatus !== null && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await adminUsersAPI.activateEmail(id);
+                          showToast('Email активиран успешно', 'success');
+                          fetchClimber();
+                        } catch (error) {
+                          showToast(error.response?.data?.error?.message || 'Грешка при активиране на email', 'error');
+                        }
+                      }}
+                      className="mt-2 w-full px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                    >
+                      Активирай ръчно
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

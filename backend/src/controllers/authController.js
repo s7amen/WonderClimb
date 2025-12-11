@@ -6,6 +6,8 @@ import { config } from '../config/env.js';
 import logger from '../middleware/logging.js';
 import { generateToken } from '../middleware/auth.js';
 import * as auditService from '../services/auditService.js';
+import * as authService from '../services/authService.js';
+import { getAuthUrl, handleCallback, generateStateToken } from '../services/gmailOAuthService.js';
 
 // Helper to generate a random refresh token string
 const randomTokenString = () => {
@@ -26,59 +28,62 @@ const setRefreshTokenCookie = (res, token) => {
 
 export const register = async (req, res) => {
     try {
-        const { email, password, firstName, lastName, phone, roles } = req.body;
+        const { email, password, firstName, middleName, lastName, phone, roles } = req.body;
 
-        // Check if user exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: { message: 'Email already registered' } });
-        }
-
-        // Create user
-        const passwordHash = await User.hashPassword(password);
-        const user = new User({
+        // Use authService for registration
+        const user = await authService.registerUser(
             email,
-            passwordHash,
+            password,
             firstName,
+            middleName,
             lastName,
-            phone,
-            roles: roles || ['climber'],
-        });
+            roles,
+            phone
+        );
 
-        await user.save();
-
-        // Generate tokens
-        const accessToken = generateToken({
-            id: user._id,
-            email: user.email,
-            roles: user.roles
-        });
-
-        const refreshTokenString = randomTokenString();
-        const refreshToken = new RefreshToken({
-            userId: user._id,
-            token: refreshTokenString,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-            createdIp: req.ip,
-        });
-        await refreshToken.save();
-
-        setRefreshTokenCookie(res, refreshTokenString);
-
-        res.status(201).json({
-            message: 'User registered successfully',
-            token: accessToken,
-            user: {
+        // Check if account is active (activation email might be disabled)
+        if (user.accountStatus === 'active' && user.emailVerified) {
+            // Generate tokens only for active accounts
+            const accessToken = generateToken({
                 id: user._id,
                 email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                roles: user.roles,
-            },
-        });
+                roles: user.roles
+            });
+
+            const refreshTokenString = randomTokenString();
+            const refreshToken = new RefreshToken({
+                userId: user._id,
+                token: refreshTokenString,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+                createdIp: req.ip,
+            });
+            await refreshToken.save();
+
+            setRefreshTokenCookie(res, refreshTokenString);
+
+            res.status(201).json({
+                message: 'User registered successfully',
+                token: accessToken,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    middleName: user.middleName,
+                    lastName: user.lastName,
+                    roles: user.roles,
+                },
+            });
+        } else {
+            // Account is inactive - activation email was sent
+            res.status(201).json({
+                message: 'User registered successfully. Please check your email to activate your account.',
+                requiresActivation: true,
+            });
+        }
     } catch (error) {
-        logger.error({ error }, 'Registration error');
-        res.status(500).json({ error: { message: 'Registration failed' } });
+        logger.error({ error: error.message }, 'Registration error');
+        const statusCode = error.message.includes('вече съществува') ? 400 : 500;
+        res.status(statusCode).json({ error: { message: error.message || 'Registration failed' } });
     }
 };
 
@@ -86,27 +91,11 @@ export const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(401).json({ error: { message: 'Invalid credentials' } });
-        }
+        // Use authService for login
+        const result = await authService.loginUser(email, password);
+        const user = await User.findById(result.user.id);
 
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ error: { message: 'Invalid credentials' } });
-        }
-
-        if (user.accountStatus !== 'active') {
-            return res.status(403).json({ error: { message: 'Account is inactive' } });
-        }
-
-        // Generate tokens
-        const accessToken = generateToken({
-            id: user._id,
-            email: user.email,
-            roles: user.roles
-        });
-
+        // Generate refresh token
         const refreshTokenString = randomTokenString();
         const refreshToken = new RefreshToken({
             userId: user._id,
@@ -130,18 +119,13 @@ export const login = async (req, res) => {
 
         res.json({
             message: 'Login successful',
-            token: accessToken,
-            user: {
-                id: user._id,
-                email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                roles: user.roles,
-            },
+            token: result.token,
+            user: result.user,
         });
     } catch (error) {
-        logger.error({ error }, 'Login error');
-        res.status(500).json({ error: { message: 'Login failed' } });
+        logger.error({ error: error.message }, 'Login error');
+        const statusCode = error.message.includes('неактивен') || error.message.includes('верифициран') ? 403 : 401;
+        res.status(statusCode).json({ error: { message: error.message || 'Login failed' } });
     }
 };
 
@@ -262,5 +246,175 @@ export const updatePWAStatus = async (req, res) => {
     } catch (error) {
         logger.error({ error }, 'Update PWA status error');
         res.status(500).json({ error: { message: 'Failed to update PWA status' } });
+    }
+};
+
+/**
+ * Activate account using activation token
+ */
+export const activate = async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ error: { message: 'Activation token is required' } });
+        }
+
+        const user = await authService.activateAccount(token);
+
+        // Generate tokens
+        const accessToken = generateToken({
+            id: user._id,
+            email: user.email,
+            roles: user.roles
+        });
+
+        const refreshTokenString = randomTokenString();
+        const refreshToken = new RefreshToken({
+            userId: user._id,
+            token: refreshTokenString,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            createdIp: req.ip,
+        });
+        await refreshToken.save();
+
+        setRefreshTokenCookie(res, refreshTokenString);
+
+        res.json({
+            message: 'Account activated successfully',
+            token: accessToken,
+            user: {
+                id: user._id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                roles: user.roles,
+            },
+        });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Activation error');
+        res.status(400).json({ error: { message: error.message || 'Activation failed' } });
+    }
+};
+
+/**
+ * Resend activation email (authenticated)
+ */
+export const resendActivation = async (req, res) => {
+    try {
+        const userId = req.user?.id || req.body.userId;
+
+        if (!userId) {
+            return res.status(400).json({ error: { message: 'User ID is required' } });
+        }
+
+        await authService.resendActivationEmail(userId);
+
+        res.json({ message: 'Activation email sent successfully' });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Resend activation error');
+        res.status(400).json({ error: { message: error.message || 'Failed to resend activation email' } });
+    }
+};
+
+/**
+ * Resend activation email by email (public)
+ */
+export const resendActivationByEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: { message: 'Email is required' } });
+        }
+
+        await authService.resendActivationEmailByEmail(email);
+
+        // Always return success message for security (don't reveal if user exists)
+        res.json({ message: 'Ако акаунт с този имейл съществува и не е активиран, activation email ще бъде изпратен.' });
+    } catch (error) {
+        logger.error({ error: error.message }, 'Resend activation by email error');
+        // Always return success message for security
+        res.json({ message: 'Ако акаунт с този имейл съществува и не е активиран, activation email ще бъде изпратен.' });
+    }
+};
+
+/**
+ * Initiate Google OAuth flow
+ */
+export const googleAuth = async (req, res) => {
+    try {
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/v1/auth/google/callback`;
+        const state = generateStateToken();
+
+        // Store state in session or cookie for CSRF protection
+        // For simplicity, we'll use a cookie
+        res.cookie('oauth_state', state, {
+            httpOnly: true,
+            secure: config.nodeEnv === 'production',
+            sameSite: 'lax',
+            maxAge: 10 * 60 * 1000, // 10 minutes
+        });
+
+        const authUrl = getAuthUrl(redirectUri, state);
+        res.redirect(authUrl);
+    } catch (error) {
+        logger.error({ error: error.message }, 'Google OAuth initiation error');
+        res.status(500).json({ error: { message: 'Failed to initiate OAuth flow' } });
+    }
+};
+
+/**
+ * Handle Google OAuth callback
+ */
+export const googleCallback = async (req, res) => {
+    try {
+        const { code, state } = req.query;
+        const storedState = req.cookies.oauth_state;
+
+        // Verify state
+        if (!state || state !== storedState) {
+            return res.status(400).json({ error: { message: 'Invalid state parameter' } });
+        }
+
+        // Clear state cookie
+        res.clearCookie('oauth_state');
+
+        if (!code) {
+            return res.status(400).json({ error: { message: 'Authorization code is missing' } });
+        }
+
+        const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/v1/auth/google/callback`;
+        const result = await handleCallback(code, redirectUri);
+
+        // Generate refresh token
+        const refreshTokenString = randomTokenString();
+        const refreshToken = new RefreshToken({
+            userId: result.user.id,
+            token: refreshTokenString,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            createdIp: req.ip,
+        });
+        await refreshToken.save();
+
+        setRefreshTokenCookie(res, refreshTokenString);
+
+        // Audit Log
+        await auditService.log(
+            result.user.id,
+            'USER_LOGIN',
+            'Auth',
+            result.user.id,
+            { email: result.user.email, method: 'google_oauth' },
+            req
+        );
+
+        // Redirect to frontend with token
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/auth/callback?token=${result.token}`);
+    } catch (error) {
+        logger.error({ error: error.message }, 'Google OAuth callback error');
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/auth/callback?error=${encodeURIComponent(error.message)}`);
     }
 };

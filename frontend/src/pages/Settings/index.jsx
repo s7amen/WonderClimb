@@ -1,64 +1,41 @@
-import { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import MessageSettings from './Messages.jsx';
 import Cards from './Cards.jsx';
 import TrainingSettings from './Training.jsx';
+import NotificationSettings from './Notification.jsx';
 
 const Settings = () => {
-  const navigate = useNavigate();
   const location = useLocation();
 
-  const tabs = [
-    { id: 'messages', name: 'Настройки на съобщения', path: '/settings/messages' },
-    { id: 'cards', name: 'Карти', path: '/settings/cards' },
-    { id: 'training', name: 'Тренировки', path: '/settings/training' },
-  ];
-
-  const getActiveTab = () => {
-    return tabs.find(tab => location.pathname.startsWith(tab.path))?.id || 'messages';
+  // Determine which component to show based on path
+  const getContent = () => {
+    if (location.pathname.startsWith('/settings/messages')) {
+      return { component: <MessageSettings />, title: 'Настройки на съобщения' };
+    }
+    if (location.pathname.startsWith('/settings/notifications')) {
+      return { component: <NotificationSettings />, title: 'Activation email' };
+    }
+    if (location.pathname.startsWith('/settings/cards')) {
+      return { component: <Cards />, title: 'Карти' };
+    }
+    if (location.pathname.startsWith('/settings/training')) {
+      return { component: <TrainingSettings />, title: 'Тренировки' };
+    }
+    // Default fallback
+    return { component: <MessageSettings />, title: 'Настройки на съобщения' };
   };
 
-  const activeTab = getActiveTab();
-
-  const handleTabClick = (tabPath) => {
-    navigate(tabPath);
-  };
+  const { component, title } = getContent();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-medium text-neutral-950">Настройки</h1>
+        <h1 className="text-2xl font-medium text-neutral-950">{title}</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabClick(tab.path)}
-                className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                  ${isActive
-                    ? 'border-[#ea7a24] text-[#ea7a24]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
-                `}
-              >
-                {tab.name}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
+      {/* Content */}
       <div>
-        {activeTab === 'messages' && <MessageSettings />}
-        {activeTab === 'cards' && <Cards />}
-        {activeTab === 'training' && <TrainingSettings />}
+        {component}
         <Outlet />
       </div>
     </div>

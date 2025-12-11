@@ -54,7 +54,26 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.register(userData);
 
-      // After registration, automatically log in
+      // Check if activation is required
+      if (response.data.requiresActivation) {
+        // Don't auto-login, user needs to activate account first
+        return { 
+          success: true, 
+          requiresActivation: true,
+          message: response.data.message || 'Моля, проверете имейла си за активиране на акаунта'
+        };
+      }
+
+      // Account is active, proceed with auto-login
+      if (response.data.token && response.data.user) {
+        // User is already logged in from registration
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setUser(response.data.user);
+        return { success: true };
+      }
+
+      // Fallback: try to login
       const loginResponse = await authAPI.login({
         email: userData.email,
         password: userData.password,
@@ -62,7 +81,6 @@ export const AuthProvider = ({ children }) => {
 
       const { token, user: loggedInUser } = loginResponse.data;
       localStorage.setItem('token', token);
-      // Use user data from login response (includes roles from DB)
       localStorage.setItem('user', JSON.stringify(loggedInUser));
       setUser(loggedInUser);
 

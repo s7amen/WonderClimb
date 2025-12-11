@@ -30,7 +30,6 @@ export const NAVIGATION_CONFIG = {
                 { label: 'Треньори', path: '/team', icon: 'Team' },
                 { label: 'Състезания', path: '/competitions/manage', icon: 'Trophy' },
                 { label: 'Карти', path: '/training/passes', icon: 'Card' },
-                { label: 'Настройки', path: '/settings/training', icon: 'Settings' },
                 { label: 'Плащания', path: '/finance/reports/coach-fees', icon: 'Money' },
             ]
         },
@@ -54,9 +53,9 @@ export const NAVIGATION_CONFIG = {
                 { label: 'Цени', path: '/settings/pricing', icon: 'Tag' },
                 { label: 'Карти', path: '/settings/cards', icon: 'Card' },
                 { label: 'Съобщения', path: '/settings/messages', icon: 'Mail' },
+                { label: 'Тренировки', path: '/settings/training', icon: 'Dumbbell' },
                 { label: 'Cron Jobs', path: '/admin/cron-jobs', icon: 'Clock' },
                 { label: 'Notifications', path: '/settings/notifications', icon: 'Bell' },
-                { label: 'System Settings', path: '/settings/system', icon: 'Cog' },
             ]
         }
     ],

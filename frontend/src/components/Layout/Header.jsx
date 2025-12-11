@@ -189,40 +189,39 @@ const Header = () => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-[70px]">
             {/* Logo */}
-            <Link to="/" className="flex items-start gap-4">
-              {/* Logo Icon - sized to match combined text height */}
-              <div className="relative h-[3rem] w-[3rem] shrink-0">
-                <div className="absolute inset-[10%]">
-                  <img
-                    alt="WonderClimb Logo"
-                    src="/logo-icon.svg"
-                    className="w-full h-full"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      const fallback = e.target.nextSibling;
-                      if (fallback) fallback.style.display = 'block';
-                    }}
-                  />
-                  {/* Fallback SVG */}
-                  <svg
-                    className="w-full h-full hidden"
-                    viewBox="0 0 128 128"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect x="0" y="0" width="128" height="128" rx="16" fill="#EA7A24" />
-                    <path d="M20 100 L40 80 L60 90 L80 60 L100 70 L110 40" stroke="#35383d" strokeWidth="2" strokeDasharray="4 4" fill="none" />
-                    <path d="M40 80 L45 75 L50 80 L45 85 Z" fill="#ADB933" />
-                    <path d="M60 90 L65 85 L70 90 L65 95 Z" fill="#ADB933" />
-                    <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#ADB933" />
-                    <circle cx="20" cy="100" r="4" fill="#ADB933" />
-                    <circle cx="100" cy="70" r="4" fill="#ADB933" />
-                    <path d="M20 100 L25 95 L30 100 L25 105 Z" fill="#35383d" />
-                    <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#35383d" />
-                    <circle cx="110" cy="40" r="8" fill="#35383d" />
-                    <circle cx="110" cy="40" r="4" fill="white" />
-                  </svg>
-                </div>
+            <Link to="/" className="flex items-center gap-4">
+              {/* Logo Icon - full height of header with 2px padding top and bottom */}
+              <div className="relative h-[70px] w-auto shrink-0 flex items-center py-[2px]">
+                <img
+                  alt="WonderClimb Logo"
+                  src="/white_logo_chudnite_skali.png"
+                  className="h-full w-auto object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextSibling;
+                    if (fallback) fallback.style.display = 'block';
+                  }}
+                />
+                {/* Fallback SVG */}
+                <svg
+                  className="h-full w-auto hidden"
+                  viewBox="0 0 128 128"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  preserveAspectRatio="xMidYMid meet"
+                >
+                  <rect x="0" y="0" width="128" height="128" rx="16" fill="#EA7A24" />
+                  <path d="M20 100 L40 80 L60 90 L80 60 L100 70 L110 40" stroke="#35383d" strokeWidth="2" strokeDasharray="4 4" fill="none" />
+                  <path d="M40 80 L45 75 L50 80 L45 85 Z" fill="#ADB933" />
+                  <path d="M60 90 L65 85 L70 90 L65 95 Z" fill="#ADB933" />
+                  <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#ADB933" />
+                  <circle cx="20" cy="100" r="4" fill="#ADB933" />
+                  <circle cx="100" cy="70" r="4" fill="#ADB933" />
+                  <path d="M20 100 L25 95 L30 100 L25 105 Z" fill="#35383d" />
+                  <path d="M80 60 L85 55 L90 60 L85 65 Z" fill="#35383d" />
+                  <circle cx="110" cy="40" r="8" fill="#35383d" />
+                  <circle cx="110" cy="40" r="4" fill="white" />
+                </svg>
               </div>
               {/* Text container with equal width for both texts */}
               <div className="flex flex-col items-start min-w-[200px]">

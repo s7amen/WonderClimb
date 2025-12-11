@@ -212,3 +212,4 @@ export const getSuggestions = async (context = 'check-in') => {
   }
 };
 
+

@@ -120,3 +120,4 @@ Admins могат да управляват cron jobs от `/admin/cron-jobs`:
 - Провери дали имаш admin права
 - Провери network tab за API грешки
 
+

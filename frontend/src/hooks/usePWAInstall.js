@@ -10,8 +10,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const [debugInfo, setDebugInfo] = useState({});
   // Track if beforeinstallprompt event was ever received in this session
   const promptEverReceived = useRef(false);
+  // Use ref to track deferredPrompt for cleanup functions without causing effect re-runs
+  const deferredPromptRef = useRef(null);
 
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:14',message:'useEffect hook started',data:{deferredPrompt:!!deferredPrompt,userAgent:navigator.userAgent.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Early device detection - skip all PWA checks on desktop devices
     const isMobileOrTablet = () => {
       const userAgent = navigator.userAgent.toLowerCase();
@@ -268,6 +273,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:270',message:'beforeinstallprompt event received',data:{eventType:e.type,hasPreventDefault:typeof e.preventDefault==='function',currentDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       console.log('[PWA Install] beforeinstallprompt event received', e);
       promptEverReceived.current = true;
 
@@ -280,17 +288,28 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         localStorage.removeItem('pwa-installed');
       }
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:283',message:'Calling preventDefault and setting deferredPrompt',data:{beforePreventDefault:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       e.preventDefault();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:285',message:'Setting deferredPrompt state',data:{eventObject:!!e},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      deferredPromptRef.current = e;
       setDeferredPrompt(e);
       setError(null);
     };
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:288',message:'Adding beforeinstallprompt event listener',data:{hasWindow:typeof window!=='undefined',currentDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // Listen for app installed event
     const handleAppInstalled = () => {
       console.log('[PWA Install] App installed event received');
       setIsInstalled(true);
+      deferredPromptRef.current = null;
       setDeferredPrompt(null);
       localStorage.setItem('pwa-installed', 'true');
       setError(null);
@@ -319,7 +338,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
       // If we're not in standalone and we have a deferred prompt, it means app was uninstalled
       // because beforeinstallprompt only fires when app is NOT installed
-      if (!isStandalone && !isIOSStandalone && !isAndroidPWA && hasLocalStorageInstalled && deferredPrompt) {
+      if (!isStandalone && !isIOSStandalone && !isAndroidPWA && hasLocalStorageInstalled && deferredPromptRef.current) {
         console.log('[PWA Install] Detected app was uninstalled (beforeinstallprompt fired again), resetting status');
         setIsInstalled(false);
         localStorage.removeItem('pwa-installed');
@@ -335,12 +354,18 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }, 5000);
 
     return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:337',message:'Cleaning up event listeners',data:{deferredPrompt:!!deferredPromptRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
       clearInterval(interval);
       clearInterval(uninstallCheckInterval);
     };
-  }, [deferredPrompt]);
+    // Remove deferredPrompt from dependencies - it causes the effect to re-run and potentially miss the event
+    // We use deferredPromptRef to track the current value without causing re-renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openInstalledApp = () => {
     // If app is installed, show message to open it manually
@@ -390,6 +415,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   };
 
   const install = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:392',message:'Install button clicked',data:{deferredPrompt:!!deferredPrompt,isInstalled,promptEverReceived:promptEverReceived.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     // If already installed, open the app instead
     if (isInstalled) {
       openInstalledApp();
@@ -405,6 +433,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     });
 
     if (!deferredPrompt) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:407',message:'No deferredPrompt available',data:{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,promptEverReceived:promptEverReceived.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       // For iOS, show instructions
       if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
         const message = 'За да инсталирате приложението:\n\n' +
@@ -496,9 +527,15 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:498',message:'Calling deferredPrompt.prompt()',data:{hasDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       console.log('[PWA Install] Calling deferredPrompt.prompt()');
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice();
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:502',message:'User choice received',data:{outcome},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       console.log('[PWA Install] User choice:', outcome);
 
       if (outcome === 'accepted') {
@@ -515,6 +552,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         }
       }
 
+      deferredPromptRef.current = null;
       setDeferredPrompt(null);
     } catch (error) {
       const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
@@ -530,6 +568,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       } else {
         alert(errorMsg);
       }
+      deferredPromptRef.current = null;
       setDeferredPrompt(null);
     }
   };

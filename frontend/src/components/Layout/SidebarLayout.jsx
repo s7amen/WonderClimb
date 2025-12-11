@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar/Sidebar';
 import Header from './Header';
+import UnactivatedAccountBanner from '../UnactivatedAccountBanner';
 
 const SidebarLayout = () => {
     return (
         <div className="min-h-screen bg-[#f3f3f5] flex flex-col">
             <Header />
+            <UnactivatedAccountBanner />
             <div className="flex flex-1 overflow-hidden">
                 <Sidebar />
                 <main className="flex-1 overflow-auto h-[calc(100vh-70px)]">

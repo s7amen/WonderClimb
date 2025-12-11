@@ -59,7 +59,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: ['active', 'inactive'],
-    default: 'active',
+    default: 'inactive',
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerifiedAt: {
+    type: Date,
+    default: null,
+  },
+  emailActivationStatus: {
+    type: String,
+    enum: ['activated', 'email_sent', 'not_activated'],
+    default: null, // null за backward compatibility - третира се като 'activated'
   },
   isTrainee: {
     type: Boolean,

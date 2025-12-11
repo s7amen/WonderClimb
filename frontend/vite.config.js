@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo-icon.svg'],
+      includeAssets: ['favicon.svg', 'logo-icon.png', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
       manifestFilename: 'manifest.json', // Use manifest.json instead of manifest.webmanifest
       manifest: {
         name: 'WonderClimb',
@@ -22,9 +22,15 @@ export default defineConfig({
         start_url: '/sessions',
         icons: [
           {
-            src: '/logo-icon.svg',
-            sizes: 'any',
-            type: 'image/svg+xml',
+            src: '/icons/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/icons/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
             purpose: 'any maskable'
           }
         ],
