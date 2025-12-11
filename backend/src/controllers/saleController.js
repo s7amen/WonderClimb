@@ -8,6 +8,41 @@ import { Family } from '../models/family.js';
 import mongoose from 'mongoose';
 import * as auditService from '../services/auditService.js';
 import * as physicalCardService from '../services/physicalCardService.js';
+import { isGymPassUsable, isTrainingPassUsable } from '../services/physicalCardService.js';
+import logger from '../middleware/logging.js';
+
+/**
+ * Get the next sequential passId
+ * Returns the next available number starting from 1
+ */
+const getNextSequentialPassId = async () => {
+    try {
+        // Get all passes that exist in the database (including soft deleted)
+        const allPasses = await GymPass.find({}).select('passId').lean();
+        
+        // Filter to only numeric passIds and convert to numbers
+        const numericPassIds = allPasses
+            .map(p => p.passId)
+            .filter(id => /^\d+$/.test(id)) // Only pure numbers
+            .map(id => parseInt(id, 10))
+            .filter(num => !isNaN(num));
+        
+        if (numericPassIds.length === 0) {
+            // No numeric passes exist, start from 1
+            return '1';
+        }
+        
+        // Find the largest number from existing passes in database
+        const maxNumber = Math.max(...numericPassIds);
+        
+        // Use the next number
+        return (maxNumber + 1).toString();
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error generating sequential passId in saleController');
+        // Fallback: use timestamp
+        return `PASS-${Date.now()}`;
+    }
+};
 
 /**
  * Process a sale transaction with multiple items (visits, passes, products)
@@ -177,6 +212,15 @@ export const processSale = async (req, res) => {
                 const createdPassesForThisItem = [];
 
                 for (let i = 0; i < quantity; i++) {
+                    // Generate sequential passId for each pass
+                    const sequentialPassId = await getNextSequentialPassId();
+                    
+                    // Check for duplicate passId (safety check)
+                    const existingPass = await GymPass.findOne({ passId: sequentialPassId });
+                    if (existingPass) {
+                        throw new Error(`Дублиран номер на карта: ${sequentialPassId}. Моля опитайте отново.`);
+                    }
+                    
                     // Determine valid dates - use item data if provided, otherwise calculate from pricing
                     let validFromDate = new Date();
                     if (item.validFrom) {
@@ -224,14 +268,64 @@ export const processSale = async (req, res) => {
                                 physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
                                 console.log('Physical card created:', physicalCard._id);
                             } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
-                                const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
-                                if (linkedPass && linkedPass.isActive) {
-                                    throw new Error('Physical card is already linked to an active pass');
+                                // Check if linked pass is still active
+                                let linkedPass = null;
+                                let linkedPassType = 'gym';
+                                if (physicalCard.linkedToPassType === 'training') {
+                                    const { TrainingPass } = await import('../models/trainingPass.js');
+                                    linkedPass = await TrainingPass.findById(physicalCard.linkedToCardInternalCode)
+                                        .populate('userId', 'firstName lastName')
+                                        .populate('familyId', 'name');
+                                    linkedPassType = 'training';
+                                } else {
+                                    // Default to gym pass (for backward compatibility)
+                                    linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode)
+                                        .populate('userId', 'firstName lastName')
+                                        .populate('familyId', 'name');
+                                }
+                                
+                                // Check if pass is truly usable (active + not expired + has entries/sessions)
+                                const isUsable = linkedPassType === 'training' 
+                                    ? isTrainingPassUsable(linkedPass) 
+                                    : isGymPassUsable(linkedPass);
+                                
+                                if (linkedPass && isUsable) {
+                                    // Extract client name
+                                    const clientName = linkedPass.userId 
+                                        ? `${linkedPass.userId.firstName} ${linkedPass.userId.lastName}`
+                                        : linkedPass.familyId?.name || 'Неизвестен';
+                                    
+                                    // КЛЮЧОВА ЛОГИКА: Провери дали е същия потребител
+                                    const isSameUser = (
+                                        // Същия userId
+                                        (itemUserId && linkedPass.userId?._id.toString() === itemUserId) ||
+                                        // Същото familyId
+                                        (item.familyId && linkedPass.familyId?._id.toString() === item.familyId)
+                                    );
+                                    
+                                    // Create enriched error with details
+                                    const enrichedError = new Error('PHYSICAL_CARD_OCCUPIED');
+                                    enrichedError.statusCode = 409;
+                                    enrichedError.details = {
+                                        cardCode: trimmedCode,
+                                        passType: linkedPassType,
+                                        currentPassId: physicalCard.linkedToCardInternalCode,
+                                        clientName,
+                                        validUntil: linkedPass.validUntil,
+                                        canQueue: isSameUser // САМО TRUE ако е същия потребител!
+                                    };
+                                    
+                                    throw enrichedError;
                                 }
                             }
                             physicalCardId = physicalCard._id;
                             console.log('=== Physical card ID set:', physicalCardId, '===');
                         } catch (error) {
+                            // If it's our enriched error, re-throw it to be handled by outer catch
+                            if (error.statusCode === 409 && error.details) {
+                                throw error;
+                            }
+                            
                             console.error('=== ERROR handling physical card ===');
                             console.error('Error message:', error.message);
                             console.error('Error stack:', error.stack);
@@ -241,21 +335,32 @@ export const processSale = async (req, res) => {
                         }
                     }
 
+                    // Determine pass type based on pricing.maxEntries
+                    // If maxEntries is null or 0 → time_based, if > 0 → prepaid_entries
+                    let passType = 'time_based';
+                    if (pricing.category === 'gym_single_visit') {
+                        passType = 'single';
+                    } else if (pricing.maxEntries != null && pricing.maxEntries > 0) {
+                        passType = 'prepaid_entries';
+                    }
+                    // Otherwise defaults to 'time_based' (when maxEntries is null or 0)
+
                     // Create GymPass
                     console.log('Creating GymPass with:', {
                         userId: passOwnerId,
                         familyId: familyId,
                         isFamilyPass: !!familyId,
                         physicalCardId: physicalCardId,
-                        passId: `PASS-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+                        passId: sequentialPassId,
+                        passType: passType
                     });
 
                     const newPass = new GymPass({
                         userId: passOwnerId,
                         familyId: familyId,
                         isFamilyPass: !!familyId,
-                        passId: `PASS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                        type: pricing.category === 'gym_pass' ? 'prepaid_entries' : 'time_based',
+                        passId: sequentialPassId,
+                        type: passType,
                         name: pricing.labelBg || pricing.category,
                         totalEntries: (item.totalEntries !== undefined && item.totalEntries !== null) ? item.totalEntries : pricing.maxEntries,
                         remainingEntries: (item.totalEntries !== undefined && item.totalEntries !== null) ? item.totalEntries : pricing.maxEntries,
@@ -289,7 +394,7 @@ export const processSale = async (req, res) => {
                             }
                             console.log('Physical card verified:', verifyCard._id, 'status:', verifyCard.status);
                             
-                            await physicalCardService.linkToPass(trimmedCode, newPass._id);
+                            await physicalCardService.linkToPass(trimmedCode, newPass._id, 'gym');
                             console.log('Physical card linked successfully');
                             
                             // Verify the link - reload pass from DB
@@ -407,9 +512,18 @@ export const processSale = async (req, res) => {
     } catch (error) {
         console.error('Sale processing error:', error);
 
+        // Handle enriched PHYSICAL_CARD_OCCUPIED error
+        if (error.statusCode === 409 && error.details) {
+            return res.status(409).json({
+                error: 'PHYSICAL_CARD_OCCUPIED',
+                message: error.message,
+                details: error.details
+            });
+        }
+
         // Return detailed error if possible
         const errorMessage = error.message || 'Unknown error occurred';
-        res.status(500).json({
+        res.status(error.statusCode || 500).json({
             message: 'Failed to process sale',
             error: errorMessage,
             details: error.errors ? JSON.stringify(error.errors) : undefined

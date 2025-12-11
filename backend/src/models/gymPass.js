@@ -128,4 +128,13 @@ gymPassSchema.pre('save', function (next) {
     next();
 });
 
+// Middleware to prevent passId changes after creation
+gymPassSchema.pre('save', function (next) {
+    // Only check if this is an update (not a new document)
+    if (!this.isNew && this.isModified('passId')) {
+        return next(new Error('passId cannot be changed after creation'));
+    }
+    next();
+});
+
 export const GymPass = mongoose.model('GymPass', gymPassSchema);

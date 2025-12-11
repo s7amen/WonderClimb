@@ -25,7 +25,6 @@ const AdminPricing = () => {
         category: '',
         amount: '',
         validityDays: '',
-        validityType: 'days',
         maxEntries: '',
         notes: '',
     });
@@ -63,7 +62,6 @@ const AdminPricing = () => {
             category: '',
             amount: '',
             validityDays: '',
-            validityType: 'days',
             maxEntries: '',
             notes: '',
         });
@@ -81,7 +79,6 @@ const AdminPricing = () => {
                 category: '',
                 amount: '',
                 validityDays: '',
-                validityType: 'days',
                 maxEntries: '',
                 notes: '',
             });
@@ -98,7 +95,6 @@ const AdminPricing = () => {
                 category: selectedPricing.category,
                 amount: selectedPricing.amount.toString(),
                 validityDays: selectedPricing.validityDays?.toString() || '',
-                validityType: selectedPricing.validityType || 'days',
                 maxEntries: selectedPricing.maxEntries?.toString() || '',
                 notes: selectedPricing.notes || '',
             });
@@ -113,7 +109,6 @@ const AdminPricing = () => {
             category: pricing.category,
             amount: pricing.amount.toString(),
             validityDays: pricing.validityDays?.toString() || '',
-            validityType: pricing.validityType || 'days',
             maxEntries: pricing.maxEntries?.toString() || '',
             notes: pricing.notes || '',
         });
@@ -186,7 +181,7 @@ const AdminPricing = () => {
                 category: formData.category,
                 amount: parseFloat(formData.amount),
                 validityDays: formData.validityDays ? parseInt(formData.validityDays) : null,
-                validityType: formData.validityType,
+                validityType: 'months', // Always use months
                 maxEntries: formData.maxEntries ? parseInt(formData.maxEntries) : null,
                 notes: formData.notes.trim() || undefined,
             };
@@ -323,7 +318,7 @@ const AdminPricing = () => {
                                             {pricing.amount.toFixed(2)} €
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {pricing.validityDays ? `${pricing.validityDays} ${pricing.validityType === 'months' ? (pricing.validityDays === 1 ? 'месец' : 'месеца') : 'дни'}` : '-'}
+                                            {pricing.validityDays ? `${pricing.validityDays} ${pricing.validityDays === 1 ? 'месец' : 'месеца'}` : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {pricing.maxEntries || '-'}
@@ -514,34 +509,17 @@ const AdminPricing = () => {
                         </div>
 
                         <div>
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-neutral-950 mb-1">
-                                        Валидност
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={formData.validityDays}
-                                        onChange={(e) => handleInputChange('validityDays', e.target.value)}
-                                        placeholder="0"
-                                        className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950"
-                                    />
-                                </div>
-                                <div className="w-[110px]">
-                                    <label className="block text-sm font-medium text-neutral-950 mb-1">
-                                        Мярка
-                                    </label>
-                                    <select
-                                        value={formData.validityType}
-                                        onChange={(e) => handleInputChange('validityType', e.target.value)}
-                                        className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950"
-                                    >
-                                        <option value="days">Дни</option>
-                                        <option value="months">Месеци</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <label className="block text-sm font-medium text-neutral-950 mb-1">
+                                Валидност (месеци)
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.validityDays}
+                                onChange={(e) => handleInputChange('validityDays', e.target.value)}
+                                placeholder="0"
+                                className="w-full px-3 py-2 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950"
+                            />
                         </div>
 
                         <div>

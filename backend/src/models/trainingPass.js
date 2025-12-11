@@ -92,6 +92,11 @@ const trainingPassSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
     },
+    physicalCardId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PhysicalCard',
+        default: null,
+    },
 }, {
     timestamps: true,
 });
@@ -112,6 +117,15 @@ trainingPassSchema.virtual('isValid').get(function () {
 trainingPassSchema.pre('save', function (next) {
     if (!this.userId && !this.familyId) {
         return next(new Error('TrainingPass must belong to either a User or a Family.'));
+    }
+    next();
+});
+
+// Middleware to prevent passId changes after creation
+trainingPassSchema.pre('save', function (next) {
+    // Only check if this is an update (not a new document)
+    if (!this.isNew && this.isModified('passId')) {
+        return next(new Error('passId cannot be changed after creation'));
     }
     next();
 });

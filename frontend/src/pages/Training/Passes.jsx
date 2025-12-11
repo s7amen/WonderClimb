@@ -1,10 +1,11 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { trainingAPI, gymAPI, adminUsersAPI } from '../../services/api';
+import { trainingAPI, gymAPI, adminUsersAPI, cardQueueAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/UI/Toast';
 import BaseModal from '../../components/UI/BaseModal';
 import Button from '../../components/UI/Button';
 import CreatePassModal from '../../components/Cards/CreatePassModal';
+import PhysicalCardConflictModal from '../../components/Modals/PhysicalCardConflictModal';
 import Loading from '../../components/UI/Loading';
 import { getUserFullName } from '../../utils/userUtils';
 
@@ -21,13 +22,15 @@ const TrainingPasses = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
     const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'cascade'
+    const [isCardConflictModalOpen, setIsCardConflictModalOpen] = useState(false);
+    const [cardConflictData, setCardConflictData] = useState(null);
 
     const isAdmin = user?.roles?.includes('admin');
 
     const typeLabels = {
         single: 'Единичен',
-        prepaid_entries: 'Предплатени посещения',
-        time_based: 'Времева база',
+        prepaid_entries: 'За брой посещения',
+        time_based: 'За време',
     };
 
     const paymentStatusLabels = {
@@ -124,11 +127,77 @@ const TrainingPasses = () => {
             fetchData();
         } catch (error) {
             console.error('Error saving pass:', error);
-            showToast(
-                error.response?.data?.error?.message || 'Грешка при запазване на карта',
-                'error'
-            );
-            throw error; // Re-throw for modal to handle
+            
+            // Handle PHYSICAL_CARD_OCCUPIED error
+            if (error.response?.status === 409 && 
+                error.response?.data?.error === 'PHYSICAL_CARD_OCCUPIED') {
+                const details = error.response.data.details;
+                setCardConflictData({
+                    ...details,
+                    pendingPassData: arg1 // Store the pass data for retry
+                });
+                setIsCardConflictModalOpen(true);
+            } else {
+                showToast(
+                    error.response?.data?.error?.message || 'Грешка при запазване на карта',
+                    'error'
+                );
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Handle continue without card
+    const handleContinueWithoutCard = async () => {
+        if (!cardConflictData?.pendingPassData) return;
+        
+        try {
+            setIsSaving(true);
+            const dataWithoutCard = { ...cardConflictData.pendingPassData };
+            delete dataWithoutCard.physicalCardCode;
+            
+            await trainingAPI.createPass(dataWithoutCard);
+            setIsCardConflictModalOpen(false);
+            setCardConflictData(null);
+            setShowModal(false);
+            showToast('Картата е създадена без физическа карта', 'success');
+            fetchData();
+        } catch (error) {
+            console.error('Error creating pass without card:', error);
+            showToast(`Грешка: ${error.response?.data?.error?.message || error.message}`, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Handle add to queue
+    const handleAddToQueue = async () => {
+        if (!cardConflictData?.pendingPassData) return;
+        
+        try {
+            setIsSaving(true);
+            // 1. Create pass WITHOUT physical card
+            const dataWithoutCard = { ...cardConflictData.pendingPassData };
+            delete dataWithoutCard.physicalCardCode;
+            
+            const result = await trainingAPI.createPass(dataWithoutCard);
+            
+            // 2. Add to queue
+            await cardQueueAPI.addToQueue({
+                physicalCardCode: cardConflictData.cardCode,
+                passId: result.data.trainingPass._id,
+                passType: 'TrainingPass'
+            });
+            
+            setIsCardConflictModalOpen(false);
+            setCardConflictData(null);
+            setShowModal(false);
+            showToast('Картата е добавена в опашка за автоматично активиране', 'success');
+            fetchData();
+        } catch (error) {
+            console.error('Error adding to queue:', error);
+            showToast(`Грешка: ${error.response?.data?.error?.message || error.message}`, 'error');
         } finally {
             setIsSaving(false);
         }
@@ -277,6 +346,21 @@ const TrainingPasses = () => {
                 pricing={pricing}
                 onCreate={handleSave}
                 editingPass={editingPass}
+            />
+
+            {/* Physical Card Conflict Modal */}
+            <PhysicalCardConflictModal
+                isOpen={isCardConflictModalOpen}
+                onClose={() => {
+                    setIsCardConflictModalOpen(false);
+                    setCardConflictData(null);
+                }}
+                cardCode={cardConflictData?.cardCode}
+                clientName={cardConflictData?.clientName}
+                validUntil={cardConflictData?.validUntil}
+                canQueue={cardConflictData?.canQueue || false}
+                onContinueWithoutCard={handleContinueWithoutCard}
+                onAddToQueue={handleAddToQueue}
             />
 
             {/* Delete Confirmation Modal */}

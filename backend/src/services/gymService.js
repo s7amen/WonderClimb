@@ -6,7 +6,44 @@ import { FinanceTransaction } from '../models/financeTransaction.js';
 import { User } from '../models/user.js';
 import { Family } from '../models/family.js';
 import * as physicalCardService from './physicalCardService.js';
+import { isGymPassUsable, isTrainingPassUsable } from './physicalCardService.js';
 import logger from '../middleware/logging.js';
+
+/**
+ * Get the next sequential passId
+ * Returns the next available number starting from 1
+ * If the last card was hard deleted, its number can be reused (handled automatically)
+ */
+const getNextSequentialPassId = async () => {
+    try {
+        // Get all passes that exist in the database (including soft deleted)
+        const allPasses = await GymPass.find({}).select('passId').lean();
+        
+        // Filter to only numeric passIds and convert to numbers
+        const numericPassIds = allPasses
+            .map(p => p.passId)
+            .filter(id => /^\d+$/.test(id)) // Only pure numbers
+            .map(id => parseInt(id, 10))
+            .filter(num => !isNaN(num));
+        
+        if (numericPassIds.length === 0) {
+            // No numeric passes exist, start from 1
+            return '1';
+        }
+        
+        // Find the largest number from existing passes in database
+        const maxNumber = Math.max(...numericPassIds);
+        
+        // Use the next number
+        // If the last card was hard deleted, it won't be in the query results,
+        // so maxNumber will be the second-to-last, and maxNumber + 1 will reuse the deleted number
+        return (maxNumber + 1).toString();
+    } catch (error) {
+        logger.error({ error: error.message }, 'Error generating sequential passId');
+        // Fallback: if something goes wrong, use timestamp as before
+        return `GYM-${Date.now()}`;
+    }
+};
 
 /**
  * Validate if a gym pass is valid for check-in
@@ -435,13 +472,15 @@ export const createGymPass = async (passData, createdById) => {
             ? parseInt(passData.totalEntries)
             : (pricing.maxEntries || null);
 
-        // Determine pass type
+        // Determine pass type based on pricing.maxEntries
+        // If maxEntries is null or 0 → time_based, if > 0 → prepaid_entries
         let passType = 'time_based';
         if (pricing.category === 'gym_single_visit') {
             passType = 'single';
-        } else if (totalEntries) {
+        } else if (pricing.maxEntries != null && pricing.maxEntries > 0) {
             passType = 'prepaid_entries';
         }
+        // Otherwise defaults to 'time_based' (when maxEntries is null or 0)
 
         // Handle physical card if provided
         let physicalCardId = null;
@@ -460,9 +499,21 @@ export const createGymPass = async (passData, createdById) => {
                 // Card doesn't exist, create it
                 physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
             } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
-                // Check if linked pass is still active
-                const linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
-                if (linkedPass && linkedPass.isActive) {
+                // Check if linked pass is still truly usable (active + not expired + has entries/sessions)
+                let linkedPass = null;
+                let isUsable = false;
+                
+                if (physicalCard.linkedToPassType === 'training') {
+                    const { TrainingPass } = await import('../models/trainingPass.js');
+                    linkedPass = await TrainingPass.findById(physicalCard.linkedToCardInternalCode);
+                    isUsable = isTrainingPassUsable(linkedPass);
+                } else {
+                    // Default to gym pass (for backward compatibility)
+                    linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode);
+                    isUsable = isGymPassUsable(linkedPass);
+                }
+                
+                if (linkedPass && isUsable) {
                     throw new Error('Physical card is already linked to an active pass');
                 }
             }
@@ -470,10 +521,19 @@ export const createGymPass = async (passData, createdById) => {
             physicalCardId = physicalCard._id;
         }
 
+        // Generate sequential passId
+        const sequentialPassId = await getNextSequentialPassId();
+        
+        // Check for duplicate passId (safety check)
+        const existingPass = await GymPass.findOne({ passId: sequentialPassId });
+        if (existingPass) {
+            throw new Error(`Дублиран номер на карта: ${sequentialPassId}. Моля опитайте отново.`);
+        }
+
         // Create pass
         const gymPass = await GymPass.create({
             userId: userId || null, // Can be null for family pass
-            passId: `GYM-${Date.now()}`, // Simple ID generation
+            passId: sequentialPassId,
             type: passType,
             name: pricing.labelBg,
             totalEntries: totalEntries,
@@ -496,7 +556,7 @@ export const createGymPass = async (passData, createdById) => {
 
         // Link physical card to pass if provided
         if (physicalCardId && passData.physicalCardCode) {
-            await physicalCardService.linkToPass(passData.physicalCardCode.trim(), gymPass._id);
+            await physicalCardService.linkToPass(passData.physicalCardCode.trim(), gymPass._id, 'gym');
         }
 
         logger.info({
@@ -629,6 +689,7 @@ export const getPassById = async (passId) => {
     try {
         const pass = await GymPass.findById(passId)
             .populate('userId', 'firstName lastName email phone')
+            .populate('familyId', 'name')
             .populate('pricingId')
             .populate('physicalCardId', 'physicalCardCode status')
             .lean();

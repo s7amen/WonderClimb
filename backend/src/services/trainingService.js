@@ -2,11 +2,59 @@ import { Session } from '../models/session.js';
 import { Booking } from '../models/booking.js';
 import { AttendanceRecord } from '../models/attendanceRecord.js';
 import { TrainingPass } from '../models/trainingPass.js';
+import * as physicalCardService from './physicalCardService.js';
+import { isGymPassUsable, isTrainingPassUsable } from './physicalCardService.js';
 import { Pricing } from '../models/pricing.js';
 import { User } from '../models/user.js';
 import { FinanceEntry } from '../models/financeEntry.js';
 import { FinanceTransaction } from '../models/financeTransaction.js';
 import logger from '../middleware/logging.js';
+
+/**
+ * Generate a random training passId in format T-XXXX (4 digits) or T-XXXXX (5 digits)
+ * Returns a unique passId that doesn't exist in the database
+ */
+const generateRandomTrainingPassId = async () => {
+    const maxRetries = 20; // Maximum retries to find unique number
+    let use5Digits = false;
+    
+    // Check if we need to use 5 digits (all 4-digit numbers are taken)
+    const allPasses = await TrainingPass.find({}).select('passId').lean();
+    const existing4DigitPassIds = allPasses
+        .map(p => p.passId)
+        .filter(id => /^T-\d{4}$/.test(id)); // Only T-XXXX format
+    
+    // If we have 9999 or more 4-digit passes, use 5 digits
+    if (existing4DigitPassIds.length >= 9999) {
+        use5Digits = true;
+    }
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        let randomNumber;
+        
+        if (use5Digits) {
+            // Generate 5-digit number (10000-99999)
+            randomNumber = Math.floor(Math.random() * 90000) + 10000;
+        } else {
+            // Generate 4-digit number (1000-9999, or 0000-9999)
+            randomNumber = Math.floor(Math.random() * 10000);
+        }
+        
+        const passId = `T-${randomNumber.toString().padStart(use5Digits ? 5 : 4, '0')}`;
+        
+        // Check if this passId already exists
+        const existingPass = await TrainingPass.findOne({ passId });
+        if (!existingPass) {
+            return passId;
+        }
+        
+        logger.warn({ passId, attempt: attempt + 1 }, 'Duplicate training passId generated, retrying');
+    }
+    
+    // If we exhausted retries, fallback to timestamp
+    logger.error({ maxRetries }, 'Failed to generate unique training passId after retries');
+    return `T-${Date.now()}`;
+};
 
 /**
  * Create a new training session
@@ -380,12 +428,95 @@ export const createTrainingPass = async (passData, createdById) => {
             ? parseInt(inputSessions)
             : (pricing.maxEntries || null);
 
-        // Determine pass type
+        // Determine pass type based on pricing.maxEntries
+        // If maxEntries is null or 0 → time_based, if > 0 → prepaid_entries
         let passType = 'time_based';
         if (pricing.category === 'training_single') {
             passType = 'single';
-        } else if (totalSessions) {
+        } else if (pricing.maxEntries != null && pricing.maxEntries > 0) {
             passType = 'prepaid_entries';
+        }
+        // Otherwise defaults to 'time_based' (when maxEntries is null or 0)
+
+        // Handle physical card if provided
+        let physicalCardId = null;
+        if (passData.physicalCardCode) {
+            const trimmedCode = passData.physicalCardCode.trim();
+            
+            // Validate format first
+            if (!/^\d{6}$/.test(trimmedCode)) {
+                throw new Error('Physical card code must be exactly 6 digits');
+            }
+            
+            // Try to find existing card or create new one
+            let physicalCard = await physicalCardService.findByCardCode(trimmedCode);
+            
+            if (!physicalCard) {
+                // Card doesn't exist, create it
+                physicalCard = await physicalCardService.createPhysicalCard(trimmedCode);
+            } else if (physicalCard.status === 'linked' && physicalCard.linkedToCardInternalCode) {
+                // Check if linked pass is still active
+                let linkedPass = null;
+                let linkedPassType = 'gym';
+                if (physicalCard.linkedToPassType === 'gym') {
+                    const { GymPass } = await import('../models/gymPass.js');
+                    linkedPass = await GymPass.findById(physicalCard.linkedToCardInternalCode)
+                        .populate('userId', 'firstName lastName')
+                        .populate('familyId', 'name');
+                } else if (physicalCard.linkedToPassType === 'training') {
+                    linkedPass = await TrainingPass.findById(physicalCard.linkedToCardInternalCode)
+                        .populate('userId', 'firstName lastName')
+                        .populate('familyId', 'name');
+                    linkedPassType = 'training';
+                }
+                
+                // Check if pass is truly usable (active + not expired + has sessions)
+                const isUsable = linkedPassType === 'training' 
+                    ? isTrainingPassUsable(linkedPass) 
+                    : isGymPassUsable(linkedPass);
+                
+                if (linkedPass && isUsable) {
+                    // Extract client name
+                    const clientName = linkedPass.userId 
+                        ? `${linkedPass.userId.firstName} ${linkedPass.userId.lastName}`
+                        : linkedPass.familyId?.name || 'Неизвестен';
+                    
+                    // КЛЮЧОВА ЛОГИКА: Провери дали е същия потребител
+                    const userId = passData.userId || null;
+                    const familyId = passData.familyId || null;
+                    const isSameUser = (
+                        // Същия userId
+                        (userId && linkedPass.userId?._id.toString() === userId) ||
+                        // Същото familyId
+                        (familyId && linkedPass.familyId?._id.toString() === familyId)
+                    );
+                    
+                    // Create enriched error with details
+                    const enrichedError = new Error('PHYSICAL_CARD_OCCUPIED');
+                    enrichedError.statusCode = 409;
+                    enrichedError.details = {
+                        cardCode: trimmedCode,
+                        passType: linkedPassType,
+                        currentPassId: physicalCard.linkedToCardInternalCode,
+                        clientName,
+                        validUntil: linkedPass.validUntil,
+                        canQueue: isSameUser // САМО TRUE ако е същия потребител!
+                    };
+                    
+                    throw enrichedError;
+                }
+            }
+            
+            physicalCardId = physicalCard._id;
+        }
+
+        // Generate unique random training passId
+        const trainingPassId = await generateRandomTrainingPassId();
+        
+        // Double-check for duplicate (safety check)
+        const existingPass = await TrainingPass.findOne({ passId: trainingPassId });
+        if (existingPass) {
+            throw new Error(`Дублиран номер на карта: ${trainingPassId}. Моля опитайте отново.`);
         }
 
         // Create pass
@@ -393,7 +524,7 @@ export const createTrainingPass = async (passData, createdById) => {
             userId: userId || null,
             familyId: familyId || null,
             isFamilyPass: !!isFamilyPass,
-            passId: `TRN-${Date.now()}`,
+            passId: trainingPassId,
             type: passType,
             name: pricing.labelBg,
             totalSessions: totalSessions,
@@ -409,7 +540,13 @@ export const createTrainingPass = async (passData, createdById) => {
             discountReason: discountReason || '',
             createdById,
             updatedById: createdById,
+            physicalCardId: physicalCardId || null,
         });
+
+        // Link physical card to pass if provided
+        if (physicalCardId && passData.physicalCardCode) {
+            await physicalCardService.linkToPass(passData.physicalCardCode.trim(), trainingPass._id, 'training');
+        }
 
         // Create Finance Entry if amount > 0
         if (finalAmount > 0) {
@@ -455,6 +592,7 @@ export const createTrainingPass = async (passData, createdById) => {
             userId,
             pricingId,
             amount: finalAmount,
+            physicalCardId,
         }, 'Training pass created');
 
         return trainingPass;
@@ -495,6 +633,7 @@ export const getUserTrainingPasses = async (userId, activeOnly = false) => {
             .populate('userId', 'firstName lastName email')
             .populate('familyId', 'name')
             .populate('pricingId')
+            .populate('physicalCardId', 'physicalCardCode status')
             .sort({ createdAt: -1 })
             .lean();
 
@@ -534,6 +673,7 @@ export const getAllTrainingPasses = async (filters = {}, pagination = {}) => {
                 .populate('userId', 'firstName lastName email')
                 .populate('familyId', 'name')
                 .populate('pricingId')
+                .populate('physicalCardId', 'physicalCardCode status')
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
@@ -565,6 +705,7 @@ export const getTrainingPassById = async (passId) => {
             .populate('userId', 'firstName lastName email phone')
             .populate('familyId', 'name')
             .populate('pricingId')
+            .populate('physicalCardId', 'physicalCardCode status')
             .lean();
 
         if (!pass) {
@@ -604,6 +745,10 @@ export const updateTrainingPass = async (passId, updates, updatedById) => {
 
         filteredUpdates.updatedById = updatedById;
 
+        // Check if we're deactivating the pass
+        const wasDeactivating = filteredUpdates.isActive === false;
+        const passBeforeUpdate = wasDeactivating ? await TrainingPass.findById(passId) : null;
+
         const pass = await TrainingPass.findByIdAndUpdate(
             passId,
             filteredUpdates,
@@ -612,6 +757,11 @@ export const updateTrainingPass = async (passId, updates, updatedById) => {
 
         if (!pass) {
             throw new Error('Training pass not found');
+        }
+
+        // If pass was deactivated and had a physical card, unlink it
+        if (wasDeactivating && passBeforeUpdate && passBeforeUpdate.physicalCardId) {
+            await physicalCardService.unlinkFromPass(passBeforeUpdate.physicalCardId);
         }
 
         logger.info({ passId, updates: Object.keys(filteredUpdates) }, 'Training pass updated');
@@ -631,6 +781,11 @@ export const deleteTrainingPass = async (passId) => {
         const pass = await TrainingPass.findById(passId);
         if (!pass) {
             throw new Error('Training pass not found');
+        }
+
+        // Unlink physical card if exists
+        if (pass.physicalCardId) {
+            await physicalCardService.unlinkFromPass(pass.physicalCardId);
         }
 
         // Soft delete - set isActive to false
@@ -654,6 +809,11 @@ export const deleteTrainingPassCascade = async (passId) => {
         const pass = await TrainingPass.findById(passId);
         if (!pass) {
             throw new Error('Training pass not found');
+        }
+
+        // Unlink physical card if exists
+        if (pass.physicalCardId) {
+            await physicalCardService.unlinkFromPass(pass.physicalCardId);
         }
 
         // Delete all related bookings

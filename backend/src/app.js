@@ -8,6 +8,7 @@ import { httpLogger } from './middleware/logging.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { apiRateLimiter } from './middleware/rateLimit.js';
 import apiRoutes from './routes/index.js';
+import { startScheduler } from './jobs/scheduler.js';
 import pino from 'pino';
 
 const logger = pino({ level: config.logLevel });
@@ -87,6 +88,11 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+    logger.info('Database connected');
+
+    // Start cron scheduler
+    startScheduler();
+    logger.info('Cron scheduler started');
 
     app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port} in ${config.nodeEnv} mode`);

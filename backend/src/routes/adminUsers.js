@@ -6,6 +6,7 @@ import { ParentClimberLink } from '../models/parentClimberLink.js';
 import { validateCreateClimber } from '../middleware/validation/parentClimbersValidation.js';
 import { validateActivateClimber } from '../middleware/validation/climberActivationValidation.js';
 import { activateClimberProfile } from '../services/climberActivationService.js';
+import { getSuggestions } from '../services/climberSuggestionsService.js';
 import logger from '../middleware/logging.js';
 
 const router = express.Router();
@@ -763,6 +764,34 @@ router.post('/fix-email-index', requireRole('admin'), async (req, res, next) => 
     });
   } catch (error) {
     logger.error({ error }, 'Error fixing email index');
+    next(error);
+  }
+});
+
+/**
+ * GET /api/v1/admin/climbers/suggestions
+ * Get smart suggestions for climber selection
+ * Accessible to: admin, coach, instructor
+ * Query params: context (check-in|pass)
+ */
+router.get('/climbers/suggestions', requireRole('admin', 'coach', 'instructor'), async (req, res, next) => {
+  try {
+    const { context = 'check-in' } = req.query;
+
+    // Validate context
+    if (context !== 'check-in' && context !== 'pass') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid context. Must be "check-in" or "pass"',
+        },
+      });
+    }
+
+    const suggestions = await getSuggestions(context);
+
+    res.json(suggestions);
+  } catch (error) {
+    logger.error({ error: error.message, context: req.query.context }, 'Error fetching climber suggestions');
     next(error);
   }
 });

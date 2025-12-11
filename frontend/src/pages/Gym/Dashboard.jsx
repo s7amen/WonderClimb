@@ -12,7 +12,9 @@ import CreatePassModal from '../../components/Cards/CreatePassModal';
 import SaleActionModal from '../../components/Dashboard/SaleActionModal';
 import AddClimberModal from '../../components/Modals/AddClimberModal';
 import EditClimberModal from '../../components/Modals/EditClimberModal';
-import api, { processSale, gymAPI, productsAPI, adminUsersAPI } from '../../services/api';
+import PhysicalCardConflictModal from '../../components/Modals/PhysicalCardConflictModal';
+import SmartSelector from '../../components/Climbers/SmartSelector';
+import api, { processSale, gymAPI, productsAPI, adminUsersAPI, cardQueueAPI } from '../../services/api';
 import { useUnsavedChangesWarning } from '../../hooks/useUnsavedChangesWarning.jsx';
 import { useToast } from '../../components/UI/Toast';
 
@@ -25,6 +27,8 @@ const GymDashboard = () => {
     const [isSaleActionModalOpen, setIsSaleActionModalOpen] = useState(false);
     const [isAddClimberModalOpen, setIsAddClimberModalOpen] = useState(false);
     const [isEditClimberModalOpen, setIsEditClimberModalOpen] = useState(false);
+    const [isCardConflictModalOpen, setIsCardConflictModalOpen] = useState(false);
+    const [cardConflictData, setCardConflictData] = useState(null);
     const [editingClimber, setEditingClimber] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
     const [saleActionType, setSaleActionType] = useState('visit'); // 'visit' or 'product'
@@ -112,14 +116,29 @@ const GymDashboard = () => {
         }
     };
 
-    const handleClimberSelect = (e) => {
-        const id = e.target.value;
-        setSelectedClimberId(id);
-        if (id) {
-            const client = clients.find(c => c.id === id);
-            setSelectedClimberName(client ? client.name : '');
-        } else {
+    const handleClimberSelect = (item) => {
+        if (!item) {
+            setSelectedClimberId('');
             setSelectedClimberName('');
+            return;
+        }
+
+        const id = item.id;
+        setSelectedClimberId(id);
+        
+        if (item.type === 'family') {
+            setSelectedClimberName(item.name || '');
+        } else {
+            // For user, find in clients list or use item data
+            const client = clients.find(c => c.id === id);
+            if (client) {
+                setSelectedClimberName(client.name);
+            } else if (item.firstName && item.lastName) {
+                // Use item data if client not found
+                setSelectedClimberName(`${item.firstName} ${item.middleName || ''} ${item.lastName}`.trim());
+            } else {
+                setSelectedClimberName('');
+            }
         }
     };
 
@@ -211,8 +230,8 @@ const GymDashboard = () => {
                     isMember = client?.clubMembership?.isActive || false;
                 }
 
-                // Query params for passes
-                const query = { limit: 5, sort: '-validUntil' };
+                // Query params for passes - fetch more to get all active passes
+                const query = { limit: 100, sort: '-validUntil' };
                 if (client?.type === 'family') {
                     query.familyId = selectedClimberId;
                     // query.userId = undefined; // Not needed if we don't send it
@@ -224,29 +243,37 @@ const GymDashboard = () => {
                 const passesRes = await gymAPI.getAllPasses(query);
                 const passes = passesRes.data.passes || [];
 
-                // Determine Active Pass
+                // Filter active passes and sort by createdAt (oldest first, including time)
                 const now = new Date();
-                const activePass = passes.find(p => {
+                const activePasses = passes.filter(p => {
                     const validUntil = new Date(p.validUntil);
                     return validUntil >= now && (p.remainingEntries === null || p.remainingEntries === undefined || p.remainingEntries > 0);
                 });
 
+                // Sort by createdAt ascending (oldest first) - includes hours, minutes, seconds
+                activePasses.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+                // Get the oldest active pass (first created)
+                const oldestActivePass = activePasses.length > 0 ? activePasses[0] : null;
+                const additionalActiveCardsCount = activePasses.length > 1 ? activePasses.length - 1 : 0;
+
                 // Determine Last Pass (first expired one if no active, or just the most recent one that isn't the active one)
                 let lastPass = null;
-                if (!activePass && passes.length > 0) {
+                if (!oldestActivePass && passes.length > 0) {
                     lastPass = passes[0];
-                } else if (activePass && passes.length > 1) {
-                    lastPass = passes.find(p => p._id !== activePass._id);
+                } else if (oldestActivePass && passes.length > 1) {
+                    lastPass = passes.find(p => p._id !== oldestActivePass._id);
                 }
 
                 setClimberDetails({
                     isMember,
-                    activePass: activePass ? {
-                        id: activePass._id,
-                        name: activePass.name,
-                        validUntil: new Date(activePass.validUntil).toLocaleDateString('bg-BG'),
-                        remaining: activePass.remainingEntries,
-                        type: activePass.type
+                    activePass: oldestActivePass ? {
+                        id: oldestActivePass._id,
+                        name: oldestActivePass.name,
+                        validUntil: new Date(oldestActivePass.validUntil).toLocaleDateString('bg-BG'),
+                        remaining: oldestActivePass.remainingEntries,
+                        type: oldestActivePass.type,
+                        additionalActiveCardsCount: additionalActiveCardsCount
                     } : null,
                     lastPass: lastPass ? {
                         name: lastPass.name,
@@ -511,7 +538,102 @@ const GymDashboard = () => {
             showToast(`Картата е създадена успешно - ${clientName}`, 'success');
         } catch (error) {
             console.error('Error processing card sale:', error);
-            showToast(`Грешка при продажба на картата: ${error.response?.data?.message || error.message}`, 'error');
+            
+            // Handle PHYSICAL_CARD_OCCUPIED error
+            if (error.response?.status === 409 && 
+                error.response?.data?.error === 'PHYSICAL_CARD_OCCUPIED') {
+                const details = error.response.data.details;
+                setCardConflictData({
+                    ...details,
+                    pendingCardData: cardData
+                });
+                setIsCardConflictModalOpen(true);
+            } else {
+                showToast(`Грешка при продажба на картата: ${error.response?.data?.message || error.message}`, 'error');
+            }
+        }
+    };
+
+    // Handle continue without card
+    const handleContinueWithoutCard = async () => {
+        if (!cardConflictData?.pendingCardData) return;
+        
+        try {
+            const dataWithoutCard = { ...cardConflictData.pendingCardData };
+            delete dataWithoutCard.physicalCardCode;
+            
+            const saleData = {
+                items: [{
+                    type: 'pass',
+                    name: prices.find(p => p.id === dataWithoutCard.pricingId)?.name || 'Карта',
+                    price: dataWithoutCard.amount,
+                    quantity: 1,
+                    userId: dataWithoutCard.userId,
+                    familyId: dataWithoutCard.familyId || null,
+                    isFamilyPass: dataWithoutCard.isFamilyPass || false,
+                    pricingId: dataWithoutCard.pricingId,
+                    totalEntries: dataWithoutCard.totalEntries,
+                    validFrom: dataWithoutCard.validFrom,
+                    validUntil: dataWithoutCard.validUntil,
+                    physicalCardCode: null
+                }],
+                amountPaid: dataWithoutCard.amount,
+                currency: 'EUR'
+            };
+            
+            await processSale(saleData);
+            setIsCardConflictModalOpen(false);
+            setCardConflictData(null);
+            showToast('Картата е създадена без физическа карта', 'success');
+        } catch (error) {
+            console.error('Error creating pass without card:', error);
+            showToast(`Грешка: ${error.response?.data?.message || error.message}`, 'error');
+        }
+    };
+
+    // Handle add to queue
+    const handleAddToQueue = async () => {
+        if (!cardConflictData?.pendingCardData) return;
+        
+        try {
+            // 1. Create pass WITHOUT physical card
+            const dataWithoutCard = { ...cardConflictData.pendingCardData };
+            delete dataWithoutCard.physicalCardCode;
+            
+            const saleData = {
+                items: [{
+                    type: 'pass',
+                    name: prices.find(p => p.id === dataWithoutCard.pricingId)?.name || 'Карта',
+                    price: dataWithoutCard.amount,
+                    quantity: 1,
+                    userId: dataWithoutCard.userId,
+                    familyId: dataWithoutCard.familyId || null,
+                    isFamilyPass: dataWithoutCard.isFamilyPass || false,
+                    pricingId: dataWithoutCard.pricingId,
+                    totalEntries: dataWithoutCard.totalEntries,
+                    validFrom: dataWithoutCard.validFrom,
+                    validUntil: dataWithoutCard.validUntil,
+                    physicalCardCode: null
+                }],
+                amountPaid: dataWithoutCard.amount,
+                currency: 'EUR'
+            };
+            
+            const result = await processSale(saleData);
+            
+            // 2. Add to queue
+            await cardQueueAPI.addToQueue({
+                physicalCardCode: cardConflictData.cardCode,
+                passId: result.data.passes[0]._id,
+                passType: 'GymPass'
+            });
+            
+            setIsCardConflictModalOpen(false);
+            setCardConflictData(null);
+            showToast('Картата е добавена в опашка за автоматично активиране', 'success');
+        } catch (error) {
+            console.error('Error adding to queue:', error);
+            showToast(`Грешка: ${error.response?.data?.message || error.message}`, 'error');
         }
     };
 
@@ -821,33 +943,31 @@ const GymDashboard = () => {
                     </div>
 
                     {/* Selector */}
-                    <div className="flex items-center gap-2 min-w-[200px]">
+                    <div className="flex items-center gap-2 min-w-[280px]">
                         <label className="text-sm font-medium text-neutral-950 whitespace-nowrap">
                             Катерач:
                         </label>
-                        <select
-                            value={selectedClimberId}
-                            onChange={handleClimberSelect}
-                            className="px-3 py-1.5 bg-[#f3f3f5] border border-[#d1d5dc] rounded-[10px] focus:outline-none focus:ring-2 focus:ring-[#ea7a24]/20 focus:border-[#ea7a24] text-sm text-neutral-950 min-w-[180px]"
-                        >
-                            <option value="">Гост</option>
-                            {clients.map((client) => (
-                                <option key={client.id} value={client.id}>
-                                    {client.isFamily ? `${client.name}` : client.name}
-                                </option>
-                            ))}
-                        </select>
-                        {selectedClimberId && (
-                            <button
-                                onClick={handleClearClimberSelection}
-                                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
-                                title="Изчисти избора"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        )}
+                        <div className="flex items-center gap-2 flex-1">
+                            <SmartSelector
+                                value={selectedClimberId || null}
+                                onChange={handleClimberSelect}
+                                mode="check-in"
+                                allowFamilies={true}
+                                placeholder="Гост"
+                                className="min-w-[280px]"
+                            />
+                            {selectedClimberId && (
+                                <button
+                                    onClick={handleClearClimberSelection}
+                                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                                    title="Изчисти избора"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Climber Details - Inline */}
@@ -857,7 +977,7 @@ const GymDashboard = () => {
                                 <span className="text-gray-400">Член:</span> {climberDetails.isMember ? 'Да' : 'Не'}
                             </span>
                             <span className={`${climberDetails.activePass ? 'text-green-600' : 'text-gray-500'}`}>
-                                <span className="text-gray-400">Карта:</span> {climberDetails.activePass ? `${climberDetails.activePass.name} (до ${climberDetails.activePass.validUntil})` : 'Няма'}
+                                <span className="text-gray-400">Карта:</span> {climberDetails.activePass ? `${climberDetails.activePass.name} (до ${climberDetails.activePass.validUntil})${climberDetails.activePass.additionalActiveCardsCount > 0 ? ` (още ${climberDetails.activePass.additionalActiveCardsCount} активни)` : ''}` : 'Няма'}
                             </span>
 
                             {climberDetails.activePass && (climberDetails.activePass.remaining !== null && climberDetails.activePass.remaining !== undefined) && (
@@ -1005,6 +1125,20 @@ const GymDashboard = () => {
                 onDirectSale={handleDirectCardSale}
                 onAddToCart={handleAddCardToCart}
                 preSelectedClimberId={selectedClimberId}
+            />
+
+            <PhysicalCardConflictModal
+                isOpen={isCardConflictModalOpen}
+                onClose={() => {
+                    setIsCardConflictModalOpen(false);
+                    setCardConflictData(null);
+                }}
+                cardCode={cardConflictData?.cardCode}
+                clientName={cardConflictData?.clientName}
+                validUntil={cardConflictData?.validUntil}
+                canQueue={cardConflictData?.canQueue || false}
+                onContinueWithoutCard={handleContinueWithoutCard}
+                onAddToQueue={handleAddToQueue}
             />
 
             <SaleActionModal

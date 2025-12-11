@@ -32,7 +32,7 @@ const settingsSchema = new mongoose.Schema({
   },
   sessionOutsideBookingHorizon: {
     type: String,
-    default: 'Тренировката е извън периода за записване',
+    default: 'Не можете да се запишете за тренировка, която започва след по-малко от минималния период',
   },
   cannotBookPastSessions: {
     type: String,
@@ -73,6 +73,15 @@ const settingsSchema = new mongoose.Schema({
   cancellationPeriodExpired: {
     type: String,
     default: 'Периодът за отмяна е изтекъл',
+  },
+  // Physical card messages
+  physicalCardAlreadyLinkedSameUser: {
+    type: String,
+    default: 'Картата {cardCode} е заета от същия клиент до {validUntil}. Можете да я добавите в опашка.',
+  },
+  physicalCardAlreadyLinkedDifferentUser: {
+    type: String,
+    default: 'Картата {cardCode} е заета от {clientName} до {validUntil}. Не може да се използва за друг клиент.',
   },
   // Training booking configuration
   bookingHorizonHours: {

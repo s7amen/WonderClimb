@@ -6,6 +6,7 @@ import BaseModal from '../../components/UI/BaseModal';
 import Button from '../../components/UI/Button';
 import Loading from '../../components/UI/Loading';
 import { getUserFullName } from '../../utils/userUtils';
+import { formatCurrency } from '../../utils/currencyUtils';
 import CreatePassModal from '../../components/Cards/CreatePassModal';
 
 const GymPasses = () => {
@@ -21,13 +22,15 @@ const GymPasses = () => {
     const [deleteMode, setDeleteMode] = useState('soft'); // 'soft' or 'cascade'
     const [checkInPass, setCheckInPass] = useState(null);
     const [checkInLoading, setCheckInLoading] = useState(false);
+    const [selectedPassDetails, setSelectedPassDetails] = useState(null);
+    const [passDetailsLoading, setPassDetailsLoading] = useState(false);
 
     const isAdmin = user?.roles?.includes('admin');
 
     const typeLabels = {
         single: 'Единичен',
-        prepaid_entries: 'Предплатени посещения',
-        time_based: 'Времева база',
+        prepaid_entries: 'За брой посещения',
+        time_based: 'За време',
     };
 
     const paymentStatusLabels = {
@@ -155,6 +158,19 @@ const GymPasses = () => {
         }
     };
 
+    const handleCardNumberClick = async (passId) => {
+        try {
+            setPassDetailsLoading(true);
+            const response = await gymAPI.getPassById(passId);
+            setSelectedPassDetails(response.data.gymPass);
+        } catch (error) {
+            console.error('Error fetching pass details:', error);
+            showToast('Грешка при зареждане на детайли за картата', 'error');
+        } finally {
+            setPassDetailsLoading(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -178,6 +194,9 @@ const GymPasses = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Номер на карта
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Потребител
                                 </th>
@@ -207,7 +226,7 @@ const GymPasses = () => {
                             {passes.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={isAdmin ? 7 : 6}
+                                        colSpan={isAdmin ? 8 : 7}
                                         className="px-6 py-4 text-center text-sm text-gray-500"
                                     >
                                         Няма намерени карти
@@ -255,6 +274,14 @@ const GymPasses = () => {
 
                                     return (
                                         <tr key={pass._id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <button
+                                                    onClick={() => handleCardNumberClick(pass._id)}
+                                                    className="text-sm font-medium text-orange-600 hover:text-orange-900 hover:underline cursor-pointer"
+                                                >
+                                                    {pass.passId || '-'}
+                                                </button>
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                 {userName}
                                             </td>
@@ -457,6 +484,145 @@ const GymPasses = () => {
                         </label>
                     </div>
                 </div>
+            </BaseModal>
+
+            {/* Card Details Modal */}
+            <BaseModal
+                isOpen={!!selectedPassDetails}
+                onClose={() => setSelectedPassDetails(null)}
+                title={`Детайли за карта ${selectedPassDetails?.passId || ''}`}
+                size="xl"
+            >
+                {passDetailsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                        <Loading text="Зареждане на детайли..." />
+                    </div>
+                ) : selectedPassDetails ? (
+                    <div className="space-y-6">
+                        {/* Card Information */}
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span className="font-medium text-gray-500">Номер на карта:</span>
+                                <span className="ml-2 text-gray-900">{selectedPassDetails.passId || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Физическа карта:</span>
+                                <span className="ml-2 text-gray-900">
+                                    {selectedPassDetails.physicalCardId?.physicalCardCode || '-'}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Име:</span>
+                                <span className="ml-2 text-gray-900">{selectedPassDetails.name || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Тип:</span>
+                                <span className="ml-2 text-gray-900">{typeLabels[selectedPassDetails.type] || selectedPassDetails.type || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Статус на плащане:</span>
+                                <span className="ml-2 text-gray-900">{paymentStatusLabels[selectedPassDetails.paymentStatus] || selectedPassDetails.paymentStatus || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Собственик:</span>
+                                <span className="ml-2 text-gray-900">
+                                    {selectedPassDetails.isFamilyPass && selectedPassDetails.familyId
+                                        ? selectedPassDetails.familyId.name || 'Семейство'
+                                        : selectedPassDetails.userId
+                                            ? getUserFullName(selectedPassDetails.userId) || `${selectedPassDetails.userId.firstName || ''} ${selectedPassDetails.userId.lastName || ''}`.trim() || '-'
+                                            : '-'}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="font-medium text-gray-500">Създадена на:</span>
+                                <span className="ml-2 text-gray-900">{formatDate(selectedPassDetails.createdAt) || '-'}</span>
+                            </div>
+                            {selectedPassDetails.totalEntries !== null && (
+                                <>
+                                    <div>
+                                        <span className="font-medium text-gray-500">Общо посещения:</span>
+                                        <span className="ml-2 text-gray-900">{selectedPassDetails.totalEntries || '-'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-gray-500">Оставащи посещения:</span>
+                                        <span className="ml-2 text-gray-900">{selectedPassDetails.remainingEntries !== null ? selectedPassDetails.remainingEntries : '-'}</span>
+                                    </div>
+                                </>
+                            )}
+                            {selectedPassDetails.validFrom && (
+                                <div>
+                                    <span className="font-medium text-gray-500">Валидна от:</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(selectedPassDetails.validFrom) || '-'}</span>
+                                </div>
+                            )}
+                            {selectedPassDetails.validUntil && (
+                                <div>
+                                    <span className="font-medium text-gray-500">Валидна до:</span>
+                                    <span className="ml-2 text-gray-900">{formatDate(selectedPassDetails.validUntil) || '-'}</span>
+                                </div>
+                            )}
+                            <div>
+                                <span className="font-medium text-gray-500">Активна:</span>
+                                <span className="ml-2 text-gray-900">{selectedPassDetails.isActive ? 'Да' : 'Не'}</span>
+                            </div>
+                            {selectedPassDetails.amount && (
+                                <div>
+                                    <span className="font-medium text-gray-500">Сума:</span>
+                                    <span className="ml-2 text-gray-900">{formatCurrency(selectedPassDetails.amount, 'EUR')}</span>
+                                </div>
+                            )}
+                            {selectedPassDetails.notes && (
+                                <div className="col-span-2">
+                                    <span className="font-medium text-gray-500">Бележки:</span>
+                                    <span className="ml-2 text-gray-900">{selectedPassDetails.notes}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Visits Table */}
+                        <div className="border-t border-gray-200 pt-4">
+                            <h3 className="text-base font-medium text-gray-900 mb-3">Посещения</h3>
+                            {selectedPassDetails.usageHistory && selectedPassDetails.usageHistory.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Дата
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Час
+                                                </th>
+                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Регистрирано от
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {selectedPassDetails.usageHistory.map((visit) => (
+                                                <tr key={visit._id} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                                                        {formatDate(visit.date)}
+                                                    </td>
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                        {visit.checkInTime ? new Date(visit.checkInTime).toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                    </td>
+                                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                                        {visit.checkedInById
+                                                            ? `${visit.checkedInById.firstName || ''} ${visit.checkedInById.lastName || ''}`.trim() || '-'
+                                                            : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">Няма регистрирани посещения с тази карта.</p>
+                            )}
+                        </div>
+                    </div>
+                ) : null}
             </BaseModal>
         </div>
     );

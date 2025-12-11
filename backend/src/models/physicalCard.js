@@ -18,7 +18,12 @@ const physicalCardSchema = new mongoose.Schema({
     },
     linkedToCardInternalCode: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'GymPass',
+        default: null,
+        index: true,
+    },
+    linkedToPassType: {
+        type: String,
+        enum: ['gym', 'training'],
         default: null,
         index: true,
     },
@@ -26,8 +31,9 @@ const physicalCardSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Compound index for faster lookups
+// Compound indexes for faster lookups
 physicalCardSchema.index({ status: 1, linkedToCardInternalCode: 1 });
+physicalCardSchema.index({ status: 1, linkedToPassType: 1 });
 
 export const PhysicalCard = mongoose.model('PhysicalCard', physicalCardSchema);
 

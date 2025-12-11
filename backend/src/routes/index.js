@@ -23,6 +23,8 @@ import financeRoutes from './finance.js';
 import productRoutes from './products.js';
 import saleRoutes from './saleRoutes.js';
 import pricingRoutes from './pricing.js';
+import cardRoutes from './cardRoutes.js';
+import cronRoutes from './cronRoutes.js';
 
 const router = express.Router();
 
@@ -63,6 +65,8 @@ router.use('/finance', financeRoutes); // Finance routes (entries, reports) - ad
 router.use('/products', productRoutes); // Product routes (CRUD)
 router.use('/sales', saleRoutes); // Sales routes (POS) - instructor+
 router.use('/pricing', pricingRoutes); // Pricing routes (CRUD, versioning) - admin only
+router.use('/cards', cardRoutes); // Card queue routes - admin/staff
+router.use('/admin/cron', cronRoutes); // Cron job management routes - admin only
 router.use('/api/v1', docsRoutes); // API docs
 
 export default router;

@@ -188,7 +188,17 @@ export const createTrainingPass = async (req, res) => {
         });
     } catch (error) {
         logger.error({ error: error.message }, 'Error creating training pass');
-        res.status(400).json({
+        
+        // Handle enriched PHYSICAL_CARD_OCCUPIED error
+        if (error.statusCode === 409 && error.details) {
+            return res.status(409).json({
+                error: 'PHYSICAL_CARD_OCCUPIED',
+                message: error.message,
+                details: error.details
+            });
+        }
+        
+        res.status(error.statusCode || 400).json({
             error: { message: error.message || 'Failed to create training pass' },
         });
     }

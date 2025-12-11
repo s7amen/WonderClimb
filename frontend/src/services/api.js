@@ -366,6 +366,30 @@ export const gymAPI = {
   findClimberByCardCode: (cardCode) => api.get('/gym/cards/find-by-card-code', { params: { cardCode } }),
 };
 
+// Physical card queue API
+export const cardQueueAPI = {
+  // Add pass to queue
+  addToQueue: (data) => api.post('/cards/queue', data),
+  
+  // Get queue entries
+  getQueue: (params) => api.get('/cards/queue', { params }),
+  
+  // Manually activate queued card
+  activateQueued: (queueId) => api.post(`/cards/queue/${queueId}/activate`)
+};
+
+// Cron jobs API
+export const cronAPI = {
+  // List all cron jobs
+  listJobs: () => api.get('/admin/cron/jobs'),
+  
+  // Trigger a cron job manually
+  triggerJob: (jobName) => api.post(`/admin/cron/jobs/${jobName}/trigger`),
+  
+  // Get execution history for a job
+  getHistory: (jobName, limit) => api.get(`/admin/cron/jobs/${jobName}/history`, { params: { limit } })
+};
+
 // Training API
 export const trainingAPI = {
   // Training passes endpoints
@@ -444,6 +468,11 @@ export const pricingAPI = {
   create: (data) => api.post('/pricing', data),
   update: (pricingCode, data) => api.put(`/pricing/${pricingCode}`, data),
   deactivate: (pricingCode) => api.delete(`/pricing/${pricingCode}`),
+};
+
+// Climber Suggestions API
+export const climberSuggestionsAPI = {
+  getSuggestions: (context) => api.get('/admin/climbers/suggestions', { params: { context } }),
 };
 
 export default api;

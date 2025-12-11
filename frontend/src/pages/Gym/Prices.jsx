@@ -102,7 +102,7 @@ const GymPrices = () => {
                                             {price.amount.toFixed(2)} €
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {price.validityDays ? `${price.validityDays} дни` : '-'}
+                                            {price.validityDays ? `${price.validityDays} ${price.validityDays === 1 ? 'месец' : 'месеца'}` : '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {price.maxEntries || '-'}

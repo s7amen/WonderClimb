@@ -5,9 +5,9 @@ const FinanceDashboard = () => {
     const navigate = useNavigate();
 
     const stats = [
-        { label: 'Приходи този месец', value: '12,450 лв.', change: '+15%', color: 'text-green-600' },
-        { label: 'Разходи този месец', value: '4,200 лв.', change: '-5%', color: 'text-red-600' },
-        { label: 'Нетна печалба', value: '8,250 лв.', change: '+22%', color: 'text-blue-600' },
+        { label: 'Приходи този месец', value: '6,365.00 €', change: '+15%', color: 'text-green-600' },
+        { label: 'Разходи този месец', value: '2,147.00 €', change: '-5%', color: 'text-red-600' },
+        { label: 'Нетна печалба', value: '4,218.00 €', change: '+22%', color: 'text-blue-600' },
         { label: 'Чакащи плащания', value: '3', change: '0', color: 'text-orange-600' },
     ];
 

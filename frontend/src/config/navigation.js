@@ -54,6 +54,7 @@ export const NAVIGATION_CONFIG = {
                 { label: 'Цени', path: '/settings/pricing', icon: 'Tag' },
                 { label: 'Карти', path: '/settings/cards', icon: 'Card' },
                 { label: 'Съобщения', path: '/settings/messages', icon: 'Mail' },
+                { label: 'Cron Jobs', path: '/admin/cron-jobs', icon: 'Clock' },
                 { label: 'Notifications', path: '/settings/notifications', icon: 'Bell' },
                 { label: 'System Settings', path: '/settings/system', icon: 'Cog' },
             ]

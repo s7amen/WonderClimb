@@ -179,8 +179,13 @@ export const getPassById = async (req, res) => {
 
         // Check if user has permission to view this pass
         const userRoles = req.user.roles || [];
-        const isOwner = pass.userId._id.toString() === req.user.id;
-        const isStaff = userRoles.includes('admin') || userRoles.includes('coach');
+        const isStaff = userRoles.includes('admin') || userRoles.includes('coach') || userRoles.includes('instructor');
+
+        // For staff, no further ownership checks are needed
+        let isOwner = false;
+        if (pass.userId && pass.userId._id) {
+            isOwner = pass.userId._id.toString() === req.user.id;
+        }
 
         if (!isOwner && !isStaff) {
             return res.status(403).json({

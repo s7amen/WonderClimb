@@ -3,8 +3,9 @@ import BaseModal from '../UI/BaseModal';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import { useToast } from '../UI/Toast';
-import { gymAPI, adminUsersAPI, pricingAPI } from '../../services/api';
+import { gymAPI, pricingAPI } from '../../services/api';
 import { getUserFullName } from '../../utils/userUtils';
+import SmartSelector from '../Climbers/SmartSelector';
 
 const GymCheckInModal = ({ isOpen, onClose, onSuccess }) => {
     const { showToast } = useToast();
@@ -12,9 +13,7 @@ const GymCheckInModal = ({ isOpen, onClose, onSuccess }) => {
     const [activeTab, setActiveTab] = useState('single'); // 'single', 'pass', 'multisport'
 
     // Data states
-    const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [userSearch, setUserSearch] = useState('');
     const [pricings, setPricings] = useState([]);
     const [selectedPricing, setSelectedPricing] = useState(null);
     const [userPasses, setUserPasses] = useState([]);
@@ -31,34 +30,13 @@ const GymCheckInModal = ({ isOpen, onClose, onSuccess }) => {
             fetchPricing();
             // Reset states
             setSelectedUser(null);
-            setUserSearch('');
             setSelectedPricing(null);
             setSelectedPass(null);
             setMultisportAmount('');
             setQuantity(1);
             setLoading(false);
-            setUsers([]);
         }
     }, [isOpen]);
-
-    // Search users
-    useEffect(() => {
-        const searchUsers = async () => {
-            if (!userSearch || userSearch.length < 2) {
-                setUsers([]);
-                return;
-            }
-            try {
-                const response = await adminUsersAPI.getAll({ search: userSearch, limit: 10 });
-                setUsers(response.data.users || []);
-            } catch (error) {
-                console.error("Error searching users", error);
-            }
-        };
-
-        const timeoutId = setTimeout(searchUsers, 500);
-        return () => clearTimeout(timeoutId);
-    }, [userSearch]);
 
     // Fetch user passes when user is selected (for Pass tab)
     useEffect(() => {
@@ -212,33 +190,17 @@ const GymCheckInModal = ({ isOpen, onClose, onSuccess }) => {
                             </button>
                         </div>
                     ) : (
-                        <div className="relative">
-                            <input
-                                type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
-                                placeholder="Търсене по име или имейл..."
-                                value={userSearch}
-                                onChange={(e) => setUserSearch(e.target.value)}
-                            />
-                            {users.length > 0 && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                                    {users.map(user => (
-                                        <div
-                                            key={user.id}
-                                            className="px-4 py-2 cursor-pointer hover:bg-gray-50"
-                                            onClick={() => {
-                                                setSelectedUser(user);
-                                                setUsers([]);
-                                                setUserSearch('');
-                                            }}
-                                        >
-                                            <div className="font-medium text-gray-900">{getUserFullName(user)}</div>
-                                            <div className="text-sm text-gray-500">{user.email}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        <SmartSelector
+                            value={selectedUser?.id || null}
+                            onChange={(item) => {
+                                if (item.type === 'user') {
+                                    setSelectedUser(item);
+                                }
+                            }}
+                            mode="check-in"
+                            allowFamilies={false}
+                            placeholder="Търсене по име или телефон..."
+                        />
                     )}
                     {activeTab === 'pass' && !selectedUser && (
                         <p className="text-xs text-gray-500">За посещение с карта трябва първо да изберете клиент.</p>

@@ -86,6 +86,7 @@ const Subscriptions = lazyWithRetry(() => import('./pages/Climber/Subscriptions'
 
 // Admin
 const AdminPricing = lazyWithRetry(() => import('./pages/Admin/Pricing'), { fallback: 'AdminPricing' });
+const CronJobs = lazyWithRetry(() => import('./pages/Admin/CronJobs'), { fallback: 'CronJobs' });
 
 
 // Home component - redirects authenticated users to their dashboard
@@ -332,6 +333,18 @@ function App() {
                   <Route path="cards" element={<Settings />} />
                   <Route path="training" element={<Settings />} />
                   <Route path="pricing" element={<AdminPricing />} />
+                </Route>
+
+                {/* Admin Cron Jobs - Admin only */}
+                <Route
+                  path="/admin/cron-jobs"
+                  element={
+                    <RequireMinRole minRole="admin">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<CronJobs />} />
                 </Route>
 
                 {/* Calendar - All authenticated users */}
