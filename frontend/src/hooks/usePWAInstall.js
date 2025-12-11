@@ -28,9 +28,17 @@ const checkIsRunningInPWA = () => {
   return isStandalone || isIOSStandalone || isAndroidPWA;
 };
 
+// Helper to check if PWA is installed (from localStorage or running in PWA mode)
+const checkIsInstalled = () => {
+  if (typeof window === 'undefined') return false;
+  // Check if running in PWA mode OR localStorage says installed
+  return checkIsRunningInPWA() || localStorage.getItem('pwa-installed') === 'true';
+};
+
 export const usePWAInstall = (onErrorModalOpen = null) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+  // Initialize isInstalled synchronously from localStorage to avoid flashing wrong button
+  const [isInstalled, setIsInstalled] = useState(() => checkIsInstalled());
   const [isSupported, setIsSupported] = useState(false);
   const [error, setError] = useState(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -340,13 +348,14 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       console.log('[PWA Install] beforeinstallprompt event received', e);
       promptEverReceived.current = true;
 
-      // If beforeinstallprompt fires and we have localStorage saying installed, 
-      // it means the app was uninstalled (because beforeinstallprompt only fires when NOT installed)
+      // NOTE: beforeinstallprompt CAN fire even when PWA is installed, if user is viewing in browser.
+      // We should NOT clear localStorage here - trust the stored installation status.
+      // The user will see "Open" button if localStorage says installed.
       const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
       if (hasLocalStorageInstalled) {
-        console.log('[PWA Install] beforeinstallprompt fired but localStorage says installed - app was uninstalled');
-        setIsInstalled(false);
-        localStorage.removeItem('pwa-installed');
+        console.log('[PWA Install] beforeinstallprompt fired but localStorage says installed - keeping installed status (user is viewing in browser)');
+        // Keep isInstalled as true - don't clear it
+        setIsInstalled(true);
       }
 
       // #region agent log
@@ -407,36 +416,10 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Also listen for when app is uninstalled
-    // We can't directly detect uninstallation, but we can check if:
-    // 1. We were in standalone mode before but now we're not
-    // 2. The beforeinstallprompt event fires again (means app was uninstalled)
-    // For now, we rely on the beforeinstallprompt event to detect re-installation capability
-    // If beforeinstallprompt fires and localStorage says installed, it means app was uninstalled
-    const checkIfUninstalled = () => {
-      // Only check if we have localStorage set but no deferred prompt
-      // This might indicate uninstallation, but we can't be 100% sure
-      // So we'll be conservative and only clear if we're sure
-      const hasLocalStorageInstalled = localStorage.getItem('pwa-installed') === 'true';
-
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-        window.matchMedia('(display-mode: fullscreen)').matches ||
-        window.matchMedia('(display-mode: minimal-ui)').matches;
-
-      const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
-      const isAndroidPWA = document.referrer.includes('android-app://');
-
-      // If we're not in standalone and we have a deferred prompt, it means app was uninstalled
-      // because beforeinstallprompt only fires when app is NOT installed
-      if (!isStandalone && !isIOSStandalone && !isAndroidPWA && hasLocalStorageInstalled && deferredPromptRef.current) {
-        console.log('[PWA Install] Detected app was uninstalled (beforeinstallprompt fired again), resetting status');
-        setIsInstalled(false);
-        localStorage.removeItem('pwa-installed');
-      }
-    };
-
-    // Check periodically if app was uninstalled (less frequently now)
-    const uninstallCheckInterval = setInterval(checkIfUninstalled, 5000);
+    // NOTE: We cannot reliably detect PWA uninstallation.
+    // beforeinstallprompt can fire even when PWA is installed (when viewing in browser).
+    // We trust localStorage and only clear it when user explicitly reinstalls.
+    // The getInstalledRelatedApps() API is used elsewhere for more reliable detection.
 
     // Update debug info periodically
     const interval = setInterval(() => {
@@ -460,7 +443,6 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       window.removeEventListener('appinstalled', handleAppInstalled);
       displayModeQuery.removeEventListener('change', handleDisplayModeChange);
       clearInterval(interval);
-      clearInterval(uninstallCheckInterval);
     };
     // Remove deferredPrompt from dependencies - it causes the effect to re-run and potentially miss the event
     // We use deferredPromptRef to track the current value without causing re-renders
