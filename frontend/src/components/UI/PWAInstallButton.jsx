@@ -111,31 +111,9 @@ const PWAInstallButton = ({
     }
 
     // At this point we're not in standalone mode
-    // Hide button if installed - user should open from home screen
-    // This prevents showing "Отвори" button which doesn't work properly
-    if (isInstalled) {
-      return (
-        <>
-          <ErrorModal
-            isOpen={showErrorModal || !!errorModalData}
-            onClose={() => {
-              setShowErrorModal(false);
-              setErrorModalData(null);
-            }}
-            message={errorModalData?.message || error}
-            debugInfo={errorModalData?.debugInfo || debugInfo}
-            showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
-          />
-          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
-            <PWADebugPanel
-              debugInfo={errorModalData?.debugInfo || debugInfo}
-              onClose={() => setShowDebugPanel(false)}
-            />
-          )}
-        </>
-      );
-    }
-
+    // Show button with appropriate label:
+    // - If installed: show "Open" button
+    // - If not installed: show "Install" button
     return (
       <>
         <button
@@ -201,11 +179,9 @@ const PWAInstallButton = ({
   }
 
   // Regular button variant (for footer)
-  // Hide if:
-  // 1. In standalone mode (PWA) - no button needed in PWA
-  // 2. Installed (even if in browser) - user should open from home screen, not from browser
-  // Show only on mobile/tablet (lg:hidden) and when not installed
-  if (isRunningInPWA || isInstalled) {
+  // Hide only if in standalone mode (PWA) - no button needed in PWA
+  // Show button if not in PWA mode (even if installed, show "Open" button)
+  if (isRunningInPWA) {
     return (
       <>
         <ErrorModal
@@ -218,9 +194,9 @@ const PWAInstallButton = ({
           debugInfo={errorModalData?.debugInfo || debugInfo}
           showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
         />
-        {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
+        {shouldShowDebug && (
           <PWADebugPanel
-            debugInfo={errorModalData?.debugInfo || debugInfo}
+            debugInfo={debugInfoToShow}
             onClose={() => setShowDebugPanel(false)}
           />
         )}
