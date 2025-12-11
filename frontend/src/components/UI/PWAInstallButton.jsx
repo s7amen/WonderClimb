@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import ErrorModal from './ErrorModal';
 import PWADebugPanel from './PWADebugPanel';
@@ -10,16 +10,11 @@ const PWAInstallButton = ({
 }) => {
   const [errorModalData, setErrorModalData] = useState(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
-  
-  // Show debug panel if there's an error or if user long-presses the install button
-  useEffect(() => {
-    if (error) {
-      setShowDebugPanel(true);
-    }
-  }, [error]);
 
   const handleErrorModalOpen = (message, debugInfo) => {
     setErrorModalData({ message, debugInfo });
+    // Show debug panel when error modal opens
+    setShowDebugPanel(true);
   };
 
   const {
@@ -34,25 +29,23 @@ const PWAInstallButton = ({
     isRunningInPWA
   } = usePWAInstall(handleErrorModalOpen);
 
-  // Show debug panel on triple tap (for mobile debugging)
+  // Determine if we should show debug panel - check if we have valid debug info
+  const debugInfoToShow = useMemo(() => {
+    return errorModalData?.debugInfo || debugInfo || {};
+  }, [errorModalData?.debugInfo, debugInfo]);
+  
+  const shouldShowDebug = useMemo(() => {
+    return showDebugPanel && debugInfoToShow && Object.keys(debugInfoToShow).length > 0;
+  }, [showDebugPanel, debugInfoToShow]);
+
+  // Show debug panel when there's an error or error modal data
   useEffect(() => {
-    let tapCount = 0;
-    let tapTimer = null;
-    const handleTap = () => {
-      tapCount++;
-      if (tapTimer) clearTimeout(tapTimer);
-      tapTimer = setTimeout(() => {
-        if (tapCount >= 3) {
-          setShowDebugPanel(true);
-        }
-        tapCount = 0;
-      }, 500);
-    };
-    // Listen for taps on the install button
-    return () => {
-      if (tapTimer) clearTimeout(tapTimer);
-    };
-  }, []);
+    if (error || errorModalData) {
+      setShowDebugPanel(true);
+    } else {
+      setShowDebugPanel(false);
+    }
+  }, [error, errorModalData]);
 
   const handleClick = () => {
     if (isInstalled) {
@@ -83,7 +76,7 @@ const PWAInstallButton = ({
             debugInfo={errorModalData?.debugInfo || debugInfo}
             showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
           />
-          {showDebugPanel && (
+          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
             <PWADebugPanel
               debugInfo={errorModalData?.debugInfo || debugInfo}
               onClose={() => setShowDebugPanel(false)}
@@ -107,7 +100,7 @@ const PWAInstallButton = ({
             debugInfo={errorModalData?.debugInfo || debugInfo}
             showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
           />
-          {showDebugPanel && (
+          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
             <PWADebugPanel
               debugInfo={errorModalData?.debugInfo || debugInfo}
               onClose={() => setShowDebugPanel(false)}
@@ -118,11 +111,8 @@ const PWAInstallButton = ({
     }
 
     // At this point we're not in standalone mode
-    // Show button if:
-    // - PWA is not installed (show Install)
-    // - PWA is installed but we're in browser - HIDE button (user should open from home screen)
-
     // Hide button if installed - user should open from home screen
+    // This prevents showing "Отвори" button which doesn't work properly
     if (isInstalled) {
       return (
         <>
@@ -136,7 +126,7 @@ const PWAInstallButton = ({
             debugInfo={errorModalData?.debugInfo || debugInfo}
             showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
           />
-          {showDebugPanel && (
+          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
             <PWADebugPanel
               debugInfo={errorModalData?.debugInfo || debugInfo}
               onClose={() => setShowDebugPanel(false)}
@@ -211,9 +201,10 @@ const PWAInstallButton = ({
   }
 
   // Regular button variant (for footer)
-  // Hide if in standalone mode (PWA) - no button needed in PWA
-  // Hide if installed - user should open from home screen
-  // Show only on mobile/tablet (lg:hidden) and when not in standalone mode and not installed
+  // Hide if:
+  // 1. In standalone mode (PWA) - no button needed in PWA
+  // 2. Installed (even if in browser) - user should open from home screen, not from browser
+  // Show only on mobile/tablet (lg:hidden) and when not installed
   if (isRunningInPWA || isInstalled) {
     return (
       <>
@@ -227,7 +218,7 @@ const PWAInstallButton = ({
           debugInfo={errorModalData?.debugInfo || debugInfo}
           showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
         />
-        {showDebugPanel && (
+        {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
           <PWADebugPanel
             debugInfo={errorModalData?.debugInfo || debugInfo}
             onClose={() => setShowDebugPanel(false)}
@@ -278,9 +269,9 @@ const PWAInstallButton = ({
         debugInfo={errorModalData?.debugInfo || debugInfo}
         showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
       />
-      {showDebugPanel && (
+      {shouldShowDebug && (
         <PWADebugPanel
-          debugInfo={errorModalData?.debugInfo || debugInfo}
+          debugInfo={debugInfoToShow}
           onClose={() => setShowDebugPanel(false)}
         />
       )}

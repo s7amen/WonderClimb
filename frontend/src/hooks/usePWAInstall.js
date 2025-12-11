@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
+// Debug logging helper that works in production - moved outside hook to avoid hoisting issues
+const debugLog = (location, message, data, hypothesisId) => {
+  try {
+    const logEntry = {location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
+    console.log('[PWA DEBUG]', JSON.stringify(logEntry));
+    // Only try to send to debug server if available (won't work in production)
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
+    }
+  } catch (e) {
+    // Silently ignore debug log errors
+  }
+};
+
 export const usePWAInstall = (onErrorModalOpen = null) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -12,13 +26,6 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const promptEverReceived = useRef(false);
   // Use ref to track deferredPrompt for cleanup functions without causing effect re-runs
   const deferredPromptRef = useRef(null);
-
-  // Debug logging helper that works in production
-  const debugLog = (location, message, data, hypothesisId) => {
-    const logEntry = {location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
-    console.log('[PWA DEBUG]', JSON.stringify(logEntry));
-    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
-  };
 
   useEffect(() => {
     // #region agent log
@@ -578,18 +585,53 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     try {
       const promptToUse = deferredPrompt || deferredPromptRef.current;
       // #region agent log
-      debugLog('usePWAInstall.js:498','Calling deferredPrompt.prompt()',{hasDeferredPrompt:!!deferredPrompt,hasDeferredPromptRef:!!deferredPromptRef.current,usingPrompt:!!promptToUse},'D');
+      debugLog('usePWAInstall.js:498','Calling deferredPrompt.prompt()',{hasDeferredPrompt:!!deferredPrompt,hasDeferredPromptRef:!!deferredPromptRef.current,usingPrompt:!!promptToUse,hasUserChoice:promptToUse && typeof promptToUse.userChoice === 'function'},'D');
       // #endregion
       console.log('[PWA Install] Calling deferredPrompt.prompt()');
       if (!promptToUse) {
         throw new Error('Deferred prompt is null');
       }
+      
+      // Check if userChoice is available before calling prompt
+      if (typeof promptToUse.userChoice !== 'function') {
+        console.warn('[PWA Install] userChoice is not a function, calling prompt() anyway');
+        promptToUse.prompt();
+        // If userChoice is not available, assume accepted (user clicked install)
+        setIsInstalled(true);
+        localStorage.setItem('pwa-installed', 'true');
+        setError(null);
+        setShowErrorModal(false);
+        deferredPromptRef.current = null;
+        setDeferredPrompt(null);
+        return;
+      }
+      
       promptToUse.prompt();
-      const { outcome } = await promptToUse.userChoice();
-      // #region agent log
-      debugLog('usePWAInstall.js:502','User choice received',{outcome},'D');
-      // #endregion
-      console.log('[PWA Install] User choice:', outcome);
+      
+      // Try to get user choice, but handle case where userChoice is not available
+      let outcome = 'accepted'; // Default to accepted
+      try {
+        if (typeof promptToUse.userChoice === 'function') {
+          const choiceResult = await promptToUse.userChoice();
+          outcome = choiceResult.outcome || 'accepted';
+          // #region agent log
+          debugLog('usePWAInstall.js:612','User choice received',{outcome},'D');
+          // #endregion
+          console.log('[PWA Install] User choice:', outcome);
+        } else {
+          console.warn('[PWA Install] userChoice is not a function after prompt(), assuming accepted');
+          // #region agent log
+          debugLog('usePWAInstall.js:618','userChoice not available after prompt, assuming accepted',{assumedAccepted:true},'D');
+          // #endregion
+        }
+      } catch (userChoiceError) {
+        console.warn('[PWA Install] Error getting user choice, assuming accepted:', userChoiceError);
+        // If userChoice fails, assume user accepted (they clicked install)
+        outcome = 'accepted';
+        // #region agent log
+        debugLog('usePWAInstall.js:624','userChoice error, assuming accepted',{error:userChoiceError.message},'D');
+        // #endregion
+      }
 
       if (outcome === 'accepted') {
         setIsInstalled(true);

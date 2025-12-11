@@ -3,7 +3,10 @@ import { useState } from 'react';
 const PWADebugPanel = ({ debugInfo, onClose }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!debugInfo) return null;
+  // Check if debugInfo exists and has at least one property
+  if (!debugInfo || (typeof debugInfo === 'object' && Object.keys(debugInfo).length === 0)) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 left-4 z-[9999] max-w-sm">
