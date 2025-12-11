@@ -13,9 +13,16 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   // Use ref to track deferredPrompt for cleanup functions without causing effect re-runs
   const deferredPromptRef = useRef(null);
 
+  // Debug logging helper that works in production
+  const debugLog = (location, message, data, hypothesisId) => {
+    const logEntry = {location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
+    console.log('[PWA DEBUG]', JSON.stringify(logEntry));
+    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
+  };
+
   useEffect(() => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:14',message:'useEffect hook started',data:{deferredPrompt:!!deferredPrompt,userAgent:navigator.userAgent.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    debugLog('usePWAInstall.js:16','useEffect hook started',{deferredPrompt:!!deferredPrompt,userAgent:navigator.userAgent.substring(0,50)},'B');
     // #endregion
     // Early device detection - skip all PWA checks on desktop devices
     const isMobileOrTablet = () => {
@@ -31,14 +38,33 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     };
 
     // Skip all PWA logic if on desktop
-    if (!isMobileOrTablet()) {
-      console.log('[PWA Install] Skipping PWA checks on desktop device');
+    const isMobile = isMobileOrTablet();
+    // #region agent log
+    debugLog('usePWAInstall.js:41','Device detection check',{isMobile,userAgent:navigator.userAgent,isDesktop:!isMobile},'B');
+    // #endregion
+    
+    // IMPORTANT: Even if detected as desktop, we should still listen for beforeinstallprompt
+    // because user might be testing with mobile emulation or the detection might be wrong
+    // We'll only skip some UI checks, but keep the event listener active
+    const shouldSkipDetailedChecks = !isMobile;
+    if (shouldSkipDetailedChecks) {
+      console.log('[PWA Install] Detected desktop device, but will still listen for beforeinstallprompt event');
       setIsSupported(false);
-      return; // Exit early, don't run any PWA checks
     }
 
-    // Comprehensive PWA diagnostics
+    // Comprehensive PWA diagnostics (skip on desktop to save resources)
     const checkPWARequirements = async () => {
+      if (shouldSkipDetailedChecks) {
+        // Skip detailed checks on desktop, but still set basic debug info
+        setDebugInfo({
+          isStandalone: false,
+          userAgent: navigator.userAgent,
+          protocol: window.location.protocol,
+          hostname: window.location.hostname,
+          isDesktop: true,
+        });
+        return;
+      }
       const diagnostics = {
         // Basic checks
         // Basic checks
@@ -274,7 +300,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:270',message:'beforeinstallprompt event received',data:{eventType:e.type,hasPreventDefault:typeof e.preventDefault==='function',currentDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:270','beforeinstallprompt event received',{eventType:e.type,hasPreventDefault:typeof e.preventDefault==='function',currentDeferredPrompt:!!deferredPromptRef.current,eventTime:Date.now()},'A');
       // #endregion
       console.log('[PWA Install] beforeinstallprompt event received', e);
       promptEverReceived.current = true;
@@ -289,21 +315,50 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       }
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:283',message:'Calling preventDefault and setting deferredPrompt',data:{beforePreventDefault:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:283','Calling preventDefault and setting deferredPrompt',{beforePreventDefault:true,eventDefaultPrevented:e.defaultPrevented},'A');
       // #endregion
       e.preventDefault();
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:285',message:'Setting deferredPrompt state',data:{eventObject:!!e},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:285','Setting deferredPrompt state',{eventObject:!!e,hasPrompt:typeof e.prompt==='function'},'A');
       // #endregion
       deferredPromptRef.current = e;
       setDeferredPrompt(e);
       setError(null);
+      // #region agent log
+      debugLog('usePWAInstall.js:290','deferredPrompt set successfully',{deferredPromptRef:!!deferredPromptRef.current},'A');
+      // #endregion
     };
 
+    // Check if event was already captured early (before React mounted)
+    if (window.__earlyBeforeInstallPrompt) {
+      // #region agent log
+      debugLog('usePWAInstall.js:295','Found early captured beforeinstallprompt',{hasEarlyPrompt:!!window.__earlyBeforeInstallPrompt},'B');
+      // #endregion
+      const earlyEvent = window.__earlyBeforeInstallPrompt;
+      handleBeforeInstallPrompt(earlyEvent);
+      // Clear it so we don't use it again
+      window.__earlyBeforeInstallPrompt = null;
+    }
+
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:288',message:'Adding beforeinstallprompt event listener',data:{hasWindow:typeof window!=='undefined',currentDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    debugLog('usePWAInstall.js:303','Adding beforeinstallprompt event listener',{hasWindow:typeof window!=='undefined',currentDeferredPrompt:!!deferredPromptRef.current,listenerTime:Date.now()},'B');
     // #endregion
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Also listen for early event from main.jsx
+    const handleEarlyEvent = (e) => {
+      // #region agent log
+      debugLog('usePWAInstall.js:309','Received early beforeinstallprompt event',{hasDetail:!!e.detail},'B');
+      // #endregion
+      if (e.detail) {
+        handleBeforeInstallPrompt(e.detail);
+      }
+    };
+    window.addEventListener('early-beforeinstallprompt', handleEarlyEvent);
+    
+    // #region agent log
+    debugLog('usePWAInstall.js:316','Event listeners added, checking if event already fired',{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,hasEarlyPrompt:!!window.__earlyBeforeInstallPrompt},'B');
+    // #endregion
 
     // Listen for app installed event
     const handleAppInstalled = () => {
@@ -355,9 +410,10 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     return () => {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:337',message:'Cleaning up event listeners',data:{deferredPrompt:!!deferredPromptRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:337','Cleaning up event listeners',{deferredPrompt:!!deferredPromptRef.current},'B');
       // #endregion
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('early-beforeinstallprompt', handleEarlyEvent);
       window.removeEventListener('appinstalled', handleAppInstalled);
       clearInterval(interval);
       clearInterval(uninstallCheckInterval);
@@ -416,7 +472,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
   const install = async () => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:392',message:'Install button clicked',data:{deferredPrompt:!!deferredPrompt,isInstalled,promptEverReceived:promptEverReceived.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    debugLog('usePWAInstall.js:392','Install button clicked',{deferredPrompt:!!deferredPrompt,deferredPromptRef:!!deferredPromptRef.current,isInstalled,promptEverReceived:promptEverReceived.current,stateTime:Date.now()},'C');
     // #endregion
     // If already installed, open the app instead
     if (isInstalled) {
@@ -428,13 +484,17 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     setShowErrorModal(false);
     console.log('[PWA Install] Install button clicked', {
       deferredPrompt: !!deferredPrompt,
+      deferredPromptRef: !!deferredPromptRef.current,
       isInstalled,
       debugInfo,
     });
 
-    if (!deferredPrompt) {
+    // Use ref if state is not available (race condition protection)
+    const promptToUse = deferredPrompt || deferredPromptRef.current;
+    
+    if (!promptToUse) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:407',message:'No deferredPrompt available',data:{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,promptEverReceived:promptEverReceived.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:407','No deferredPrompt available',{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,promptEverReceived:promptEverReceived.current,deferredPromptState:!!deferredPrompt,deferredPromptRefState:!!deferredPromptRef.current},'C');
       // #endregion
       // For iOS, show instructions
       if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
@@ -527,14 +587,18 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }
 
     try {
+      const promptToUse = deferredPrompt || deferredPromptRef.current;
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:498',message:'Calling deferredPrompt.prompt()',data:{hasDeferredPrompt:!!deferredPrompt},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:498','Calling deferredPrompt.prompt()',{hasDeferredPrompt:!!deferredPrompt,hasDeferredPromptRef:!!deferredPromptRef.current,usingPrompt:!!promptToUse},'D');
       // #endregion
       console.log('[PWA Install] Calling deferredPrompt.prompt()');
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice();
+      if (!promptToUse) {
+        throw new Error('Deferred prompt is null');
+      }
+      promptToUse.prompt();
+      const { outcome } = await promptToUse.userChoice();
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'usePWAInstall.js:502',message:'User choice received',data:{outcome},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      debugLog('usePWAInstall.js:502','User choice received',{outcome},'D');
       // #endregion
       console.log('[PWA Install] User choice:', outcome);
 
