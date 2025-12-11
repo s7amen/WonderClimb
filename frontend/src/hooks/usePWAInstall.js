@@ -15,6 +15,19 @@ const debugLog = (location, message, data, hypothesisId) => {
   }
 };
 
+// Helper function to check if running in PWA mode (standalone) - synchronous check
+const checkIsRunningInPWA = () => {
+  if (typeof window === 'undefined') return false;
+  
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches;
+  const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
+  const isAndroidPWA = document.referrer.includes('android-app://');
+  
+  return isStandalone || isIOSStandalone || isAndroidPWA;
+};
+
 export const usePWAInstall = (onErrorModalOpen = null) => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -22,6 +35,8 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const [error, setError] = useState(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [debugInfo, setDebugInfo] = useState({});
+  // Track if running in PWA mode - initialize synchronously to avoid flashing install button
+  const [isRunningInPWA, setIsRunningInPWA] = useState(() => checkIsRunningInPWA());
   // Track if beforeinstallprompt event was ever received in this session
   const promptEverReceived = useRef(false);
   // Use ref to track deferredPrompt for cleanup functions without causing effect re-runs
@@ -61,10 +76,23 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     // Comprehensive PWA diagnostics (skip on desktop to save resources)
     const checkPWARequirements = async () => {
+      // Always check if running in PWA mode and update state
+      const currentlyInPWA = checkIsRunningInPWA();
+      setIsRunningInPWA(currentlyInPWA);
+      
       if (shouldSkipDetailedChecks) {
         // Skip detailed checks on desktop, but still set basic debug info
+        // IMPORTANT: Still check actual display mode for desktop PWAs
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(display-mode: fullscreen)').matches ||
+          window.matchMedia('(display-mode: minimal-ui)').matches;
+        const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
+        const isAndroidPWA = document.referrer.includes('android-app://');
+        
         setDebugInfo({
-          isStandalone: false,
+          isStandalone,
+          isIOSStandalone,
+          isAndroidPWA,
           userAgent: navigator.userAgent,
           protocol: window.location.protocol,
           hostname: window.location.hostname,
@@ -415,6 +443,14 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       checkPWARequirements();
     }, 5000);
 
+    // Listen for display mode changes (e.g., if user switches from browser to PWA)
+    const displayModeQuery = window.matchMedia('(display-mode: standalone)');
+    const handleDisplayModeChange = (e) => {
+      console.log('[PWA Install] Display mode changed:', e.matches ? 'standalone' : 'browser');
+      setIsRunningInPWA(checkIsRunningInPWA());
+    };
+    displayModeQuery.addEventListener('change', handleDisplayModeChange);
+
     return () => {
       // #region agent log
       debugLog('usePWAInstall.js:337','Cleaning up event listeners',{deferredPrompt:!!deferredPromptRef.current},'B');
@@ -422,6 +458,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('early-beforeinstallprompt', handleEarlyEvent);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      displayModeQuery.removeEventListener('change', handleDisplayModeChange);
       clearInterval(interval);
       clearInterval(uninstallCheckInterval);
     };
@@ -433,9 +470,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   const openInstalledApp = () => {
     // If app is installed, check if we're already in PWA mode
     if (isInstalled) {
-      const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone || debugInfo.isAndroidPWA;
-
-      if (isStandalone) {
+      if (isRunningInPWA) {
         // Already in PWA, just navigate to home
         window.location.href = '/';
       } else {
@@ -679,8 +714,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }
   };
 
-  // Check if currently running in PWA mode (standalone)
-  const isRunningInPWA = debugInfo.isStandalone || debugInfo.isIOSStandalone || debugInfo.isAndroidPWA || false;
+  // isRunningInPWA is now a state variable initialized synchronously
 
   // Report usage/installation to backend
   useEffect(() => {

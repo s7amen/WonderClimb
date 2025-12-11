@@ -11,8 +11,8 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'logo-icon.png', 'icons/icon-192x192.png', 'icons/icon-512x512.png'],
       manifestFilename: 'manifest.json', // Use manifest.json instead of manifest.webmanifest
       manifest: {
-        name: 'WonderClimb',
-        short_name: 'WonderClimb',
+        name: 'Чудните Скали',
+        short_name: 'Чудните Скали',
         description: 'Тренировки по катерене',
         theme_color: '#EA7A24',
         background_color: '#f3f3f5',
