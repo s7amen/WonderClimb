@@ -424,31 +424,20 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
   }, []);
 
   const openInstalledApp = () => {
-    // If app is installed, show message to open it manually
+    // If app is installed, check if we're already in PWA mode
     if (isInstalled) {
-      const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone;
+      const isStandalone = debugInfo.isStandalone || debugInfo.isIOSStandalone || debugInfo.isAndroidPWA;
 
       if (isStandalone) {
         // Already in PWA, just navigate to home
         window.location.href = '/';
       } else {
-        // In browser but PWA is installed - show instructions
-        const message = 'Приложението е инсталирано!\n\n' +
-          'Моля, отворете го от началния екран на вашия телефон.\n\n' +
-          'Ако не можете да го намерите, проверете в менюто с приложения.';
-        if (onErrorModalOpen) {
-          setError(message);
-          setShowErrorModal(true);
-          onErrorModalOpen(message, {
-            protocol: debugInfo.protocol,
-            hostname: debugInfo.hostname,
-            isInstalled: true,
-            isStandalone: false,
-            browserInfo: debugInfo.browserInfo,
-          });
-        } else {
-          alert(message);
-        }
+        // In browser but PWA is installed - don't show error, just silently do nothing
+        // The button should ideally be hidden when installed, but if clicked, just do nothing
+        // or show a friendly message without error styling
+        console.log('[PWA Install] App is installed but user is in browser mode. User should open from home screen.');
+        // Don't show error modal - just log it
+        return;
       }
     } else {
       // If not installed, show message
@@ -690,7 +679,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     error,
     showErrorModal,
     setShowErrorModal,
-    debugInfo,
+    debugInfo: {
+      ...debugInfo,
+      deferredPrompt: !!deferredPrompt,
+      deferredPromptRef: !!deferredPromptRef.current,
+      promptEverReceived: promptEverReceived.current,
+      hasEarlyPrompt: !!window.__earlyBeforeInstallPrompt,
+    },
     deferredPrompt: !!deferredPrompt,
     isRunningInPWA, // Explicitly indicate if app is running in PWA mode
   };

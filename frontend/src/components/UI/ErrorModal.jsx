@@ -85,6 +85,12 @@ const ErrorModal = ({
             {debugInfo.promptEverReceived !== undefined && (
               <div>Prompt received this session: {debugInfo.promptEverReceived ? 'true' : 'false'}</div>
             )}
+            {debugInfo.deferredPromptRef !== undefined && (
+              <div>Deferred prompt (ref): {debugInfo.deferredPromptRef ? 'true' : 'false'}</div>
+            )}
+            {debugInfo.hasEarlyPrompt !== undefined && (
+              <div>Early prompt captured: {debugInfo.hasEarlyPrompt ? 'true' : 'false'}</div>
+            )}
             {debugInfo.userAgent && (
               <div className="break-all">User Agent: {debugInfo.userAgent}</div>
             )}
@@ -92,6 +98,9 @@ const ErrorModal = ({
               <div>
                 Browser: {debugInfo.browserInfo.isIOS ? 'iOS' : debugInfo.browserInfo.isAndroid ? 'Android' : 'Other'}
               </div>
+            )}
+            {debugInfo.isDesktop !== undefined && (
+              <div>Detected as Desktop: {debugInfo.isDesktop ? 'true' : 'false'}</div>
             )}
           </div>
         </div>
