@@ -77,13 +77,11 @@ const sessionSchema = new mongoose.Schema({
   },
   targetGroups: {
     type: [String],
-    enum: ['beginner', 'experienced', 'advanced'],
     default: [],
   },
   ageGroups: {
     type: [String],
-    enum: ['4-6', '7-12', '13+'],
-    default: ['4-6', '7-12', '13+'],
+    default: [],
   },
 }, {
   timestamps: true,

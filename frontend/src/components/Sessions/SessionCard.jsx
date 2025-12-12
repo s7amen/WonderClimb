@@ -24,6 +24,7 @@ const SessionCard = ({
   viewingRoster = false,
   roster = [],
   onEdit,
+  onCancel,
   onDelete,
   showToast,
   getBulgarianDayName,
@@ -37,44 +38,42 @@ const SessionCard = ({
   // Synchronized widths
   synchronizedWidths = null,
   onMeasure = null,
+  trainingLabels = { targetGroups: [], ageGroups: [] },
 }) => {
   const isActive = session.status === 'active';
   const progressPercentage = (bookedCount / session.capacity) * 100;
   const sessionDate = new Date(session.date);
   const timeStr = formatTime ? formatTime(session.date) : format(sessionDate, 'HH:mm');
   const endTimeStr = getEndTime ? getEndTime(session.date, session.durationMinutes) : format(new Date(sessionDate.getTime() + session.durationMinutes * 60000), 'HH:mm');
-  
+
   // Determine border color based on target groups (lowest priority) or selection
   const getBorderColor = () => {
     // If selected, use orange
     if (isSelected) {
       return '#ff6900';
     }
-    
+
     // If no target groups, use default green
     if (!session.targetGroups || session.targetGroups.length === 0) {
       return '#00c950';
     }
-    
-    // Priority order: beginner < experienced < advanced
-    // Find the lowest priority group
-    const hasBeginner = session.targetGroups.includes('beginner');
-    const hasExperienced = session.targetGroups.includes('experienced');
-    const hasAdvanced = session.targetGroups.includes('advanced');
-    
-    // Return color based on lowest priority group
-    if (hasBeginner) {
-      return '#00c950'; // Green for beginner
-    } else if (hasExperienced) {
-      return '#93c5fd'; // Pastel blue for experienced
-    } else if (hasAdvanced) {
-      return '#dc2626'; // Darker red for advanced (better contrast with orange)
+
+    // Find the first matching group in our settings and use its color
+    // If multiple groups, currently we prioritize by their order in settings or just pick the first match
+    // The previous logic had hardcoded priority. Here we can iterate through trainingLabels.targetGroups
+    // and find the "highest" priority (first in list) match present in session.targetGroups.
+
+    // Check for matches in the order defined in settings
+    for (const group of trainingLabels.targetGroups) {
+      if (session.targetGroups.includes(group.slug)) {
+        return group.color || '#00c950';
+      }
     }
-    
-    // Default green
+
+    // Fallback if configured groups don't match (e.g. legacy data)
     return '#00c950';
   };
-  
+
   const borderColor = getBorderColor();
 
   // Callback refs for measuring element widths
@@ -138,11 +137,11 @@ const SessionCard = ({
   const handleRowClick = (e) => {
     // Don't trigger if clicking on buttons, links, or checkbox
     const target = e.target;
-    const isClickable = target.closest('button') || 
-                       target.closest('a') || 
-                       target.closest('input[type="checkbox"]') ||
-                       target.closest('select');
-    
+    const isClickable = target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input[type="checkbox"]') ||
+      target.closest('select');
+
     if (!isClickable && onSelect) {
       onSelect(session._id);
     }
@@ -163,7 +162,7 @@ const SessionCard = ({
   };
 
   return (
-    <div 
+    <div
       id={`session-${session._id}`}
       className={`rounded-lg overflow-hidden relative transition-all duration-200 hover:shadow-md hover:border-gray-200 group border-l-4 ${getBackgroundColor()} ${onSelect ? 'cursor-pointer' : ''}`}
       style={{ borderLeftColor: borderColor }}
@@ -186,11 +185,10 @@ const SessionCard = ({
                       onSelect && onSelect(session._id);
                     }}
                     onClick={(e) => e.stopPropagation()} // Prevent row click
-                    className={`w-5 h-5 border-2 rounded cursor-pointer transition-all duration-200 appearance-none ${
-                      isSelected
-                        ? 'bg-[#ff6900] border-[#ff6900] checked:bg-[#ff6900]'
-                        : 'bg-white border-[#cad5e2] hover:border-[#ff6900]'
-                    } focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-1`}
+                    className={`w-5 h-5 border-2 rounded cursor-pointer transition-all duration-200 appearance-none ${isSelected
+                      ? 'bg-[#ff6900] border-[#ff6900] checked:bg-[#ff6900]'
+                      : 'bg-white border-[#cad5e2] hover:border-[#ff6900]'
+                      } focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-1`}
                     style={{
                       backgroundImage: isSelected ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\' fill=\'white\'%3E%3Cpath fill-rule=\'evenodd\' d=\'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z\' clip-rule=\'evenodd\'/%3E%3C/svg%3E")' : 'none',
                       backgroundSize: 'contain',
@@ -200,192 +198,192 @@ const SessionCard = ({
                   />
                 </div>
               ) : null}
-               {/* Час и заглавие - могат да wrap-ват на два реда */}
-               <div className="flex items-center gap-2 flex-wrap">
-                 <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
-                   <ClockIcon />
-                 </div>
-                 <span 
-                   ref={timeRefCallback}
-                   className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
-                   style={synchronizedWidths?.time && synchronizedWidths.time > 0 ? { minWidth: `${synchronizedWidths.time}px` } : {}}
-                 >
-                   {timeStr} - {endTimeStr}
-                 </span>
-                 {/* Разделител между часът и заглавието */}
-                 {session.title && (
-                   <>
-                     <span className="text-[#cad5e2] shrink-0">|</span>
-                     <span 
-                       ref={titleRefCallback}
-                       className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
-                       style={synchronizedWidths?.title && synchronizedWidths.title > 0 ? { minWidth: `${synchronizedWidths.title}px` } : {}}
-                     >
-                       {session.title}
-                     </span>
-                   </>
-                 )}
-               </div>
-               {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
-               {session.targetGroups && session.targetGroups.length > 0 && (
-                 <div 
-                   ref={targetGroupsRefCallback}
-                   className="flex items-center gap-2 shrink-0"
-                   style={synchronizedWidths?.targetGroups && synchronizedWidths.targetGroups > 0 ? { minWidth: `${synchronizedWidths.targetGroups}px` } : {}}
-                 >
-                   <span className="text-[#cad5e2]">|</span>
-                   <div className="flex items-center gap-2 flex-wrap">
-                     {session.targetGroups.map((group) => {
-                       const groupLabels = {
-                         beginner: 'Начинаещи',
-                         experienced: 'Деца с опит',
-                         advanced: 'Напреднали',
-                       };
-                       const groupColors = {
-                         beginner: 'bg-green-100 text-green-700',
-                         experienced: 'bg-blue-100 text-blue-700',
-                         advanced: 'bg-red-100 text-red-700',
-                       };
-                       return (
-                         <span
-                           key={group}
-                           className={`px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap shrink-0 ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
-                         >
-                           {groupLabels[group] || group}
-                         </span>
-                       );
-                     })}
-                   </div>
-                 </div>
-               )}
-               {/* Capacity with Progress Bar - групирани с разделителя, могат да wrap-ват заедно */}
-               {!showReservationsInfo && (
-                 <div 
-                   ref={capacityRefCallback}
-                   className="flex items-center gap-2 shrink-0"
-                   style={synchronizedWidths?.capacity && synchronizedWidths.capacity > 0 ? { minWidth: `${synchronizedWidths.capacity}px` } : {}}
-                 >
-                   {/* Показва разделител само ако има target groups преди */}
-                   {session.targetGroups && session.targetGroups.length > 0 && (
-                     <span className="text-[#cad5e2]">|</span>
-                   )}
-                   <div className="flex items-center gap-2">
-                     <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
-                       <PersonIcon />
-                     </div>
-                     <span className="text-sm md:text-base leading-6 text-[#0f172b] font-normal whitespace-nowrap">
-                       {bookedCount}/{session.capacity}
-                     </span>
-                     <div className="bg-slate-200 h-2 rounded-full overflow-hidden w-[80px] transition-all duration-200 group-hover:bg-slate-300 shrink-0">
-                       <div 
-                         className="h-full bg-[#00c950] rounded-full transition-all duration-300"
-                         style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-                       />
-                     </div>
-                   </div>
-                 </div>
-               )}
-            </div>
-
-              {/* Buttons - горе в дясно */}
-              {isActive && mode === 'public' && (
-                <div 
-                  ref={buttonsRefCallback}
-                  className="flex flex-row items-center justify-end gap-2 shrink-0 self-center"
-                  style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
+              {/* Час и заглавие - могат да wrap-ват на два реда */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
+                  <ClockIcon />
+                </div>
+                <span
+                  ref={timeRefCallback}
+                  className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
+                  style={synchronizedWidths?.time && synchronizedWidths.time > 0 ? { minWidth: `${synchronizedWidths.time}px` } : {}}
                 >
-                  {/* Показва "Отмени" само когато има резервация */}
-                  {reservationInfo && onCancelBooking && (
-                    <button
-                      onClick={() => {
-                        // Показва popup за потвърждение с избор на резервации
-                        if (allReservations && allReservations.length > 0) {
-                          onCancelBooking(session._id, allReservations);
-                        } else if (reservationInfo.bookingId) {
-                          onCancelBooking(session._id, [reservationInfo]);
-                        }
-                      }}
-                      className="h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
+                  {timeStr} - {endTimeStr}
+                </span>
+                {/* Разделител между часът и заглавието */}
+                {session.title && (
+                  <>
+                    <span className="text-[#cad5e2] shrink-0">|</span>
+                    <span
+                      ref={titleRefCallback}
+                      className="text-sm md:text-base leading-6 text-[#0f172b] font-normal"
+                      style={synchronizedWidths?.title && synchronizedWidths.title > 0 ? { minWidth: `${synchronizedWidths.title}px` } : {}}
                     >
-                      Отмени
-                    </button>
-                  )}
-                  {/* Винаги показва бутон "Запази" - винаги най-в дясно */}
-                  {onReserve && (
-                    <button
-                      onClick={() => onReserve(session._id)}
-                      disabled={isFull}
-                      className={`h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${
-                        isFull
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
-                      }`}
-                    >
-                      {isFull ? 'Няма места' : 'Запази'}
-                    </button>
-                  )}
+                      {session.title}
+                    </span>
+                  </>
+                )}
+              </div>
+              {/* Target Groups - групирани с разделителя, могат да wrap-ват заедно */}
+              {session.targetGroups && session.targetGroups.length > 0 && (
+                <div
+                  ref={targetGroupsRefCallback}
+                  className="flex items-center gap-2 shrink-0"
+                  style={synchronizedWidths?.targetGroups && synchronizedWidths.targetGroups > 0 ? { minWidth: `${synchronizedWidths.targetGroups}px` } : {}}
+                >
+                  <span className="text-[#cad5e2]">|</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {session.targetGroups.map((groupSlug) => {
+                      const groupConfig = trainingLabels.targetGroups.find(g => g.slug === groupSlug);
+                      const label = groupConfig ? groupConfig.label : groupSlug;
+                      // Use a light background color based on the config color if possible, or default gray
+                      // Since we don't have "light" variants in settings, we can use inline styles with opacity or just standard gray/white with colored border/text
+                      // Reverting to simple styling similar to before but dynamic
+
+                      return (
+                        <span
+                          key={groupSlug}
+                          className="px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap shrink-0 border"
+                          style={{
+                            backgroundColor: groupConfig?.color ? `${groupConfig.color}20` : '#f3f4f6', // 20 hex = ~12% opacity
+                            color: groupConfig?.color || '#374151',
+                            borderColor: groupConfig?.color ? `${groupConfig.color}40` : '#e5e7eb'
+                          }}
+                        >
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
-
-              {/* Admin Reserve Button */}
-              {mode === 'admin' && onReserve && (
-                <div 
-                  ref={buttonsRefCallback}
-                  className="shrink-0"
-                  style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
+              {/* Capacity with Progress Bar - групирани с разделителя, могат да wrap-ват заедно */}
+              {!showReservationsInfo && (
+                <div
+                  ref={capacityRefCallback}
+                  className="flex items-center gap-2 shrink-0"
+                  style={synchronizedWidths?.capacity && synchronizedWidths.capacity > 0 ? { minWidth: `${synchronizedWidths.capacity}px` } : {}}
                 >
+                  {/* Показва разделител само ако има target groups преди */}
+                  {session.targetGroups && session.targetGroups.length > 0 && (
+                    <span className="text-[#cad5e2]">|</span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110">
+                      <PersonIcon />
+                    </div>
+                    <span className="text-sm md:text-base leading-6 text-[#0f172b] font-normal whitespace-nowrap">
+                      {bookedCount}/{session.capacity}
+                    </span>
+                    <div className="bg-slate-200 h-2 rounded-full overflow-hidden w-[80px] transition-all duration-200 group-hover:bg-slate-300 shrink-0">
+                      <div
+                        className="h-full bg-[#00c950] rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Buttons - горе в дясно */}
+            {isActive && mode === 'public' && (
+              <div
+                ref={buttonsRefCallback}
+                className="flex flex-row items-center justify-end gap-2 shrink-0 self-center"
+                style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
+              >
+                {/* Показва "Отмени" само когато има резервация */}
+                {reservationInfo && onCancelBooking && (
                   <button
                     onClick={() => {
-                      const climberId = selectedClimberId || '';
-                      if (!climberId) {
-                        showToast && showToast('Моля, изберете катерач от списъка по-долу', 'error');
-                        return;
+                      // Показва popup за потвърждение с избор на резервации
+                      if (allReservations && allReservations.length > 0) {
+                        onCancelBooking(session._id, allReservations);
+                      } else if (reservationInfo.bookingId) {
+                        onCancelBooking(session._id, [reservationInfo]);
                       }
-                      onReserve(session._id);
                     }}
-                    className="h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white transition-all duration-200 shadow-sm whitespace-nowrap hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md shrink-0"
+                    className="h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal border-2 border-red-500 text-red-500 bg-white hover:bg-red-50 transition-all duration-200 whitespace-nowrap w-[80px] flex items-center justify-center"
                   >
-                    Запази
+                    Отмени
                   </button>
-                </div>
-              )}
-            </div>
-
-
-            {/* Reservations Info - Резервации за деца */}
-            {showReservationsInfo && allReservations && allReservations.length > 0 && (
-              <div className="mb-2 flex items-center gap-2 flex-wrap">
-                <div className="flex items-center flex-wrap gap-2">
-                  {allReservations.map((reservation, index) => {
-                    // Различни цветове за всяко дете (без blue, green, red за да не съвпадат с target groups)
-                    const colorClasses = [
-                      { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
-                      { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
-                      { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
-                      { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-                      { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
-                      { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-                      { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
-                      { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
-                    ];
-                    const colorIndex = index % colorClasses.length;
-                    const colors = colorClasses[colorIndex];
-                    
-                    return (
-                      <span
-                        key={reservation.bookingId || index}
-                        className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
-                      >
-                        <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
-                        </svg>
-                        {reservation.climberName}
-                      </span>
-                    );
-                  })}
-                </div>
+                )}
+                {/* Винаги показва бутон "Запази" - винаги най-в дясно */}
+                {onReserve && (
+                  <button
+                    onClick={() => onReserve(session._id)}
+                    disabled={isFull}
+                    className={`h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${isFull
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
+                      }`}
+                  >
+                    {isFull ? 'Няма места' : 'Запази'}
+                  </button>
+                )}
               </div>
             )}
+
+            {/* Admin Reserve Button */}
+            {mode === 'admin' && onReserve && (
+              <div
+                ref={buttonsRefCallback}
+                className="shrink-0"
+                style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
+              >
+                <button
+                  onClick={() => {
+                    const climberId = selectedClimberId || '';
+                    if (!climberId) {
+                      showToast && showToast('Моля, изберете катерач от списъка по-долу', 'error');
+                      return;
+                    }
+                    onReserve(session._id);
+                  }}
+                  className="h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white transition-all duration-200 shadow-sm whitespace-nowrap hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md shrink-0"
+                >
+                  Запази
+                </button>
+              </div>
+            )}
+          </div>
+
+
+          {/* Reservations Info - Резервации за деца */}
+          {showReservationsInfo && allReservations && allReservations.length > 0 && (
+            <div className="mb-2 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center flex-wrap gap-2">
+                {allReservations.map((reservation, index) => {
+                  // Различни цветове за всяко дете (без blue, green, red за да не съвпадат с target groups)
+                  const colorClasses = [
+                    { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' },
+                    { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+                    { bg: 'bg-pink-100', text: 'text-pink-700', border: 'border-pink-200' },
+                    { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
+                    { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200' },
+                    { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+                    { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
+                    { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
+                  ];
+                  const colorIndex = index % colorClasses.length;
+                  const colors = colorClasses[colorIndex];
+
+                  return (
+                    <span
+                      key={reservation.bookingId || index}
+                      className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
+                    >
+                      <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
+                      </svg>
+                      {reservation.climberName}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Mobile Layout */}
@@ -393,7 +391,7 @@ const SessionCard = ({
           {/* Left side - Content */}
           <div className="flex-1 min-w-0">
             {/* 1. Заглавието на тренировката - скрито, защото е на същия ред с часът */}
-            
+
             {/* 2. Часът и заглавието - могат да wrap-ват на два реда */}
             <div className="mb-2">
               <div className="flex items-center gap-2 mb-1 transition-colors duration-200 group-hover:text-[#ff6900] flex-wrap">
@@ -423,23 +421,20 @@ const SessionCard = ({
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-[#cad5e2]">|</span>
                     <div className="flex items-center gap-1 flex-wrap">
-                      {session.targetGroups.map((group) => {
-                        const groupLabels = {
-                          beginner: 'Начинаещи',
-                          experienced: 'Деца с опит',
-                          advanced: 'Напреднали',
-                        };
-                        const groupColors = {
-                          beginner: 'bg-green-100 text-green-700',
-                          experienced: 'bg-blue-100 text-blue-700',
-                          advanced: 'bg-red-100 text-red-700',
-                        };
+                      {session.targetGroups.map((groupSlug) => {
+                        const groupConfig = trainingLabels.targetGroups.find(g => g.slug === groupSlug);
+                        const label = groupConfig ? groupConfig.label : groupSlug;
                         return (
                           <span
-                            key={group}
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap shrink-0 ${groupColors[group] || 'bg-gray-100 text-gray-700'}`}
+                            key={groupSlug}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap shrink-0 border"
+                            style={{
+                              backgroundColor: groupConfig?.color ? `${groupConfig.color}20` : '#f3f4f6',
+                              color: groupConfig?.color || '#374151',
+                              borderColor: groupConfig?.color ? `${groupConfig.color}40` : '#e5e7eb'
+                            }}
                           >
-                            {groupLabels[group] || group}
+                            {label}
                           </span>
                         );
                       })}
@@ -460,7 +455,7 @@ const SessionCard = ({
                       {bookedCount}/{session.capacity}
                     </span>
                     <div className="bg-slate-200 h-2 rounded-full overflow-hidden w-[80px] transition-all duration-200 group-hover:bg-slate-300 shrink-0">
-                      <div 
+                      <div
                         className="h-full bg-[#00c950] rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(progressPercentage, 100)}%` }}
                       />
@@ -488,14 +483,14 @@ const SessionCard = ({
                     ];
                     const colorIndex = index % colorClasses.length;
                     const colors = colorClasses[colorIndex];
-                    
+
                     return (
                       <span
                         key={reservation.bookingId || index}
                         className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1.5 ${colors.bg} ${colors.text} ${colors.border}`}
                       >
                         <svg className="w-3 h-3 shrink-0" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor"/>
+                          <path d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8ZM8 10C5.33 10 0 11.34 0 14V16H16V14C16 11.34 10.67 10 8 10Z" fill="currentColor" />
                         </svg>
                         {reservation.climberName}
                       </span>
@@ -510,7 +505,7 @@ const SessionCard = ({
           <div className="flex flex-col items-end gap-2 shrink-0">
             {/* Buttons */}
             {isActive && mode === 'public' && (
-              <div 
+              <div
                 ref={buttonsRefCallback}
                 className="flex flex-col gap-2 items-end"
                 style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
@@ -520,11 +515,10 @@ const SessionCard = ({
                   <button
                     onClick={() => onReserve(session._id)}
                     disabled={isFull}
-                    className={`h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${
-                      isFull
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
-                    }`}
+                    className={`h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${isFull
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-[#ff6900] to-[#f54900] text-white hover:from-[#f54900] hover:to-[#ff6900] hover:shadow-md'
+                      }`}
                   >
                     {isFull ? 'Няма места' : 'Запази'}
                   </button>
@@ -550,7 +544,7 @@ const SessionCard = ({
 
             {/* Admin Reserve Button */}
             {mode === 'admin' && onReserve && (
-              <div 
+              <div
                 ref={buttonsRefCallback}
                 className="shrink-0"
                 style={synchronizedWidths?.buttons && synchronizedWidths.buttons > 0 ? { minWidth: `${synchronizedWidths.buttons}px` } : {}}
@@ -578,11 +572,10 @@ const SessionCard = ({
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => onSelect && onSelect(session._id)}
-                  className={`w-5 h-5 border-2 rounded cursor-pointer transition-all duration-200 appearance-none ${
-                    isSelected
-                      ? 'bg-[#ff6900] border-[#ff6900] checked:bg-[#ff6900]'
-                      : 'bg-white border-[#cad5e2] hover:border-[#ff6900]'
-                  } focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-1`}
+                  className={`w-5 h-5 border-2 rounded cursor-pointer transition-all duration-200 appearance-none ${isSelected
+                    ? 'bg-[#ff6900] border-[#ff6900] checked:bg-[#ff6900]'
+                    : 'bg-white border-[#cad5e2] hover:border-[#ff6900]'
+                    } focus:ring-2 focus:ring-[#ff6900] focus:ring-offset-1`}
                   style={{
                     backgroundImage: isSelected ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 20 20\' fill=\'white\'%3E%3Cpath fill-rule=\'evenodd\' d=\'M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z\' clip-rule=\'evenodd\'/%3E%3C/svg%3E")' : 'none',
                     backgroundSize: 'contain',
@@ -628,6 +621,14 @@ const SessionCard = ({
                     className="px-3 py-2 sm:py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md transition-colors w-full sm:w-auto"
                   >
                     Редактирай
+                  </button>
+                )}
+                {onCancel && (
+                  <button
+                    onClick={() => onCancel(session._id)}
+                    className="px-3 py-2 sm:py-1.5 text-sm text-gray-600 hover:text-gray-700 border border-gray-300 rounded-md transition-colors w-full sm:w-auto"
+                  >
+                    Откажи
                   </button>
                 )}
                 {onDelete && (

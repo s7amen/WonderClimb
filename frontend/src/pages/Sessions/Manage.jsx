@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { sessionsAPI, adminUsersAPI, adminAPI } from '../../services/api';
+import { sessionsAPI, adminUsersAPI, adminAPI, settingsAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -36,12 +36,16 @@ const Sessions = () => {
   const [selectedDays, setSelectedDays] = useState([]);
   const [selectedTimes, setSelectedTimes] = useState([]);
   const [selectedTitles, setSelectedTitles] = useState([]);
+  const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
+  const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
 
   // Deletion states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteType, setDeleteType] = useState(null); // 'cancel' or 'delete'
+  const [deleteRelatedData, setDeleteRelatedData] = useState(null); // attendance/booking counts
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -55,7 +59,21 @@ const Sessions = () => {
     capacity: 10,
     coachIds: [],
     targetGroups: [],
-    ageGroups: ['4-6', '7-12', '13+'],
+    ageGroups: [],
+  });
+
+  // Dynamic filter labels from settings
+  const [trainingLabels, setTrainingLabels] = useState({
+    targetGroups: [],
+    ageGroups: [],
+    visibility: {
+      targetGroups: true,
+      ageGroups: true,
+      days: true,
+      times: true,
+      titles: true,
+      reservations: true
+    }
   });
 
   // Calculate default dates
@@ -79,7 +97,7 @@ const Sessions = () => {
     capacity: 10,
     coachIds: [],
     targetGroups: [],
-    ageGroups: ['4-6', '7-12', '13+'],
+    ageGroups: [], // Will use defaults from settings if empty not hardcoded
   });
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -96,11 +114,42 @@ const Sessions = () => {
     return titles;
   };
 
+
   useEffect(() => {
     fetchSessions();
     fetchCoaches();
     fetchAllClimbers();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await settingsAPI.getSettings();
+      const loadedSettings = response.data.settings || {};
+      const labels = {
+        targetGroups: loadedSettings.trainingLabels?.targetGroups || [],
+        ageGroups: loadedSettings.trainingLabels?.ageGroups || [],
+        visibility: {
+          targetGroups: loadedSettings.trainingLabels?.visibility?.targetGroups ?? true,
+          ageGroups: loadedSettings.trainingLabels?.visibility?.ageGroups ?? true,
+          days: loadedSettings.trainingLabels?.visibility?.days ?? true,
+          times: loadedSettings.trainingLabels?.visibility?.times ?? true,
+          titles: loadedSettings.trainingLabels?.visibility?.titles ?? true,
+          reservations: loadedSettings.trainingLabels?.visibility?.reservations ?? true,
+        }
+      };
+      setTrainingLabels(labels);
+
+      // Set default age groups for forms if available
+      const defaultAgeGroups = labels.ageGroups.map(g => g.label);
+      if (defaultAgeGroups.length > 0) {
+        setFormData(prev => ({ ...prev, ageGroups: defaultAgeGroups }));
+        setBulkFormData(prev => ({ ...prev, ageGroups: defaultAgeGroups }));
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
 
   const fetchSessions = async () => {
     try {
@@ -232,6 +281,7 @@ const Sessions = () => {
           );
         });
 
+        showToast('Тренировката е създадена успешно', 'success');
         resetForm();
         setShowForm(false);
 
@@ -254,7 +304,8 @@ const Sessions = () => {
       capacity: session.capacity,
       coachIds: session.coachIds?.map(c => c._id || c) || [],
       targetGroups: session.targetGroups || [],
-      ageGroups: session.ageGroups || ['4-6', '7-12', '13+'],
+      targetGroups: session.targetGroups || [],
+      ageGroups: session.ageGroups || (trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+']),
     });
     setEditingSession(session);
     setShowEditModal(true);
@@ -412,9 +463,39 @@ const Sessions = () => {
     }
   };
 
-  const handleDeleteClick = (sessionId) => {
+  // Handle cancel click (soft delete)
+  const handleCancelClick = async (sessionId) => {
     setSessionToDelete(sessionId);
+    setDeleteType('cancel');
     setShowDeleteModal(true);
+  };
+
+  // Handle hard delete click
+  const handleDeleteClick = async (sessionId) => {
+    try {
+      // First check if session has attendance/bookings
+      const response = await sessionsAPI.checkRelatedData(sessionId);
+      const relatedData = response.data;
+
+      // If has attendance, cannot delete - only cancel
+      if (relatedData.attendanceRecords > 0) {
+        showToast(
+          `Не може да изтриете тренировка с ${relatedData.attendanceRecords} посещения. Използвайте "Откажи" вместо това.`,
+          'error'
+        );
+        return;
+      }
+
+      setSessionToDelete(sessionId);
+      setDeleteType('delete');
+      setDeleteRelatedData(relatedData);
+      setShowDeleteModal(true);
+    } catch (error) {
+      showToast(
+        error.response?.data?.error?.message || 'Грешка при проверка на тренировка',
+        'error'
+      );
+    }
   };
 
   const confirmDeleteSession = async () => {
@@ -422,15 +503,28 @@ const Sessions = () => {
 
     setIsDeleting(true);
     try {
-      await sessionsAPI.update(sessionToDelete, { status: 'cancelled' });
+      if (deleteType === 'cancel') {
+        // Soft delete - cancel the session
+        await sessionsAPI.update(sessionToDelete, { status: 'cancelled' });
+        showToast('Тренировката е отказана успешно', 'success');
+      } else if (deleteType === 'delete') {
+        // Hard delete - permanently delete from database
+        await sessionsAPI.deleteSession(sessionToDelete);
+        showToast('Тренировката е изтрита успешно', 'success');
+      }
 
-      // Премахваме сесията от масива (филтрираме я като cancelled)
+      // Премахваме сесията от масива
       setSessions(prev => prev.filter(s => s._id !== sessionToDelete));
 
       setShowDeleteModal(false);
       setSessionToDelete(null);
+      setDeleteType(null);
+      setDeleteRelatedData(null);
     } catch (error) {
-      showToast('Грешка при изтриване на сесия', 'error');
+      showToast(
+        error.response?.data?.error?.message || 'Грешка при изтриване на сесия',
+        'error'
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -492,7 +586,8 @@ const Sessions = () => {
       capacity: 10,
       coachIds: [],
       targetGroups: [],
-      ageGroups: ['4-6', '7-12', '13+'],
+      targetGroups: [],
+      ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
     });
     setEditingSession(null);
     setShowForm(false);
@@ -512,7 +607,8 @@ const Sessions = () => {
       capacity: 10,
       coachIds: [],
       targetGroups: [],
-      ageGroups: ['4-6', '7-12', '13+'],
+      targetGroups: [],
+      ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
     });
     setShowForm(false);
     setIsBulkMode(false);
@@ -742,6 +838,34 @@ const Sessions = () => {
         return false;
       }
 
+      // Apply target groups filter
+      if (selectedTargetGroups.length > 0) {
+        if (!session.targetGroups || session.targetGroups.length === 0) {
+          return false;
+        }
+        // Check if session has at least one of the selected target groups
+        const hasMatchingGroup = selectedTargetGroups.some(group =>
+          session.targetGroups.includes(group)
+        );
+        if (!hasMatchingGroup) {
+          return false;
+        }
+      }
+
+      // Apply age groups filter
+      if (selectedAgeGroups.length > 0) {
+        if (!session.ageGroups || session.ageGroups.length === 0) {
+          return false;
+        }
+        // Check if session has at least one of the selected age groups
+        const hasMatchingAgeGroup = selectedAgeGroups.some(ageGroup =>
+          session.ageGroups.includes(ageGroup)
+        );
+        if (!hasMatchingAgeGroup) {
+          return false;
+        }
+      }
+
       return true;
     });
 
@@ -830,6 +954,18 @@ const Sessions = () => {
           ? [] // Deselect if same value clicked
           : [value] // Replace with new selection (single select)
       );
+    } else if (filterType === 'targetGroup') {
+      setSelectedTargetGroups(prev =>
+        prev.includes(value)
+          ? prev.filter(t => t !== value)
+          : [...prev, value]
+      );
+    } else if (filterType === 'ageGroup') {
+      setSelectedAgeGroups(prev =>
+        prev.includes(value)
+          ? prev.filter(a => a !== value)
+          : [...prev, value]
+      );
     }
   };
 
@@ -842,6 +978,12 @@ const Sessions = () => {
     } else if (filterType === 'title') {
       const uniqueTitles = getUniqueTitles();
       setSelectedTitles(uniqueTitles);
+    } else if (filterType === 'targetGroup') {
+      const allTargetGroups = trainingLabels.targetGroups.map(g => g.slug);
+      setSelectedTargetGroups(allTargetGroups);
+    } else if (filterType === 'ageGroup') {
+      const allAgeGroups = trainingLabels.ageGroups.map(g => g.label);
+      setSelectedAgeGroups(allAgeGroups);
     }
   };
 
@@ -849,10 +991,12 @@ const Sessions = () => {
     setSelectedDays([]);
     setSelectedTimes([]);
     setSelectedTitles([]);
+    setSelectedTargetGroups([]);
+    setSelectedAgeGroups([]);
   };
 
   const hasActiveFilters = () => {
-    return selectedDays.length > 0 || selectedTimes.length > 0 || selectedTitles.length > 0;
+    return selectedDays.length > 0 || selectedTimes.length > 0 || selectedTitles.length > 0 || selectedTargetGroups.length > 0 || selectedAgeGroups.length > 0;
   };
 
   const getBulgarianDayName = (date) => {
@@ -1010,7 +1154,7 @@ const Sessions = () => {
                         capacity: 10,
                         coachIds: [],
                         targetGroups: [],
-                        ageGroups: ['4-6', '7-12', '13+'],
+                        ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
                       });
                     }
                   }}
@@ -1036,7 +1180,7 @@ const Sessions = () => {
                         capacity: 10,
                         coachIds: [],
                         targetGroups: [],
-                        ageGroups: ['4-6', '7-12', '13+'],
+                        ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
                       });
                     }
                   }}
@@ -1158,69 +1302,69 @@ const Sessions = () => {
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Подходящо за
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'beginner', label: 'Начинаещи' },
-                      { value: 'experienced', label: 'Деца с опит' },
-                      { value: 'advanced', label: 'Напреднали' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => {
-                          setBulkFormData({
-                            ...bulkFormData,
-                            targetGroups: bulkFormData.targetGroups.includes(value)
-                              ? bulkFormData.targetGroups.filter(g => g !== value)
-                              : [...bulkFormData.targetGroups, value],
-                          });
-                        }}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkFormData.targetGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.targetGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Подходящо за
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.targetGroups.map((group) => (
+                        <button
+                          key={group.slug}
+                          type="button"
+                          onClick={() => {
+                            setBulkFormData({
+                              ...bulkFormData,
+                              targetGroups: bulkFormData.targetGroups.includes(group.slug)
+                                ? bulkFormData.targetGroups.filter(g => g !== group.slug)
+                                : [...bulkFormData.targetGroups, group.slug],
+                            });
+                          }}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors border ${bulkFormData.targetGroups.includes(group.slug)
+                            ? 'text-white border-transparent'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          style={{
+                            backgroundColor: bulkFormData.targetGroups.includes(group.slug) ? (group.color || '#3b82f6') : undefined,
+                            borderColor: !bulkFormData.targetGroups.includes(group.slug) ? undefined : 'transparent'
+                          }}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Години
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: '4-6', label: '4-6' },
-                      { value: '7-12', label: '7-12' },
-                      { value: '13+', label: '13+' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => {
-                          setBulkFormData({
-                            ...bulkFormData,
-                            ageGroups: bulkFormData.ageGroups.includes(value)
-                              ? bulkFormData.ageGroups.filter(a => a !== value)
-                              : [...bulkFormData.ageGroups, value],
-                          });
-                        }}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkFormData.ageGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.ageGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Години
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.ageGroups.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => {
+                            setBulkFormData({
+                              ...bulkFormData,
+                              ageGroups: bulkFormData.ageGroups.includes(group.label)
+                                ? bulkFormData.ageGroups.filter(a => a !== group.label)
+                                : [...bulkFormData.ageGroups, group.label],
+                            });
+                          }}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkFormData.ageGroups.includes(group.label)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1336,55 +1480,55 @@ const Sessions = () => {
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Подходящо за
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'beginner', label: 'Начинаещи' },
-                      { value: 'experienced', label: 'Деца с опит' },
-                      { value: 'advanced', label: 'Напреднали' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => toggleTargetGroup(value)}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.targetGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.targetGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Подходящо за
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.targetGroups.map((group) => (
+                        <button
+                          key={group.slug}
+                          type="button"
+                          onClick={() => toggleTargetGroup(group.slug)}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors border ${formData.targetGroups.includes(group.slug)
+                            ? 'text-white border-transparent'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          style={{
+                            backgroundColor: formData.targetGroups.includes(group.slug) ? (group.color || '#3b82f6') : undefined,
+                            borderColor: !formData.targetGroups.includes(group.slug) ? undefined : 'transparent'
+                          }}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Години
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: '4-6', label: '4-6' },
-                      { value: '7-12', label: '7-12' },
-                      { value: '13+', label: '13+' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => toggleAgeGroup(value)}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.ageGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Години
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.ageGroups.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => toggleAgeGroup(group.label)}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(group.label)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1647,17 +1791,25 @@ const Sessions = () => {
         )
       }
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete/Cancel Confirmation Modal */}
       <ConfirmDialog
         isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false);
           setSessionToDelete(null);
+          setDeleteType(null);
+          setDeleteRelatedData(null);
         }}
         onConfirm={confirmDeleteSession}
-        title="Изтриване на тренировка"
-        message="Сигурни ли сте, че искате да изтриете тази тренировка?"
-        confirmText={isDeleting ? 'Изтриване...' : 'Потвърди изтриване'}
+        title={deleteType === 'cancel' ? 'Отказване на тренировка' : 'Изтриване на тренировка'}
+        message={
+          deleteType === 'cancel'
+            ? 'Сигурни ли сте, че искате да откажете тази тренировка? Тя ще бъде скрита от графика.'
+            : deleteRelatedData && deleteRelatedData.bookings && deleteRelatedData.bookings.total > 0
+              ? `Внимание! Тази тренировка има ${deleteRelatedData.bookings.total} резервации, които също ще бъдат изтрити. Сигурни ли сте?`
+              : 'Сигурни ли сте, че искате да изтриете завинаги тази тренировка от базата данни?'
+        }
+        confirmText={isDeleting ? (deleteType === 'cancel' ? 'Отказване...' : 'Изтриване...') : (deleteType === 'cancel' ? 'Потвърди отказване' : 'Потвърди изтриване')}
         cancelText="Отказ"
         variant="danger"
         disabled={isDeleting}
@@ -1796,55 +1948,55 @@ const Sessions = () => {
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Подходящо за
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'beginner', label: 'Начинаещи' },
-                      { value: 'experienced', label: 'Деца с опит' },
-                      { value: 'advanced', label: 'Напреднали' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => toggleTargetGroup(value)}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.targetGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.targetGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Подходящо за
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.targetGroups.map((group) => (
+                        <button
+                          key={group.slug}
+                          type="button"
+                          onClick={() => toggleTargetGroup(group.slug)}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors border ${formData.targetGroups.includes(group.slug)
+                            ? 'text-white border-transparent'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                          style={{
+                            backgroundColor: formData.targetGroups.includes(group.slug) ? (group.color || '#3b82f6') : undefined,
+                            borderColor: !formData.targetGroups.includes(group.slug) ? undefined : 'transparent'
+                          }}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Години
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: '4-6', label: '4-6' },
-                      { value: '7-12', label: '7-12' },
-                      { value: '13+', label: '13+' },
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => toggleAgeGroup(value)}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(value)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {trainingLabels.ageGroups.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Години
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {trainingLabels.ageGroups.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => toggleAgeGroup(group.label)}
+                          className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(group.label)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1902,11 +2054,14 @@ const Sessions = () => {
         selectedDays={selectedDays}
         selectedTimes={selectedTimes}
         selectedTitles={selectedTitles}
+        selectedTargetGroups={selectedTargetGroups}
+        selectedAgeGroups={selectedAgeGroups}
         getUniqueTimes={getUniqueTimes}
         getUniqueTitles={getUniqueTitles}
         toggleFilter={toggleFilter}
         clearAllFilters={clearAllFilters}
         hasActiveFilters={hasActiveFilters}
+        trainingLabels={trainingLabels}
       />
 
       {/* Bulk Actions - с запазено място */}
@@ -1993,10 +2148,13 @@ const Sessions = () => {
           }
         }}
         onEdit={handleEdit}
+        onCancel={handleCancelClick}
         onDelete={handleDeleteClick}
         showToast={showToast}
         sortOrder={activeTab === 'past' ? 'desc' : 'asc'}
+        trainingLabels={trainingLabels}
       />
+
 
 
       {/* Scroll to Top Button */}

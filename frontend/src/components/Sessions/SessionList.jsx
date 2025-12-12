@@ -31,6 +31,7 @@ const SessionList = ({
   roster = [],
   onViewRoster,
   onEdit,
+  onCancel,
   onDelete,
   showToast,
   // Booking props
@@ -40,6 +41,7 @@ const SessionList = ({
   showReservationsInfo = false,
   // Sorting
   sortOrder = 'asc',
+  trainingLabels = { targetGroups: [], ageGroups: [] },
 }) => {
 
 
@@ -360,6 +362,7 @@ const SessionList = ({
                       viewingRoster={isViewingRoster}
                       roster={sessionRoster}
                       onEdit={onEdit}
+                      onCancel={onCancel}
                       onDelete={onDelete}
                       showToast={showToast}
                       getBulgarianDayName={getBulgarianDayName}
@@ -372,6 +375,7 @@ const SessionList = ({
                       labelRows={maxLabelRows}
                       synchronizedWidths={widths}
                       onMeasure={handleMeasurement}
+                      trainingLabels={trainingLabels}
                     />
                   );
                 });

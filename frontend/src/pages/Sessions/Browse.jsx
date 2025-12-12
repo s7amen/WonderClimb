@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
+import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI, settingsAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import { formatDate } from '../../utils/dateUtils';
 import Card from '../../components/UI/Card';
@@ -136,6 +136,20 @@ const Sessions = () => {
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
   const [selectedAgeGroups, setSelectedAgeGroups] = useState([]);
 
+  // Dynamic filter labels from settings
+  const [trainingLabels, setTrainingLabels] = useState({
+    targetGroups: [],
+    ageGroups: [],
+    visibility: {
+      targetGroups: true,
+      ageGroups: true,
+      days: true,
+      times: true,
+      titles: true,
+      reservations: true
+    }
+  });
+
   // Save filters utility functions
   const getSavedFiltersKey = () => {
     if (!user?.id) return null;
@@ -189,8 +203,31 @@ const Sessions = () => {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const response = await settingsAPI.getSettings();
+      const loadedSettings = response.data.settings || {};
+      const labels = {
+        targetGroups: loadedSettings.trainingLabels?.targetGroups || [],
+        ageGroups: loadedSettings.trainingLabels?.ageGroups || [],
+        visibility: {
+          targetGroups: loadedSettings.trainingLabels?.visibility?.targetGroups ?? true,
+          ageGroups: loadedSettings.trainingLabels?.visibility?.ageGroups ?? true,
+          days: loadedSettings.trainingLabels?.visibility?.days ?? true,
+          times: loadedSettings.trainingLabels?.visibility?.times ?? true,
+          titles: loadedSettings.trainingLabels?.visibility?.titles ?? true,
+          reservations: loadedSettings.trainingLabels?.visibility?.reservations ?? true,
+        }
+      };
+      setTrainingLabels(labels);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
   useEffect(() => {
     fetchSessions();
+    fetchSettings();
   }, []);
 
   // Load saved filters when user becomes authenticated
@@ -794,6 +831,7 @@ const Sessions = () => {
             setShowAddChildModal(true);
           }}
           onSaveFilters={saveFilters}
+          trainingLabels={trainingLabels}
         />
       </div>
 
@@ -894,6 +932,7 @@ const Sessions = () => {
             setCancelBookingBookings(reservations);
             setShowCancelBookingModal(true);
           }}
+          trainingLabels={trainingLabels}
         />
 
         {/* Spacer for sticky button on mobile (at bottom) */}

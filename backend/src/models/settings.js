@@ -164,6 +164,15 @@ const settingsSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // Dynamic Training Labels
+  trainingLabels: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {
+      targetGroups: [],
+      ageGroups: [],
+      visibility: {}
+    }
+  },
 }, {
   timestamps: true,
 });

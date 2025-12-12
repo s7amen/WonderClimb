@@ -4,13 +4,9 @@ import { authAPI } from '../services/api';
 // Debug logging helper that works in production - moved outside hook to avoid hoisting issues
 const debugLog = (location, message, data, hypothesisId) => {
   try {
-    const logEntry = {location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
+    const logEntry = { location, message, data, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId };
     console.log('[PWA DEBUG]', JSON.stringify(logEntry));
-    // Only try to send to debug server if in development mode and on localhost
-    if (typeof fetch !== 'undefined' && 
-        (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
-    }
+    // Debug logging disabled to prevent network errors
   } catch (e) {
     // Silently ignore debug log errors
   }
@@ -19,13 +15,13 @@ const debugLog = (location, message, data, hypothesisId) => {
 // Helper function to check if running in PWA mode (standalone) - synchronous check
 const checkIsRunningInPWA = () => {
   if (typeof window === 'undefined') return false;
-  
+
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
     window.matchMedia('(display-mode: fullscreen)').matches ||
     window.matchMedia('(display-mode: minimal-ui)').matches;
   const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
   const isAndroidPWA = document.referrer.includes('android-app://');
-  
+
   return isStandalone || isIOSStandalone || isAndroidPWA;
 };
 
@@ -53,7 +49,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
   useEffect(() => {
     // #region agent log
-    debugLog('usePWAInstall.js:16','useEffect hook started',{deferredPrompt:!!deferredPrompt,userAgent:navigator.userAgent.substring(0,50)},'B');
+    debugLog('usePWAInstall.js:16', 'useEffect hook started', { deferredPrompt: !!deferredPrompt, userAgent: navigator.userAgent.substring(0, 50) }, 'B');
     // #endregion
     // Early device detection - skip all PWA checks on desktop devices
     const isMobileOrTablet = () => {
@@ -71,9 +67,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Skip all PWA logic if on desktop
     const isMobile = isMobileOrTablet();
     // #region agent log
-    debugLog('usePWAInstall.js:41','Device detection check',{isMobile,userAgent:navigator.userAgent,isDesktop:!isMobile},'B');
+    debugLog('usePWAInstall.js:41', 'Device detection check', { isMobile, userAgent: navigator.userAgent, isDesktop: !isMobile }, 'B');
     // #endregion
-    
+
     // IMPORTANT: Even if detected as desktop, we should still listen for beforeinstallprompt
     // because user might be testing with mobile emulation or the detection might be wrong
     // We'll only skip some UI checks, but keep the event listener active
@@ -88,7 +84,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       // Always check if running in PWA mode and update state
       const currentlyInPWA = checkIsRunningInPWA();
       setIsRunningInPWA(currentlyInPWA);
-      
+
       if (shouldSkipDetailedChecks) {
         // Skip detailed checks on desktop, but still set basic debug info
         // IMPORTANT: Still check actual display mode for desktop PWAs
@@ -97,7 +93,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           window.matchMedia('(display-mode: minimal-ui)').matches;
         const isIOSStandalone = 'standalone' in window.navigator && window.navigator.standalone === true;
         const isAndroidPWA = document.referrer.includes('android-app://');
-        
+
         setDebugInfo({
           isStandalone,
           isIOSStandalone,
@@ -344,7 +340,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     // Listen for beforeinstallprompt event (Android Chrome)
     const handleBeforeInstallPrompt = (e) => {
       // #region agent log
-      debugLog('usePWAInstall.js:270','beforeinstallprompt event received',{eventType:e.type,hasPreventDefault:typeof e.preventDefault==='function',currentDeferredPrompt:!!deferredPromptRef.current,eventTime:Date.now()},'A');
+      debugLog('usePWAInstall.js:270', 'beforeinstallprompt event received', { eventType: e.type, hasPreventDefault: typeof e.preventDefault === 'function', currentDeferredPrompt: !!deferredPromptRef.current, eventTime: Date.now() }, 'A');
       // #endregion
       console.log('[PWA Install] beforeinstallprompt event received', e);
       promptEverReceived.current = true;
@@ -360,24 +356,24 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       }
 
       // #region agent log
-      debugLog('usePWAInstall.js:283','Calling preventDefault and setting deferredPrompt',{beforePreventDefault:true,eventDefaultPrevented:e.defaultPrevented},'A');
+      debugLog('usePWAInstall.js:283', 'Calling preventDefault and setting deferredPrompt', { beforePreventDefault: true, eventDefaultPrevented: e.defaultPrevented }, 'A');
       // #endregion
       e.preventDefault();
       // #region agent log
-      debugLog('usePWAInstall.js:285','Setting deferredPrompt state',{eventObject:!!e,hasPrompt:typeof e.prompt==='function'},'A');
+      debugLog('usePWAInstall.js:285', 'Setting deferredPrompt state', { eventObject: !!e, hasPrompt: typeof e.prompt === 'function' }, 'A');
       // #endregion
       deferredPromptRef.current = e;
       setDeferredPrompt(e);
       setError(null);
       // #region agent log
-      debugLog('usePWAInstall.js:290','deferredPrompt set successfully',{deferredPromptRef:!!deferredPromptRef.current},'A');
+      debugLog('usePWAInstall.js:290', 'deferredPrompt set successfully', { deferredPromptRef: !!deferredPromptRef.current }, 'A');
       // #endregion
     };
 
     // Check if event was already captured early (before React mounted)
     if (window.__earlyBeforeInstallPrompt) {
       // #region agent log
-      debugLog('usePWAInstall.js:295','Found early captured beforeinstallprompt',{hasEarlyPrompt:!!window.__earlyBeforeInstallPrompt},'B');
+      debugLog('usePWAInstall.js:295', 'Found early captured beforeinstallprompt', { hasEarlyPrompt: !!window.__earlyBeforeInstallPrompt }, 'B');
       // #endregion
       const earlyEvent = window.__earlyBeforeInstallPrompt;
       handleBeforeInstallPrompt(earlyEvent);
@@ -386,23 +382,23 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     }
 
     // #region agent log
-    debugLog('usePWAInstall.js:303','Adding beforeinstallprompt event listener',{hasWindow:typeof window!=='undefined',currentDeferredPrompt:!!deferredPromptRef.current,listenerTime:Date.now()},'B');
+    debugLog('usePWAInstall.js:303', 'Adding beforeinstallprompt event listener', { hasWindow: typeof window !== 'undefined', currentDeferredPrompt: !!deferredPromptRef.current, listenerTime: Date.now() }, 'B');
     // #endregion
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
+
     // Also listen for early event from main.jsx
     const handleEarlyEvent = (e) => {
       // #region agent log
-      debugLog('usePWAInstall.js:309','Received early beforeinstallprompt event',{hasDetail:!!e.detail},'B');
+      debugLog('usePWAInstall.js:309', 'Received early beforeinstallprompt event', { hasDetail: !!e.detail }, 'B');
       // #endregion
       if (e.detail) {
         handleBeforeInstallPrompt(e.detail);
       }
     };
     window.addEventListener('early-beforeinstallprompt', handleEarlyEvent);
-    
+
     // #region agent log
-    debugLog('usePWAInstall.js:316','Event listeners added, checking if event already fired',{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,hasEarlyPrompt:!!window.__earlyBeforeInstallPrompt},'B');
+    debugLog('usePWAInstall.js:316', 'Event listeners added, checking if event already fired', { hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window, hasEarlyPrompt: !!window.__earlyBeforeInstallPrompt }, 'B');
     // #endregion
 
     // Listen for app installed event
@@ -437,7 +433,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     return () => {
       // #region agent log
-      debugLog('usePWAInstall.js:337','Cleaning up event listeners',{deferredPrompt:!!deferredPromptRef.current},'B');
+      debugLog('usePWAInstall.js:337', 'Cleaning up event listeners', { deferredPrompt: !!deferredPromptRef.current }, 'B');
       // #endregion
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('early-beforeinstallprompt', handleEarlyEvent);
@@ -497,7 +493,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
   const install = async () => {
     // #region agent log
-    debugLog('usePWAInstall.js:392','Install button clicked',{deferredPrompt:!!deferredPrompt,deferredPromptRef:!!deferredPromptRef.current,isInstalled,promptEverReceived:promptEverReceived.current,stateTime:Date.now()},'C');
+    debugLog('usePWAInstall.js:392', 'Install button clicked', { deferredPrompt: !!deferredPrompt, deferredPromptRef: !!deferredPromptRef.current, isInstalled, promptEverReceived: promptEverReceived.current, stateTime: Date.now() }, 'C');
     // #endregion
     // If already installed, open the app instead
     if (isInstalled) {
@@ -516,10 +512,10 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
     // Use ref if state is not available (race condition protection)
     const promptToUse = deferredPrompt || deferredPromptRef.current;
-    
+
     if (!promptToUse) {
       // #region agent log
-      debugLog('usePWAInstall.js:407','No deferredPrompt available',{hasBeforeInstallPrompt:'BeforeInstallPromptEvent' in window,promptEverReceived:promptEverReceived.current,deferredPromptState:!!deferredPrompt,deferredPromptRefState:!!deferredPromptRef.current},'C');
+      debugLog('usePWAInstall.js:407', 'No deferredPrompt available', { hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window, promptEverReceived: promptEverReceived.current, deferredPromptState: !!deferredPrompt, deferredPromptRefState: !!deferredPromptRef.current }, 'C');
       // #endregion
       // For iOS, show instructions
       if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
@@ -614,13 +610,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
     try {
       const promptToUse = deferredPrompt || deferredPromptRef.current;
       // #region agent log
-      debugLog('usePWAInstall.js:498','Calling deferredPrompt.prompt()',{hasDeferredPrompt:!!deferredPrompt,hasDeferredPromptRef:!!deferredPromptRef.current,usingPrompt:!!promptToUse,hasUserChoice:promptToUse && typeof promptToUse.userChoice === 'function'},'D');
+      debugLog('usePWAInstall.js:498', 'Calling deferredPrompt.prompt()', { hasDeferredPrompt: !!deferredPrompt, hasDeferredPromptRef: !!deferredPromptRef.current, usingPrompt: !!promptToUse, hasUserChoice: promptToUse && typeof promptToUse.userChoice === 'function' }, 'D');
       // #endregion
       console.log('[PWA Install] Calling deferredPrompt.prompt()');
       if (!promptToUse) {
         throw new Error('Deferred prompt is null');
       }
-      
+
       // Check if userChoice is available before calling prompt
       if (typeof promptToUse.userChoice !== 'function') {
         console.warn('[PWA Install] userChoice is not a function, calling prompt() anyway');
@@ -634,9 +630,9 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         setDeferredPrompt(null);
         return;
       }
-      
+
       promptToUse.prompt();
-      
+
       // Try to get user choice, but handle case where userChoice is not available
       let outcome = 'accepted'; // Default to accepted
       try {
@@ -644,13 +640,13 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
           const choiceResult = await promptToUse.userChoice();
           outcome = choiceResult.outcome || 'accepted';
           // #region agent log
-          debugLog('usePWAInstall.js:612','User choice received',{outcome},'D');
+          debugLog('usePWAInstall.js:612', 'User choice received', { outcome }, 'D');
           // #endregion
           console.log('[PWA Install] User choice:', outcome);
         } else {
           console.warn('[PWA Install] userChoice is not a function after prompt(), assuming accepted');
           // #region agent log
-          debugLog('usePWAInstall.js:618','userChoice not available after prompt, assuming accepted',{assumedAccepted:true},'D');
+          debugLog('usePWAInstall.js:618', 'userChoice not available after prompt, assuming accepted', { assumedAccepted: true }, 'D');
           // #endregion
         }
       } catch (userChoiceError) {
@@ -658,7 +654,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         // If userChoice fails, assume user accepted (they clicked install)
         outcome = 'accepted';
         // #region agent log
-        debugLog('usePWAInstall.js:624','userChoice error, assuming accepted',{error:userChoiceError.message},'D');
+        debugLog('usePWAInstall.js:624', 'userChoice error, assuming accepted', { error: userChoiceError.message }, 'D');
         // #endregion
       }
 

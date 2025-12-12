@@ -8,6 +8,8 @@ import {
   updateCoachPayoutStatus,
   createBulkSessions,
   createBatch,
+  checkSessionRelatedData,
+  deleteSession,
 } from '../services/sessionService.js';
 import { getSessionRoster } from '../services/coachScheduleService.js';
 import { createBooking } from '../services/bookingService.js';
@@ -174,6 +176,49 @@ router.get('/climbers', async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * GET /api/v1/admin/sessions/:sessionId/check-related-data
+ * Check if session has any bookings or attendance before deleting
+ */
+router.get('/sessions/:sessionId/check-related-data', async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const relatedData = await checkSessionRelatedData(sessionId);
+    res.json(relatedData);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/v1/admin/sessions/:sessionId
+ * Permanently delete a session (only if no attendance records exist)
+ */
+router.delete('/sessions/:sessionId', async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    // First check if there are any attendance records
+    const relatedData = await checkSessionRelatedData(sessionId);
+
+    if (relatedData.attendanceRecords > 0) {
+      return res.status(400).json({
+        error: {
+          message: 'Не може да изтриете тренировка с посещения. Моля, използвайте "Откажи" вместо това.',
+          field: 'attendanceRecords',
+          attendanceCount: relatedData.attendanceRecords
+        },
+      });
+    }
+
+    const result = await deleteSession(sessionId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 export default router;
 

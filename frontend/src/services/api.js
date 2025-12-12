@@ -231,6 +231,12 @@ export const sessionsAPI = {
   getRoster: (sessionId) => api.get(`/admin/sessions/${sessionId}/roster`),
   createManualBooking: (sessionId, climberId) => api.post(`/admin/sessions/${sessionId}/bookings`, { climberId }),
 
+  // Check if session can be deleted (has attendance/bookings)
+  checkRelatedData: (sessionId) => api.get(`/admin/sessions/${sessionId}/check-related-data`),
+
+  // Hard delete session (only if no attendance records)
+  deleteSession: (sessionId) => api.delete(`/admin/sessions/${sessionId}`),
+
   // Admin - get all sessions (using calendar with wide date range)
   getAll: async (startDate, endDate) => {
     const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
