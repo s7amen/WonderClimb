@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef } from 'react';
-import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI } from '../../services/api';
+import { sessionsAPI, bookingsAPI, parentClimbersAPI, myClimberAPI, settingsAPI } from '../../services/api';
 import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-fns';
 import { formatDate } from '../../utils/dateUtils';
 import Card from '../../components/UI/Card';
@@ -78,19 +78,63 @@ const Sessions = () => {
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
-  // Training labels configuration
-  const trainingLabels = {
-    targetGroups: [
-      { slug: 'beginner', label: 'Начинаещи', color: '#15803D' },
-      { slug: 'experienced', label: 'Деца с опит', color: '#C2410C' },
-      { slug: 'advanced', label: 'Напреднали', color: '#B91C1C' },
-    ],
+  // Training labels from settings
+  const [trainingLabels, setTrainingLabels] = useState({
+    targetGroups: [],
     ageGroups: [],
-  };
+  });
 
   useEffect(() => {
     fetchSessions();
+    fetchTrainingLabels();
   }, []);
+
+  const fetchTrainingLabels = async () => {
+    const CACHE_KEY = 'wonderclimb-training-labels';
+
+    // Helper to validate cached data structure
+    const isValidCache = (data) => {
+      return data && 
+        Array.isArray(data.targetGroups) && 
+        Array.isArray(data.ageGroups);
+    };
+
+    try {
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        const labels = data.data || data;
+        if (isValidCache(labels)) {
+          setTrainingLabels(labels);
+          return;
+        }
+        localStorage.removeItem(CACHE_KEY);
+      }
+
+      // Fetch from API
+      const response = await settingsAPI.getTrainingLabels();
+      const loadedTrainingLabels = response.data.trainingLabels || {};
+      const labels = {
+        targetGroups: loadedTrainingLabels.targetGroups || [],
+        ageGroups: loadedTrainingLabels.ageGroups || [],
+      };
+      setTrainingLabels(labels);
+
+      // Save to cache
+      localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
+    } catch (error) {
+      console.error('Error fetching training labels:', error);
+      // If API call fails and no cache exists, use empty arrays
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) {
+        setTrainingLabels({
+          targetGroups: [],
+          ageGroups: [],
+        });
+      }
+    }
+  };
 
   // Fetch children and self climber when authenticated
   useEffect(() => {

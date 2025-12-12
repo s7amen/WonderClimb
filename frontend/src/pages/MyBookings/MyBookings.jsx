@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { bookingsAPI } from '../../services/api';
+import { bookingsAPI, settingsAPI } from '../../services/api';
 import { format, addDays, startOfDay, isBefore, addMonths, subMonths } from 'date-fns';
 import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
@@ -21,15 +21,11 @@ const MySessions = () => {
   const itemsPerPage = 10;
   const { showToast } = useToast();
 
-  // Training labels configuration
-  const trainingLabels = {
-    targetGroups: [
-      { slug: 'beginner', label: 'Начинаещи', color: '#15803D' },
-      { slug: 'experienced', label: 'Деца с опит', color: '#C2410C' },
-      { slug: 'advanced', label: 'Напреднали', color: '#B91C1C' },
-    ],
+  // Training labels from settings
+  const [trainingLabels, setTrainingLabels] = useState({
+    targetGroups: [],
     ageGroups: [],
-  };
+  });
 
   // Cancel booking modal state
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
@@ -76,12 +72,60 @@ const MySessions = () => {
 
   useEffect(() => {
     fetchBookings();
+    fetchTrainingLabels();
   }, []);
 
   // Reset to first page when tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
+
+  const fetchTrainingLabels = async () => {
+    const CACHE_KEY = 'wonderclimb-training-labels';
+
+    // Helper to validate cached data structure
+    const isValidCache = (data) => {
+      return data && 
+        Array.isArray(data.targetGroups) && 
+        Array.isArray(data.ageGroups);
+    };
+
+    try {
+      // Check cache first
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        const labels = data.data || data;
+        if (isValidCache(labels)) {
+          setTrainingLabels(labels);
+          return;
+        }
+        localStorage.removeItem(CACHE_KEY);
+      }
+
+      // Fetch from API
+      const response = await settingsAPI.getTrainingLabels();
+      const loadedTrainingLabels = response.data.trainingLabels || {};
+      const labels = {
+        targetGroups: loadedTrainingLabels.targetGroups || [],
+        ageGroups: loadedTrainingLabels.ageGroups || [],
+      };
+      setTrainingLabels(labels);
+
+      // Save to cache
+      localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
+    } catch (error) {
+      console.error('Error fetching training labels:', error);
+      // If API call fails and no cache exists, use empty arrays
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) {
+        setTrainingLabels({
+          targetGroups: [],
+          ageGroups: [],
+        });
+      }
+    }
+  };
 
   const fetchBookings = async () => {
     try {

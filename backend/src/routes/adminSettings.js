@@ -12,7 +12,8 @@ router.use(requireRole('admin'));
 
 /**
  * GET /api/v1/admin/settings
- * Get current settings
+ * Get all settings (admin only)
+ * Note: GET /api/v1/settings is available publicly for reading training labels only
  */
 router.get('/settings', async (req, res, next) => {
   try {
@@ -25,7 +26,7 @@ router.get('/settings', async (req, res, next) => {
 
 /**
  * PUT /api/v1/admin/settings
- * Update settings
+ * Update settings (admin only)
  */
 router.put('/settings', async (req, res, next) => {
   try {

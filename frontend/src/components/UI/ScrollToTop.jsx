@@ -34,7 +34,7 @@ const ScrollToTop = () => {
   return (
     <button
       onClick={scrollToTop}
-      className="fixed right-4 bottom-[164px] lg:bottom-[100px] z-50 bg-orange-brand/80 hover:bg-orange-brand/90 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-brand focus:ring-offset-2 backdrop-blur-sm"
+      className="fixed right-4 bottom-40 lg:bottom-24 z-50 bg-orange-brand/80 hover:bg-orange-brand/90 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-brand focus:ring-offset-2 backdrop-blur-sm"
       aria-label="Скролване нагоре"
     >
       <svg

@@ -260,7 +260,10 @@ export const adminAPI = {
 
 // Settings API
 export const settingsAPI = {
+  // Get all settings (admin only - for Settings pages)
   getSettings: () => api.get('/admin/settings'),
+  // Get training labels only (public - for all users)
+  getTrainingLabels: () => api.get('/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
 };
 

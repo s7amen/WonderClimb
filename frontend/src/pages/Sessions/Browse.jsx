@@ -230,18 +230,18 @@ const Sessions = () => {
       }
 
       // Fetch from API only if cache is missing or invalid
-      const response = await settingsAPI.getSettings();
-      const loadedSettings = response.data.settings || {};
+      const response = await settingsAPI.getTrainingLabels();
+      const loadedTrainingLabels = response.data.trainingLabels || {};
       const labels = {
-        targetGroups: loadedSettings.trainingLabels?.targetGroups || [],
-        ageGroups: loadedSettings.trainingLabels?.ageGroups || [],
+        targetGroups: loadedTrainingLabels.targetGroups || [],
+        ageGroups: loadedTrainingLabels.ageGroups || [],
         visibility: {
-          targetGroups: loadedSettings.trainingLabels?.visibility?.targetGroups ?? true,
-          ageGroups: loadedSettings.trainingLabels?.visibility?.ageGroups ?? true,
-          days: loadedSettings.trainingLabels?.visibility?.days ?? true,
-          times: loadedSettings.trainingLabels?.visibility?.times ?? true,
-          titles: loadedSettings.trainingLabels?.visibility?.titles ?? true,
-          reservations: loadedSettings.trainingLabels?.visibility?.reservations ?? true,
+          targetGroups: loadedTrainingLabels.visibility?.targetGroups ?? true,
+          ageGroups: loadedTrainingLabels.visibility?.ageGroups ?? true,
+          days: loadedTrainingLabels.visibility?.days ?? true,
+          times: loadedTrainingLabels.visibility?.times ?? true,
+          titles: loadedTrainingLabels.visibility?.titles ?? true,
+          reservations: loadedTrainingLabels.visibility?.reservations ?? true,
         }
       };
       setTrainingLabels(labels);
@@ -249,7 +249,23 @@ const Sessions = () => {
       // Save to cache (no timestamp needed - invalidated only when settings are saved)
       localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error fetching training labels:', error);
+      // If API call fails and no cache exists, use empty arrays (will show no labels)
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) {
+        setTrainingLabels({
+          targetGroups: [],
+          ageGroups: [],
+          visibility: {
+            targetGroups: true,
+            ageGroups: true,
+            days: true,
+            times: true,
+            titles: true,
+            reservations: true,
+          }
+        });
+      }
     }
   };
 
@@ -828,8 +844,9 @@ const Sessions = () => {
   }
 
   return (
-    <div className="animate-fade-in-content">
-      {/* Header Section */}
+    <>
+      <div className="animate-fade-in-content">
+        {/* Header Section */}
       <div className="mb-2 lg:mb-4">
         <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График</h1>
       </div>
@@ -994,13 +1011,11 @@ const Sessions = () => {
       </div>
 
       {/* Login Modal */}
-      {showLoginModal && (
-        <LoginModal
-          onClose={handleCloseLoginModal}
-          onLoginSuccess={handleLoginSuccess}
-          message="Моля, влезте в профила си, за да запазите час."
-        />
-      )}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={handleCloseLoginModal}
+        onLoginSuccess={handleLoginSuccess}
+      />
 
       {/* Add Child Modal - Higher z-index when BookingModal is open */}
       <AddChildModal
@@ -1100,17 +1115,17 @@ const Sessions = () => {
         error={cancelError}
         isLoading={isCancelling}
       />
+      </div>
 
-      {/* Scroll to Top Button */}
+      {/* Scroll to Top Button - Outside animated div for proper fixed positioning */}
       <ScrollToTop />
 
-      {/* Sticky PWA Install Icon - Mobile Only */}
+      {/* Sticky PWA Install Icon - Mobile Only - Outside animated div for proper fixed positioning */}
       <PWAInstallButton
         variant="sticky"
         hideWhenBulkBooking={selectedSessionIds.length > 0}
       />
-
-    </div>
+    </>
   );
 };
 

@@ -312,7 +312,10 @@ const SessionCard = ({
                 {/* Винаги показва бутон "Запази" - винаги най-в дясно */}
                 {onReserve && (
                   <button
-                    onClick={() => onReserve(session._id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click
+                      onReserve(session._id);
+                    }}
                     disabled={isFull}
                     className={`h-9 px-4 py-2 rounded-lg text-xs md:text-sm leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${isFull
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -513,7 +516,10 @@ const SessionCard = ({
                 {/* Винаги показва бутон "Запази" */}
                 {onReserve && (
                   <button
-                    onClick={() => onReserve(session._id)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click
+                      onReserve(session._id);
+                    }}
                     disabled={isFull}
                     className={`h-9 px-4 py-2 rounded-lg text-xs leading-5 font-normal transition-all duration-200 shadow-sm whitespace-nowrap w-[80px] flex items-center justify-center ${isFull
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'

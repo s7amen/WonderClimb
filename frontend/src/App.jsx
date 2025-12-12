@@ -374,15 +374,8 @@ function App() {
                   <Route index element={<CronJobs />} />
                 </Route>
 
-                {/* Calendar - All authenticated users */}
-                <Route
-                  path="/calendar"
-                  element={
-                    <ProtectedRoute>
-                      <UniversalLayout />
-                    </ProtectedRoute>
-                  }
-                >
+                {/* Calendar - Public */}
+                <Route path="/calendar" element={<UniversalLayout />}>
                   <Route index element={<Calendar />} />
                 </Route>
 

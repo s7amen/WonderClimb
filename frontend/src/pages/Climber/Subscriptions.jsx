@@ -7,8 +7,11 @@ import { useToast } from '../../components/UI/Toast';
 import { formatDate } from '../../utils/dateUtils';
 
 const Subscriptions = () => {
-    const { user } = useAuth();
+    const { user, hasRole } = useAuth();
     const { showToast } = useToast();
+
+    // Check if user has admin, coach, or instructor role
+    const isAuthorized = hasRole('admin') || hasRole('coach') || hasRole('instructor');
 
     const [gymPasses, setGymPasses] = useState([]);
     const [trainingPasses, setTrainingPasses] = useState([]);
@@ -17,8 +20,13 @@ const Subscriptions = () => {
     const [selfClimber, setSelfClimber] = useState(null);
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        // Only fetch data if user is authorized
+        if (isAuthorized) {
+            fetchData();
+        } else {
+            setLoading(false);
+        }
+    }, [isAuthorized]);
 
     const fetchData = async () => {
         try {
@@ -213,6 +221,43 @@ const Subscriptions = () => {
             </div>
         );
     };
+
+    // Show "in development" message for regular users
+    if (!isAuthorized) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-medium text-neutral-950">Абонаменти</h1>
+                </div>
+                <Card>
+                    <div className="p-8 text-center">
+                        <div className="mb-4">
+                            <svg
+                                className="mx-auto h-16 w-16 text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                                />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-medium text-neutral-950 mb-2">
+                            В процес на разработка
+                        </h2>
+                        <p className="text-gray-600">
+                            Тази страница е в процес на разработка и скоро ще бъде достъпна.
+                        </p>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
 
     if (loading) {
         return (

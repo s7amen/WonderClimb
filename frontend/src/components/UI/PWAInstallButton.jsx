@@ -118,7 +118,7 @@ const PWAInstallButton = ({
       <>
         <button
           onClick={handleClick}
-          className={`fixed bottom-20 right-4 z-[9998] lg:bottom-3 lg:hidden w-14 h-14 ${isInstalled
+          className={`fixed bottom-20 lg:bottom-4 right-4 z-[9998] w-14 h-14 ${isInstalled
             ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
             : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
             } text-white rounded-full shadow-xl flex flex-col items-center justify-center transition-all hover:scale-110 active:scale-95 ${className}`}

@@ -24,6 +24,7 @@ const Calendar = () => {
   const [selectedSession, setSelectedSession] = useState(null); // For details view
   const [bookingSession, setBookingSession] = useState(null); // For booking modal
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingBookingSession, setPendingBookingSession] = useState(null); // For continuing booking after login
 
   const [userBookings, setUserBookings] = useState([]);
   const [selectedFilters, setSelectedFilters] = useState(() => {
@@ -70,6 +71,19 @@ const Calendar = () => {
       });
     }
   }, [user, isAuthenticated]);
+
+  // Continue booking after successful login
+  useEffect(() => {
+    if (isAuthenticated && user && pendingBookingSession) {
+      // User just logged in and there's a pending booking
+      // Wait a bit for user data to be fully loaded, then open booking modal
+      const session = pendingBookingSession;
+      setPendingBookingSession(null);
+      setTimeout(() => {
+        setBookingSession(session);
+      }, 500);
+    }
+  }, [isAuthenticated, user, pendingBookingSession]);
 
   const fetchSessions = async () => {
     try {
@@ -1021,6 +1035,7 @@ const Calendar = () => {
                 variant="primary"
                 onClick={() => {
                   if (!isAuthenticated) {
+                    setPendingBookingSession(selectedSession);
                     setShowLoginModal(true);
                   } else {
                     setBookingSession(selectedSession);
@@ -1090,10 +1105,21 @@ const Calendar = () => {
       {/* Login Modal */}
       <LoginModal
         isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
+        onClose={() => {
+          setShowLoginModal(false);
+          // Clear pending booking if user closes modal without logging in
+          if (!isAuthenticated) {
+            setPendingBookingSession(null);
+          }
+        }}
         onLoginSuccess={() => {
           setShowLoginModal(false);
+          // Close selected session modal if open
+          if (selectedSession) {
+            setSelectedSession(null);
+          }
           fetchUserBookings();
+          // The useEffect hook will handle opening the booking modal with pendingBookingSession
         }}
       /></div>
   );

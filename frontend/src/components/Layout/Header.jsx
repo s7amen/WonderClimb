@@ -185,7 +185,7 @@ const Header = () => {
   return (
     <>
       {/* Main Header - Always visible */}
-      <header className="bg-[#35383d] border-b border-[rgba(229,231,235,0.2)] relative z-40">
+      <header className="bg-[#35383d] border-b border-[rgba(229,231,235,0.2)] z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-[70px]">
             {/* Logo */}
@@ -482,7 +482,7 @@ const Header = () => {
 
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-[60] lg:hidden">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -492,7 +492,7 @@ const Header = () => {
           {/* Mobile Menu Panel */}
           <div
             ref={mobileMenuRef}
-            className="fixed top-0 right-0 bottom-0 w-80 bg-[#35383d] shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto"
+            className="fixed top-0 right-0 bottom-0 w-80 bg-[#35383d] shadow-xl transform transition-transform duration-300 ease-in-out overflow-y-auto pb-16"
           >
             <div className="flex flex-col h-full">
               {/* Mobile Menu Header */}

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 
 // Track open modals count for body overflow management
@@ -126,7 +127,7 @@ const BaseModal = ({
         '2xl': 'max-w-2xl',
     };
 
-    return (
+    const modalContent = (
         <div
             className={`fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4 animate-fadeIn`}
             style={{ zIndex }}
@@ -186,6 +187,10 @@ const BaseModal = ({
             </div>
         </div>
     );
+
+    // Use portal to render modal at document.body level
+    // This ensures the modal is always centered on screen regardless of parent transforms
+    return createPortal(modalContent, document.body);
 };
 
 BaseModal.propTypes = {

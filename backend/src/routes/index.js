@@ -12,6 +12,7 @@ import adminCalendarRoutes from './adminCalendar.js';
 import adminFinanceRoutes from './adminFinance.js';
 import adminUsersRoutes from './adminUsers.js';
 import adminSettingsRoutes from './adminSettings.js';
+import settingsPublicRoutes from './settingsPublic.js';
 import climberPhotosRoutes from './climberPhotos.js';
 import familyRoutes from './family.js';
 import competitionsRoutes from './competitions.js';
@@ -41,6 +42,7 @@ router.get('/', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/sessions', sessionsPublicRoutes);
 router.use('/competitions', competitionPublicRoutes);
+router.use('/settings', settingsPublicRoutes);
 router.use('/families', familyRoutes);
 
 // Protected routes (require authentication)

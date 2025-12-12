@@ -156,18 +156,18 @@ const Sessions = () => {
       }
 
       // Fetch from API only if cache is missing or invalid
-      const response = await settingsAPI.getSettings();
-      const loadedSettings = response.data.settings || {};
+      const response = await settingsAPI.getTrainingLabels();
+      const loadedTrainingLabels = response.data.trainingLabels || {};
       const labels = {
-        targetGroups: loadedSettings.trainingLabels?.targetGroups || [],
-        ageGroups: loadedSettings.trainingLabels?.ageGroups || [],
+        targetGroups: loadedTrainingLabels.targetGroups || [],
+        ageGroups: loadedTrainingLabels.ageGroups || [],
         visibility: {
-          targetGroups: loadedSettings.trainingLabels?.visibility?.targetGroups ?? true,
-          ageGroups: loadedSettings.trainingLabels?.visibility?.ageGroups ?? true,
-          days: loadedSettings.trainingLabels?.visibility?.days ?? true,
-          times: loadedSettings.trainingLabels?.visibility?.times ?? true,
-          titles: loadedSettings.trainingLabels?.visibility?.titles ?? true,
-          reservations: loadedSettings.trainingLabels?.visibility?.reservations ?? true,
+          targetGroups: loadedTrainingLabels.visibility?.targetGroups ?? true,
+          ageGroups: loadedTrainingLabels.visibility?.ageGroups ?? true,
+          days: loadedTrainingLabels.visibility?.days ?? true,
+          times: loadedTrainingLabels.visibility?.times ?? true,
+          titles: loadedTrainingLabels.visibility?.titles ?? true,
+          reservations: loadedTrainingLabels.visibility?.reservations ?? true,
         }
       };
       setTrainingLabels(labels);
@@ -182,7 +182,23 @@ const Sessions = () => {
         setBulkFormData(prev => ({ ...prev, ageGroups: defaultAgeGroups }));
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('Error fetching training labels:', error);
+      // If API call fails and no cache exists, use empty arrays (will show no labels)
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) {
+        setTrainingLabels({
+          targetGroups: [],
+          ageGroups: [],
+          visibility: {
+            targetGroups: true,
+            ageGroups: true,
+            days: true,
+            times: true,
+            titles: true,
+            reservations: true,
+          }
+        });
+      }
     }
   };
 
