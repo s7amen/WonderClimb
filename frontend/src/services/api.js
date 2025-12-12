@@ -95,7 +95,7 @@ api.interceptors.response.use(
         const retryAfterSeconds = retryAfterHeader ? parseInt(retryAfterHeader, 10) : 900; // Default 15 minutes
         const retryAfterMinutes = Math.ceil(retryAfterSeconds / 60);
 
-        const errorMessage = error.response?.data?.error?.message || 
+        const errorMessage = error.response?.data?.error?.message ||
           `Твърде много заявки. Моля опитайте отново след ${retryAfterMinutes} ${retryAfterMinutes === 1 ? 'минута' : 'минути'}.`;
 
         // Create enhanced error with user-friendly message
@@ -225,6 +225,7 @@ export const sessionsAPI = {
   getById: (id) => api.get(`/admin/sessions/${id}`),
   create: (data) => api.post('/admin/sessions', data),
   createBulk: (data) => api.post('/admin/sessions/bulk', data),
+  createBatch: (sessions) => api.post('/admin/sessions/batch', { sessions }),
   update: (id, data) => api.put(`/admin/sessions/${id}`, data),
   updatePayoutStatus: (id, payoutStatus) => api.patch(`/admin/sessions/${id}/payout-status`, { payoutStatus }),
   getRoster: (sessionId) => api.get(`/admin/sessions/${sessionId}/roster`),
@@ -377,10 +378,10 @@ export const gymAPI = {
 export const cardQueueAPI = {
   // Add pass to queue
   addToQueue: (data) => api.post('/cards/queue', data),
-  
+
   // Get queue entries
   getQueue: (params) => api.get('/cards/queue', { params }),
-  
+
   // Manually activate queued card
   activateQueued: (queueId) => api.post(`/cards/queue/${queueId}/activate`)
 };
@@ -389,10 +390,10 @@ export const cardQueueAPI = {
 export const cronAPI = {
   // List all cron jobs
   listJobs: () => api.get('/admin/cron/jobs'),
-  
+
   // Trigger a cron job manually
   triggerJob: (jobName) => api.post(`/admin/cron/jobs/${jobName}/trigger`),
-  
+
   // Get execution history for a job
   getHistory: (jobName, limit) => api.get(`/admin/cron/jobs/${jobName}/history`, { params: { limit } })
 };

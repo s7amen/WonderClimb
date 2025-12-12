@@ -70,13 +70,16 @@ const Home = () => {
 
   return (
     <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
+      {/* Header - Outside hero section for sticky behavior */}
+      <Header />
+
       {/* Full-screen background section with login form */}
       <section
-        className="relative w-full h-screen flex flex-col items-center justify-center overflow-hidden"
+        className="relative w-full min-h-screen flex flex-col items-center justify-center pt-[114px]"
       >
         {/* Parallax Background */}
         <div
-          className="absolute inset-0 w-full h-full z-0"
+          className="absolute inset-0 w-full h-full -z-10"
           style={{
             backgroundImage: 'url(/images/boulder-kids-wall.webp)',
             backgroundSize: 'cover',
@@ -86,13 +89,9 @@ const Home = () => {
             transition: 'transform 0.1s linear'
           }}
         />
-        {/* Header positioned at top */}
-        <div className="absolute top-0 left-0 right-0 z-20">
-          <Header />
-        </div>
 
         {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-black/60 z-0"></div>
+        <div className="absolute inset-0 bg-black/60 -z-10"></div>
 
         {/* Content container - centered */}
         <div className="relative z-10 w-full max-w-md px-4 flex flex-col items-center justify-center">
@@ -338,7 +337,7 @@ const Home = () => {
                   Всяка тренировка започва със загрявка, включва упражнения за развитие на двигателните качества
                   и време за катерене с насоки от треньорите. Заниманията са с продължителност 75 минути за най-малките, 90 минути за по-големите и 120 мин за състезателите и напредналите.
                 </p>
-    
+
 
               </div>
             </Reveal>
@@ -381,6 +380,12 @@ const Home = () => {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div className="text-center mt-12">
+              <Link to="/faq" className="text-[#ea7a24] font-bold text-lg hover:underline transition-all">
+                Често задавани въпроси
+              </Link>
             </div>
           </div>
         </Reveal>

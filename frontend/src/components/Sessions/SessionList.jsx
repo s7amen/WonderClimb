@@ -38,7 +38,11 @@ const SessionList = ({
   onCancelBooking,
   // Show reservations info
   showReservationsInfo = false,
+  // Sorting
+  sortOrder = 'asc',
 }) => {
+
+
   const filteredSessions = getFilteredSessions();
 
   if (hasActiveFilters() && filteredSessions.length === 0) {
@@ -75,37 +79,41 @@ const SessionList = ({
 
   // Sort days
   const sortedDays = Object.keys(groupedSessions).sort();
+  if (sortOrder === 'desc') {
+    sortedDays.reverse();
+  }
+
 
   // Helper function to get all reservations for a session
   const getReservationsForSession = (sessionId) => {
     if (!userBookings || userBookings.length === 0) return [];
-    
+
     // Normalize sessionId for comparison
-    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-      ? sessionId.toString() 
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString
+      ? sessionId.toString()
       : String(sessionId);
-    
+
     return userBookings.filter(b => {
       if (!b || b.status !== 'booked') return false;
-      
+
       // Check sessionId field (could be string or object)
-      const bookingSessionId = b.sessionId 
-        ? (typeof b.sessionId === 'object' && b.sessionId._id 
-            ? String(b.sessionId._id) 
-            : String(b.sessionId))
+      const bookingSessionId = b.sessionId
+        ? (typeof b.sessionId === 'object' && b.sessionId._id
+          ? String(b.sessionId._id)
+          : String(b.sessionId))
         : null;
-      
+
       // Check session object (populated)
-      const sessionObjId = b.session 
+      const sessionObjId = b.session
         ? (b.session._id ? String(b.session._id) : String(b.session))
         : null;
-      
+
       return bookingSessionId === normalizedSessionId || sessionObjId === normalizedSessionId;
     }).map(booking => {
       const climber = booking.climber || booking.climberId;
       let climberName = 'Неизвестен';
       let climberId = null;
-      
+
       if (climber) {
         if (typeof climber === 'object' && climber.firstName && climber.lastName) {
           // Climber е populated обект с firstName и lastName
@@ -117,17 +125,17 @@ const SessionList = ({
           climberId = climber._id || climber.id || climber;
         } else {
           // Climber е само ID - опитай да го намериш в children масива
-          const climberIdStr = typeof climber === 'object' && climber?.toString 
-            ? climber.toString() 
+          const climberIdStr = typeof climber === 'object' && climber?.toString
+            ? climber.toString()
             : String(climber);
-          
+
           const foundClimber = children.find(child => {
-            const childIdStr = typeof child._id === 'object' && child._id?.toString 
-              ? child._id.toString() 
+            const childIdStr = typeof child._id === 'object' && child._id?.toString
+              ? child._id.toString()
               : String(child._id);
             return childIdStr === climberIdStr;
           });
-          
+
           if (foundClimber && foundClimber.firstName && foundClimber.lastName) {
             climberName = `${foundClimber.firstName} ${foundClimber.lastName}`;
             climberId = foundClimber._id || climber;
@@ -136,7 +144,7 @@ const SessionList = ({
           }
         }
       }
-      
+
       return {
         climberName,
         bookingId: booking._id || booking.id,
@@ -149,12 +157,12 @@ const SessionList = ({
   const getReservationInfo = (sessionId) => {
     const reservations = getReservationsForSession(sessionId);
     if (reservations.length === 0) return null;
-    
+
     // Ако има само една резервация, показва я
     if (reservations.length === 1) {
       return reservations[0];
     }
-    
+
     // Ако има повече от една, показва първата с броя
     return {
       ...reservations[0],
@@ -175,7 +183,7 @@ const SessionList = ({
       'Деца с опит': 95,  // ~79px text + 16px padding  
       'Напреднали': 85,   // ~69px text + 16px padding
     };
-    
+
     // Calculate width for target groups
     let totalTargetGroupWidth = 0;
     if (session.targetGroups && session.targetGroups.length > 0) {
@@ -190,7 +198,7 @@ const SessionList = ({
       // Add gap between labels (gap-2 = 8px per gap)
       totalTargetGroupWidth += (session.targetGroups.length - 1) * 8;
     }
-    
+
     // Calculate width for reservations if they are shown
     // Reservations are shown when showReservationsInfo is true
     let totalReservationWidth = 0;
@@ -212,38 +220,38 @@ const SessionList = ({
         }
       }
     }
-    
+
     // Total width for all labels (reservations + target groups)
     const totalLabelWidth = totalReservationWidth + totalTargetGroupWidth;
-    
+
     // Capacity section width - conservative estimate
     // Icon: 16px, Text (e.g., "10/10"): ~45px, Progress bar: 80px, Gaps: ~21px
     const capacityWidth = 170;
     const gapBetween = 16; // gap-4 = 16px
-    
+
     // Estimate available width - use very generous estimate for wide screens
     // Desktop cards: max-w-[1600px] container, minus padding
     // For wide screens (1900px+), cards can be up to 1600px wide
     // Card internal padding: px-4 = 16px each side = 32px
     // The labels section is in a flex container that can use most of this width
     const availableWidth = 1400; // Generous estimate for wide screens (1900px+)
-    
+
     // If no labels at all, only capacity - fits on one row
     if (totalLabelWidth === 0) {
       return 1;
     }
-    
+
     // Check if all labels + capacity fit on one row WITHOUT overlap
     const totalNeeded = totalLabelWidth + capacityWidth + gapBetween;
     if (totalNeeded <= availableWidth) {
       return 1; // Everything fits on one row without overlap
     }
-    
+
     // Labels + capacity don't fit on one row, check if labels alone fit
     if (totalLabelWidth <= availableWidth) {
       return 2; // Labels on row 1, capacity on row 2
     }
-    
+
     // Labels themselves need to wrap to multiple rows
     // This should be rare - only with many reservations + target groups
     return 3; // Labels wrap to 2 rows, capacity on row 3
@@ -252,7 +260,7 @@ const SessionList = ({
   // Helper function to get max label rows for all sessions in a day
   const getMaxLabelRowsForDay = (sessions) => {
     if (!sessions || sessions.length === 0) return 1;
-    
+
     let maxRows = 1;
     sessions.forEach(session => {
       const rows = calculateLabelRows(session);
@@ -260,7 +268,7 @@ const SessionList = ({
         maxRows = rows;
       }
     });
-    
+
     return maxRows;
   };
 
@@ -295,35 +303,35 @@ const SessionList = ({
               {(() => {
                 // Calculate max label rows for all sessions in this day
                 const maxLabelRows = getMaxLabelRowsForDay(dayData.sessions);
-                
+
                 return dayData.sessions.map((session, index) => {
                   const bookedCount = getBookedCount ? getBookedCount(session._id) : (session.bookedCount || 0);
                   const isFull = bookedCount >= session.capacity;
                   // Normalize session ID for comparison
                   const sessionId = session._id || session.id;
-                  const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-                    ? sessionId.toString() 
+                  const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString
+                    ? sessionId.toString()
                     : String(sessionId);
                   const isSelected = selectedSessionIds.some(id => {
                     const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
                     return normalizedId === normalizedSessionId;
                   });
-                  
+
                   // Get selected climber ID - use session._id directly as key
                   const selectedClimberId = mode === 'admin' ? ((selectedClimberForSession && selectedClimberForSession[session._id]) || '') : null;
-                  
+
                   // Normalize viewingRoster comparison
                   let isViewingRoster = false;
                   if (viewingRoster && session._id) {
-                    const normalizedViewingRoster = typeof viewingRoster === 'object' && viewingRoster?.toString 
-                      ? viewingRoster.toString() 
+                    const normalizedViewingRoster = typeof viewingRoster === 'object' && viewingRoster?.toString
+                      ? viewingRoster.toString()
                       : String(viewingRoster);
-                    const normalizedSessionId = typeof session._id === 'object' && session._id?.toString 
-                      ? session._id.toString() 
+                    const normalizedSessionId = typeof session._id === 'object' && session._id?.toString
+                      ? session._id.toString()
                       : String(session._id);
                     isViewingRoster = normalizedViewingRoster === normalizedSessionId;
                   }
-                  
+
                   const sessionRoster = mode === 'admin' && isViewingRoster ? roster : null;
                   const reservationInfo = getReservationInfo(session._id);
 

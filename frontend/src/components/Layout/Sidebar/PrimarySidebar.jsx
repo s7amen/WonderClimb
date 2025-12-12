@@ -64,7 +64,7 @@ const PrimarySidebar = ({ categories, activeCategory, onCategoryChange }) => {
                             key={category.id}
                             onClick={() => onCategoryChange(category.id)}
                             className={`
-                w-12 h-12 rounded-[10px] flex flex-col items-center justify-center gap-1 transition-all
+                w-[68px] h-12 rounded-[10px] flex flex-col items-center justify-center gap-1 transition-all
                 ${isActive ? 'bg-[#ea7a24] text-white' : 'text-[#9ca3af] hover:bg-[#3d4146] hover:text-white'}
               `}
                             title={category.label}

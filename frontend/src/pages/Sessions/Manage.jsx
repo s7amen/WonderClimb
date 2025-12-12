@@ -4,7 +4,7 @@ import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-f
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
-import Loading from '../../components/UI/Loading';
+import ClimbingLoader from '../../components/UI/ClimbingLoader';
 import { useToast } from '../../components/UI/Toast';
 import SessionFilters from '../../components/Sessions/SessionFilters';
 import SessionList from '../../components/Sessions/SessionList';
@@ -23,6 +23,10 @@ const Sessions = () => {
   const [roster, setRoster] = useState([]);
   const { showToast } = useToast();
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('upcoming');
+
+
   // Schedule view states
   const [daysToShow, setDaysToShow] = useState(30);
   const [selectedSessionIds, setSelectedSessionIds] = useState([]);
@@ -38,7 +42,7 @@ const Sessions = () => {
   const [sessionToDelete, setSessionToDelete] = useState(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -101,10 +105,13 @@ const Sessions = () => {
   const fetchSessions = async () => {
     try {
       setLoading(true);
-      const response = await sessionsAPI.getAll();
+      // Fetch -90 days to +365 days
+      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      const response = await sessionsAPI.getAll(startDate);
+
       // Filter out competitions and cancelled sessions - only show actual training sessions
       const allEvents = response.data.sessions || [];
-      const trainingSessions = allEvents.filter(event => 
+      const trainingSessions = allEvents.filter(event =>
         event.type !== 'competition' && event.status !== 'cancelled'
       );
       setSessions(trainingSessions);
@@ -161,7 +168,7 @@ const Sessions = () => {
 
     try {
       await sessionsAPI.createManualBooking(sessionId, selectedClimberId);
-      
+
       // Обновяваме само конкретната сесия в масива (увеличаваме bookedCount)
       setSessions(prev => prev.map(s => {
         if (s._id === sessionId) {
@@ -172,9 +179,9 @@ const Sessions = () => {
         }
         return s;
       }));
-      
+
       setSelectedClimberForSession({ ...selectedClimberForSession, [sessionId]: '' });
-      
+
       if (viewingRoster === sessionId) {
         fetchRoster(sessionId);
       }
@@ -187,7 +194,7 @@ const Sessions = () => {
     e.preventDefault();
     try {
       const dateTime = new Date(`${formData.date}T${formData.time}`);
-      
+
       const sessionData = {
         title: formData.title,
         description: formData.description,
@@ -202,32 +209,32 @@ const Sessions = () => {
       if (editingSession) {
         const response = await sessionsAPI.update(editingSession._id, sessionData);
         const updatedSession = response.data.session;
-        
+
         // Обновяваме само редактираната сесия в масива
         setSessions(prev => prev.map(s => s._id === editingSession._id ? updatedSession : s));
-        
+
         resetForm();
         setShowEditModal(false);
-        
+
         // Скролваме до редактираната сесия
         scrollToElement(`session-${editingSession._id}`);
       } else {
         const response = await sessionsAPI.create(sessionData);
         const newSession = response.data.session;
-        
+
         // Добавяме новата сесия в масива
         setSessions(prev => {
-          const filtered = prev.filter(event => 
+          const filtered = prev.filter(event =>
             event.type !== 'competition' && event.status !== 'cancelled'
           );
-          return [...filtered, newSession].sort((a, b) => 
+          return [...filtered, newSession].sort((a, b) =>
             new Date(a.date) - new Date(b.date)
           );
         });
-        
+
         resetForm();
         setShowForm(false);
-        
+
         // Скролваме до новата сесия
         scrollToElement(`session-${newSession._id}`);
       }
@@ -253,6 +260,158 @@ const Sessions = () => {
     setShowEditModal(true);
   };
 
+  // Duplication states
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateConfig, setDuplicateConfig] = useState({
+    targetDate: '',
+    endDate: '',
+    repeats: 1,
+    useEndDate: false
+  });
+  const [duplicatePreview, setDuplicatePreview] = useState([]);
+  const [showDuplicatePreview, setShowDuplicatePreview] = useState(false);
+
+  // Duplication Logic
+  const handleDuplicateClick = () => {
+    if (selectedSessionIds.length === 0) {
+      showToast('Моля, изберете поне една тренировка за дублиране', 'error');
+      return;
+    }
+
+    // Find the earliest date among selected sessions to establish relative offsets
+    const selectedSessionsList = sessions.filter(s => selectedSessionIds.includes(s._id));
+    if (selectedSessionsList.length === 0) return;
+
+    // Default target date: 1 week after the earliest selected session
+    // Or if that's in the past, 1 week from today
+    const sortedByDate = [...selectedSessionsList].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const earliestSessionDate = new Date(sortedByDate[0].date);
+
+    // Default to next week from the earliest session
+    const defaultTargetDate = addDays(earliestSessionDate, 7);
+
+    setDuplicateConfig({
+      targetDate: format(defaultTargetDate, 'yyyy-MM-dd'),
+      endDate: '',
+      repeats: 1,
+      useEndDate: false
+    });
+    setShowDuplicateModal(true);
+  };
+
+  const calculateDuplicates = () => {
+    const selectedSessionsList = sessions.filter(s => selectedSessionIds.includes(s._id));
+    if (selectedSessionsList.length === 0) return [];
+
+    const sortedByDate = [...selectedSessionsList].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const anchorDate = new Date(sortedByDate[0].date); // The earliest date is our anchor
+    const targetDate = new Date(duplicateConfig.targetDate);
+
+    // Calculate time difference between anchor and target
+    const timeShift = targetDate.getTime() - anchorDate.getTime();
+
+    const newSessions = [];
+
+    // Determine how many weeks to duplicate
+    let weeksCount;
+    if (duplicateConfig.useEndDate && duplicateConfig.endDate) {
+      const endDate = new Date(duplicateConfig.endDate);
+      const daysDiff = Math.ceil((endDate.getTime() - targetDate.getTime()) / (24 * 60 * 60 * 1000));
+      weeksCount = Math.ceil(daysDiff / 7) + 1; // +1 to include the last week
+    } else {
+      weeksCount = duplicateConfig.repeats;
+    }
+
+    // For each week
+    for (let i = 0; i < weeksCount; i++) {
+      const repeatTimeShift = i * 7 * 24 * 60 * 60 * 1000; // +7 days for each repeat
+
+      selectedSessionsList.forEach(session => {
+        const originalDate = new Date(session.date);
+        // New Date = Original + (Target - Anchor) + (i * 7 days)
+        const newDateTimestamp = originalDate.getTime() + timeShift + repeatTimeShift;
+        const newDate = new Date(newDateTimestamp);
+
+        // If using end date, filter out sessions beyond the end date
+        if (duplicateConfig.useEndDate && duplicateConfig.endDate) {
+          const endDate = new Date(duplicateConfig.endDate);
+          endDate.setHours(23, 59, 59, 999);
+          if (newDate > endDate) {
+            return; // Skip this session
+          }
+        }
+
+        newSessions.push({
+          ...session,
+          _id: undefined, // Clear ID
+          id: undefined,
+          date: newDate,
+          bookedCount: 0, // Reset bookings
+          status: 'active'
+        });
+      });
+    }
+
+    return newSessions.sort((a, b) => a.date - b.date);
+  };
+
+  const handleDuplicatePreview = () => {
+    if (!duplicateConfig.targetDate) {
+      showToast('Моля, изберете начална дата', 'error');
+      return;
+    }
+    if (duplicateConfig.useEndDate && !duplicateConfig.endDate) {
+      showToast('Моля, изберете крайна дата', 'error');
+      return;
+    }
+    if (duplicateConfig.useEndDate && duplicateConfig.endDate) {
+      const start = new Date(duplicateConfig.targetDate);
+      const end = new Date(duplicateConfig.endDate);
+      if (end <= start) {
+        showToast('Крайната дата трябва да бъде след началната', 'error');
+        return;
+      }
+    }
+    const preview = calculateDuplicates();
+    if (preview.length === 0) {
+      showToast('Няма тренировки за дублиране с избраните настройки', 'error');
+      return;
+    }
+    setDuplicatePreview(preview);
+    setShowDuplicateModal(false);
+    setShowDuplicatePreview(true);
+  };
+
+  const confirmDuplicate = async () => {
+    try {
+      setLoading(true);
+      const response = await sessionsAPI.createBatch(duplicatePreview);
+
+      const newSessions = response.data.sessions;
+
+      // Add new sessions to state
+      setSessions(prev => {
+        const filtered = prev.filter(event =>
+          event.type !== 'competition' && event.status !== 'cancelled'
+        );
+        return [...filtered, ...newSessions].sort((a, b) =>
+          new Date(a.date) - new Date(b.date)
+        );
+      });
+
+      showToast(`Успешно дублирани ${newSessions.length} тренировки`, 'success');
+
+      setShowDuplicatePreview(false);
+      setDuplicateConfig({ targetDate: '', endDate: '', repeats: 1, useEndDate: false });
+      setSelectedSessionIds([]); // Clear selection after success
+
+    } catch (error) {
+      showToast(error.response?.data?.error?.message || 'Грешка при дублиране', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteClick = (sessionId) => {
     setSessionToDelete(sessionId);
     setShowDeleteModal(true);
@@ -264,10 +423,10 @@ const Sessions = () => {
     setIsDeleting(true);
     try {
       await sessionsAPI.update(sessionToDelete, { status: 'cancelled' });
-      
+
       // Премахваме сесията от масива (филтрираме я като cancelled)
       setSessions(prev => prev.filter(s => s._id !== sessionToDelete));
-      
+
       setShowDeleteModal(false);
       setSessionToDelete(null);
     } catch (error) {
@@ -386,7 +545,7 @@ const Sessions = () => {
 
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
-      
+
       if (bulkFormData.daysOfWeek.includes(dayOfWeek)) {
         const sessionDate = new Date(currentDate);
         const [hours, minutes] = bulkFormData.time.split(':').map(Number);
@@ -410,7 +569,7 @@ const Sessions = () => {
 
   const handleBulkSubmit = (e) => {
     e.preventDefault();
-    
+
     if (!bulkFormData.title || !bulkFormData.startDate || !bulkFormData.endDate || !bulkFormData.time || bulkFormData.daysOfWeek.length === 0) {
       showToast('Моля, попълнете всички задължителни полета', 'error');
       return;
@@ -440,7 +599,7 @@ const Sessions = () => {
   const confirmBulkCreate = async () => {
     try {
       const sessionsToCreate = previewSessions.filter((_, index) => selectedSessions.has(index));
-      
+
       if (sessionsToCreate.length === 0) {
         showToast('Моля, изберете поне една тренировка за създаване', 'error');
         return;
@@ -475,10 +634,10 @@ const Sessions = () => {
       // Добавяме новите сесии в масива
       if (newSessions.length > 0) {
         setSessions(prev => {
-          const filtered = prev.filter(event => 
+          const filtered = prev.filter(event =>
             event.type !== 'competition' && event.status !== 'cancelled'
           );
-          return [...filtered, ...newSessions].sort((a, b) => 
+          return [...filtered, ...newSessions].sort((a, b) =>
             new Date(a.date) - new Date(b.date)
           );
         });
@@ -489,7 +648,7 @@ const Sessions = () => {
       }
 
       resetBulkForm();
-      
+
       // Скролваме до първата нова сесия ако има успешно създадени
       if (newSessions.length > 0) {
         scrollToElement(`session-${newSessions[0]._id}`);
@@ -547,7 +706,7 @@ const Sessions = () => {
   const getFilteredSessions = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
+
     return sessions.filter(session => {
       // Exclude competitions - only show training sessions
       if (session.type === 'competition') {
@@ -559,8 +718,16 @@ const Sessions = () => {
       const sessionTime = format(sessionDate, 'HH:mm');
       const sessionTitle = session.title;
 
-      if (isBefore(sessionDate, today) || isBefore(viewEndDate, sessionDate)) {
-        return false;
+      if (activeTab === 'upcoming') {
+        // Show from today onwards (up to viewEndDate)
+        if (isBefore(sessionDate, today) || isBefore(viewEndDate, sessionDate)) {
+          return false;
+        }
+      } else {
+        // Show past sessions (before today)
+        if (!isBefore(sessionDate, today)) {
+          return false;
+        }
       }
 
       if (selectedDays.length > 0 && !selectedDays.includes(sessionDay)) {
@@ -577,60 +744,89 @@ const Sessions = () => {
 
       return true;
     });
+
   };
 
   const groupSessionsByDay = () => {
     const today = startOfDay(new Date());
     const viewEndDate = addDays(today, daysToShow);
-    
-    const days = eachDayOfInterval({ start: today, end: viewEndDate });
-    
+
     const filteredSessions = getFilteredSessions();
-    
+
     const grouped = {};
-    days.forEach(day => {
-      const dayKey = format(day, 'yyyy-MM-dd');
-      grouped[dayKey] = {
-        date: day,
-        sessions: []
-      };
-    });
+
+    // For upcoming sessions, we want to show all days in range even if empty
+    // For past sessions, we only want to show days that have sessions
+    if (activeTab === 'upcoming') {
+      const days = eachDayOfInterval({ start: today, end: viewEndDate });
+      days.forEach(day => {
+        const dayKey = format(day, 'yyyy-MM-dd');
+        grouped[dayKey] = {
+          date: day,
+          sessions: []
+        };
+      });
+    } else {
+      // Initialize groups only for days present in filtered sessions for past tab
+      filteredSessions.forEach(session => {
+        const sessionDate = new Date(session.date);
+        const dayKey = format(sessionDate, 'yyyy-MM-dd');
+        if (!grouped[dayKey]) {
+          grouped[dayKey] = {
+            date: startOfDay(sessionDate),
+            sessions: []
+          };
+        }
+      });
+    }
+
 
     filteredSessions.forEach(session => {
       const sessionDate = new Date(session.date);
       const dayKey = format(sessionDate, 'yyyy-MM-dd');
-      
+
       if (grouped[dayKey]) {
         grouped[dayKey].sessions.push(session);
       }
     });
 
     Object.keys(grouped).forEach(dayKey => {
-      grouped[dayKey].sessions.sort((a, b) => 
+      grouped[dayKey].sessions.sort((a, b) =>
         new Date(a.date) - new Date(b.date)
       );
     });
+
+    // If past tab, we might want to sort days descending (newest first)? 
+    // Usually lists iterate over Object.entries/keys which ends up being insertion order or key order.
+    // We will rely on the consumer of this function to sort the days if needed, 
+    // but SessionList iterates Object.entries which isn't guaranteed order.
+    // However, JS engines usually iterate integer-like keys in order, and string keys in insertion order.
+    // To be safe, let's leave as is, and SessionList usually iterates.
+    // Wait, typical schedule view is chronological. Even for past, usually you scroll down to see history?
+    // User requested "Past" tab. Usually "History" is Newest -> Oldest. "Upcoming" is Soonest -> Latest.
+    // I will verify this behavior in UI.
+
 
     return grouped;
   };
 
   const toggleFilter = (filterType, value) => {
     if (filterType === 'day') {
-      setSelectedDays(prev => 
-        prev.includes(value) 
+      setSelectedDays(prev =>
+        prev.includes(value)
           ? prev.filter(d => d !== value)
           : [...prev, value]
       );
     } else if (filterType === 'time') {
-      setSelectedTimes(prev => 
-        prev.includes(value) 
+      setSelectedTimes(prev =>
+        prev.includes(value)
           ? prev.filter(t => t !== value)
           : [...prev, value]
       );
     } else if (filterType === 'title') {
       // Single select - replace current selection or deselect if same value
-      setSelectedTitles(prev => 
-        prev.includes(value) 
+      setSelectedTitles(prev =>
+        prev.includes(value)
           ? [] // Deselect if same value clicked
           : [value] // Replace with new selection (single select)
       );
@@ -675,32 +871,32 @@ const Sessions = () => {
 
   const toggleSessionSelectionForDelete = (sessionId) => {
     // Normalize sessionId to string for consistent comparison
-    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString 
-      ? sessionId.toString() 
+    const normalizedSessionId = typeof sessionId === 'object' && sessionId?.toString
+      ? sessionId.toString()
       : String(sessionId);
-    
+
     setSelectedSessionIds(prev => {
-      const normalizedPrev = prev.map(id => 
+      const normalizedPrev = prev.map(id =>
         typeof id === 'object' && id?.toString ? id.toString() : String(id)
       );
-      
+
       return normalizedPrev.includes(normalizedSessionId)
         ? prev.filter(id => {
-            const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
-            return normalizedId !== normalizedSessionId;
-          })
+          const normalizedId = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+          return normalizedId !== normalizedSessionId;
+        })
         : [...prev, sessionId];
     });
   };
 
   const selectAllFilteredSessions = () => {
     const filteredSessions = getFilteredSessions();
-    
+
     // Get all filtered sessions (don't filter by status - include all)
     const availableSessionIds = filteredSessions
       .map(session => session._id || session.id)
       .filter(id => id); // Remove any undefined/null IDs
-    
+
     // Always select all available sessions
     setSelectedSessionIds(availableSessionIds);
   };
@@ -728,9 +924,8 @@ const Sessions = () => {
   };
 
   if (loading) {
-    return <Loading text="Зареждане на сесии..." />;
+    return <ClimbingLoader text="Зареждане..." />;
   }
-
 
   return (
     <div className="space-y-6">
@@ -739,30 +934,61 @@ const Sessions = () => {
         <h1 className="text-3xl font-bold text-neutral-950">График</h1>
       </div>
 
-        {/* Action Buttons */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-2">
-          {showForm && (
-            <Button variant="secondary" onClick={() => {
-              setShowForm(false);
-              setIsBulkMode(false);
-              setEditingSession(null);
-              setShowPreviewModal(false);
-              resetForm();
-              resetBulkForm();
-            }} className="w-full sm:w-auto">
-              Отказ
-            </Button>
-          )}
-          {!showForm && (
-            <Button onClick={() => {
-              setShowForm(true);
-              setIsBulkMode(false);
-              setEditingSession(null);
-            }} className="w-full sm:w-auto">
-              Нова тренировка
-            </Button>
-          )}
-        </div>{showForm && !editingSession && (
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('upcoming')}
+            className={`
+               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+               ${activeTab === 'upcoming'
+                ? 'border-orange-brand text-orange-brand'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+             `}
+          >
+            Предстоящи
+          </button>
+          <button
+            onClick={() => setActiveTab('past')}
+            className={`
+               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+               ${activeTab === 'past'
+                ? 'border-orange-brand text-orange-brand'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }
+             `}
+          >
+            Минали
+          </button>
+        </nav>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-2">
+        {showForm && (
+          <Button variant="secondary" onClick={() => {
+            setShowForm(false);
+            setIsBulkMode(false);
+            setEditingSession(null);
+            setShowPreviewModal(false);
+            resetForm();
+            resetBulkForm();
+          }} className="w-full sm:w-auto">
+            Отказ
+          </Button>
+        )}
+        {!showForm && (
+          <Button onClick={() => {
+            setShowForm(true);
+            setIsBulkMode(false);
+            setEditingSession(null);
+          }} className="w-full sm:w-auto">
+            Нова тренировка
+          </Button>
+        )}
+      </div>
+      {showForm && !editingSession && (
         <Card title={isBulkMode ? 'Създай нови тренировки' : 'Създай нова тренировка'}>
           {!isBulkMode && (
             <div className="mb-6 flex items-center gap-3 flex-wrap">
@@ -788,11 +1014,10 @@ const Sessions = () => {
                       });
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    !isBulkMode
-                      ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${!isBulkMode
+                    ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
+                    }`}
                 >
                   Една тренировка
                 </button>
@@ -815,11 +1040,10 @@ const Sessions = () => {
                       });
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    isBulkMode
-                      ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${isBulkMode
+                    ? 'bg-orange-brand text-white hover:opacity-90 focus:ring-orange-brand'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400'
+                    }`}
                 >
                   Няколко тренировки
                 </button>
@@ -879,11 +1103,10 @@ const Sessions = () => {
                         key={day}
                         type="button"
                         onClick={() => toggleDayOfWeek(day)}
-                        className={`px-3 py-1 rounded ${
-                          bulkFormData.daysOfWeek.includes(day)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700'
-                        }`}
+                        className={`px-3 py-1 rounded ${bulkFormData.daysOfWeek.includes(day)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700'
+                          }`}
                       >
                         {name}
                       </button>
@@ -956,11 +1179,10 @@ const Sessions = () => {
                               : [...bulkFormData.targetGroups, value],
                           });
                         }}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                          bulkFormData.targetGroups.includes(value)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkFormData.targetGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
                       >
                         {label}
                       </button>
@@ -989,11 +1211,10 @@ const Sessions = () => {
                               : [...bulkFormData.ageGroups, value],
                           });
                         }}
-                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                          bulkFormData.ageGroups.includes(value)
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkFormData.ageGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
                       >
                         {label}
                       </button>
@@ -1025,7 +1246,7 @@ const Sessions = () => {
                             className="mr-2"
                           />
                           <span className="text-sm">
-                            {coach.firstName && coach.lastName 
+                            {coach.firstName && coach.lastName
                               ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
                               : coach.name || coach.email}
                             {coach.email && ` (${coach.email})`}
@@ -1047,153 +1268,151 @@ const Sessions = () => {
               </>
             ) : (
               <>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Заглавие
-              </label>
-              <input
-                type="text"
-                list="session-titles-single"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Въведете или изберете заглавие"
-                required
-              />
-              <datalist id="session-titles-single">
-                {getUniqueTitles().map((title, index) => (
-                  <option key={index} value={title} />
-                ))}
-              </datalist>
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Заглавие
+                  </label>
+                  <input
+                    type="text"
+                    list="session-titles-single"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Въведете или изберете заглавие"
+                    required
+                  />
+                  <datalist id="session-titles-single">
+                    {getUniqueTitles().map((title, index) => (
+                      <option key={index} value={title} />
+                    ))}
+                  </datalist>
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Описание
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                rows={3}
-              />
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Описание
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    rows={3}
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Дата"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-              <Input
-                label="Час"
-                type="time"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                required
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Дата"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Час"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    required
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Продължителност (минути)"
-                type="number"
-                value={formData.durationMinutes}
-                onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
-                required
-                min={1}
-              />
-              <Input
-                label="Капацитет"
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                required
-                min={1}
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Продължителност (минути)"
+                    type="number"
+                    value={formData.durationMinutes}
+                    onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                    required
+                    min={1}
+                  />
+                  <Input
+                    label="Капацитет"
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                    required
+                    min={1}
+                  />
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Подходящо за
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: 'beginner', label: 'Начинаещи' },
-                  { value: 'experienced', label: 'Деца с опит' },
-                  { value: 'advanced', label: 'Напреднали' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => toggleTargetGroup(value)}
-                    className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                      formData.targetGroups.includes(value)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Подходящо за
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'beginner', label: 'Начинаещи' },
+                      { value: 'experienced', label: 'Деца с опит' },
+                      { value: 'advanced', label: 'Напреднали' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleTargetGroup(value)}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.targetGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Години
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: '4-6', label: '4-6' },
-                  { value: '7-12', label: '7-12' },
-                  { value: '13+', label: '13+' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => toggleAgeGroup(value)}
-                    className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                      formData.ageGroups.includes(value)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Години
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: '4-6', label: '4-6' },
+                      { value: '7-12', label: '7-12' },
+                      { value: '13+', label: '13+' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleAgeGroup(value)}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(value)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Треньори
-              </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
-                {coaches.length === 0 ? (
-                  <p className="text-sm text-gray-500">Няма налични треньори. Моля, създайте потребители треньори първо.</p>
-                ) : (
-                  coaches.map((coach) => (
-                    <label key={coach.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={formData.coachIds.includes(coach.id)}
-                        onChange={() => toggleCoach(coach.id)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">
-                        {coach.firstName && coach.lastName 
-                          ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
-                          : coach.name || coach.email}
-                        {coach.email && ` (${coach.email})`}
-                      </span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Треньори
+                  </label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
+                    {coaches.length === 0 ? (
+                      <p className="text-sm text-gray-500">Няма налични треньори. Моля, създайте потребители треньори първо.</p>
+                    ) : (
+                      coaches.map((coach) => (
+                        <label key={coach.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={formData.coachIds.includes(coach.id)}
+                            onChange={() => toggleCoach(coach.id)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm">
+                            {coach.firstName && coach.lastName
+                              ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
+                              : coach.name || coach.email}
+                            {coach.email && ` (${coach.email})`}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex flex-col sm:flex-row gap-2 mt-4">
                   <Button type="submit" variant="primary" className="w-full sm:w-auto">
@@ -1209,54 +1428,224 @@ const Sessions = () => {
         </Card>
       )}
 
-      {/* Preview Confirmation Modal */}
-      {showPreviewModal && (
+      {/* Duplicate Configuration Modal */}
+      {showDuplicateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">Преглед на тренировките за създаване</h2>
-            <p className="text-gray-600 mb-4">
-              Избрани <strong>{selectedSessions.size}</strong> от <strong>{previewSessions.length}</strong> тренировки:
+          <Card className="max-w-md w-full">
+            <h2 className="text-xl font-bold mb-4">Дублиране на тренировки</h2>
+            <p className="text-gray-600 mb-4 text-sm">
+              Избрани са {selectedSessionIds.length} тренировки. Моля, изберете начална дата за новите сесии.
             </p>
-            <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
-              {previewSessions.map((session, index) => (
-                <div key={index} className={`p-3 rounded border ${
-                  selectedSessions.has(index) 
-                    ? 'bg-gray-50 border-gray-200' 
-                    : 'bg-gray-100 border-gray-300 opacity-60'
-                }`}>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedSessions.has(index)}
-                      onChange={() => toggleSessionSelection(index)}
-                      className="mr-3 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium">{session.title}</span>
-                      <span className="text-gray-500 ml-2">
-                        {format(session.date, 'dd.MM.yyyy')} ({session.dayName}) {session.time}
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              ))}
+
+            <div className="mb-4">
+              <Input
+                label="Начална дата (за първия ден от селекцията)"
+                type="date"
+                value={duplicateConfig.targetDate}
+                onChange={(e) => setDuplicateConfig({ ...duplicateConfig, targetDate: e.target.value })}
+                required
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = new Date(duplicateConfig.targetDate || new Date());
+                    setDuplicateConfig({
+                      ...duplicateConfig,
+                      targetDate: format(addDays(current, 7), 'yyyy-MM-dd')
+                    });
+                  }}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  +1 Седмица
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = new Date(duplicateConfig.targetDate || new Date());
+                    setDuplicateConfig({
+                      ...duplicateConfig,
+                      targetDate: format(addDays(current, 28), 'yyyy-MM-dd')
+                    });
+                  }}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  +4 Седмици
+                </button>
+              </div>
             </div>
+
+            {/* Option to use Repeats or End Date */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Начин на дублиране
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={!duplicateConfig.useEndDate}
+                    onChange={() => setDuplicateConfig({ ...duplicateConfig, useEndDate: false })}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">Брой повторения</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={duplicateConfig.useEndDate}
+                    onChange={() => setDuplicateConfig({ ...duplicateConfig, useEndDate: true })}
+                    className="mr-2"
+                  />
+                  <span className="text-sm">До крайна дата</span>
+                </label>
+              </div>
+            </div>
+
+            {!duplicateConfig.useEndDate ? (
+              <div className="mb-6">
+                <Input
+                  label="Брой повторения (седмици)"
+                  type="number"
+                  min="1"
+                  max="52"
+                  value={duplicateConfig.repeats}
+                  onChange={(e) => setDuplicateConfig({ ...duplicateConfig, repeats: parseInt(e.target.value) || 1 })}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Пример: 1 = само веднъж на посочената дата. 4 = повтаря се 4 седмици подред.
+                </p>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <Input
+                  label="Крайна дата"
+                  type="date"
+                  value={duplicateConfig.endDate}
+                  onChange={(e) => setDuplicateConfig({ ...duplicateConfig, endDate: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Тренировките ще се дублират за всяка седмица между началната и крайната дата, като се запазват дните от седмицата.
+                </p>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setShowPreviewModal(false)} className="w-full sm:w-auto">
-                Отказ
-              </Button>
-              <Button 
-                variant="primary" 
-                onClick={confirmBulkCreate}
-                disabled={selectedSessions.size === 0}
+              <Button
+                variant="secondary"
+                onClick={() => setShowDuplicateModal(false)}
                 className="w-full sm:w-auto"
               >
-                Потвърди ({selectedSessions.size})
+                Отказ
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleDuplicatePreview}
+                className="w-full sm:w-auto"
+              >
+                Преглед
               </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
+
+      {/* Duplicate Preview Modal */}
+      {showDuplicatePreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <h2 className="text-xl font-bold mb-4">Преглед на дублираните тренировки</h2>
+            <p className="text-gray-600 mb-4 text-sm">
+              {duplicatePreview.length} тренировки ще бъдат създадени:
+            </p>
+
+            <div className="overflow-y-auto flex-1 mb-4">
+              <div className="space-y-2">
+                {duplicatePreview.map((session, index) => (
+                  <div key={index} className="p-3 bg-gray-50 rounded border border-gray-200">
+                    <div className="font-medium">{session.title}</div>
+                    <div className="text-sm text-gray-600">
+                      {format(new Date(session.date), 'dd.MM.yyyy HH:mm')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 justify-end border-t pt-4">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowDuplicatePreview(false);
+                  setShowDuplicateModal(true); // Go back to config
+                }}
+                className="w-full sm:w-auto"
+              >
+                Назад
+              </Button>
+              <Button
+                variant="primary"
+                onClick={confirmDuplicate}
+                className="w-full sm:w-auto"
+              >
+                Потвърди създаването ({duplicatePreview.length})
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Preview Confirmation Modal */}
+      {
+        showPreviewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4">Преглед на тренировките за създаване</h2>
+              <p className="text-gray-600 mb-4">
+                Избрани <strong>{selectedSessions.size}</strong> от <strong>{previewSessions.length}</strong> тренировки:
+              </p>
+              <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
+                {previewSessions.map((session, index) => (
+                  <div key={index} className={`p-3 rounded border ${selectedSessions.has(index)
+                    ? 'bg-gray-50 border-gray-200'
+                    : 'bg-gray-100 border-gray-300 opacity-60'
+                    }`}>
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedSessions.has(index)}
+                        onChange={() => toggleSessionSelection(index)}
+                        className="mr-3 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium">{session.title}</span>
+                        <span className="text-gray-500 ml-2">
+                          {format(session.date, 'dd.MM.yyyy')} ({session.dayName}) {session.time}
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                <Button variant="secondary" onClick={() => setShowPreviewModal(false)} className="w-full sm:w-auto">
+                  Отказ
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={confirmBulkCreate}
+                  disabled={selectedSessions.size === 0}
+                  className="w-full sm:w-auto"
+                >
+                  Потвърди ({selectedSessions.size})
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
       {/* Delete Confirmation Modal */}
       <ConfirmDialog
@@ -1332,181 +1721,181 @@ const Sessions = () => {
       </ConfirmDialog>
 
       {/* Edit Session Modal */}
-      {showEditModal && editingSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg sm:text-xl font-bold mb-4">Редактирай тренировка</h2>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Заглавие
-                </label>
-                <input
-                  type="text"
-                  list="session-titles-edit"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Въведете или изберете заглавие"
-                  required
-                />
-                <datalist id="session-titles-edit">
-                  {getUniqueTitles().map((title, index) => (
-                    <option key={index} value={title} />
-                  ))}
-                </datalist>
-              </div>
+      {
+        showEditModal && editingSession && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg sm:text-xl font-bold mb-4">Редактирай тренировка</h2>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Описание
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows={3}
-                />
-              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Заглавие
+                  </label>
+                  <input
+                    type="text"
+                    list="session-titles-edit"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Въведете или изберете заглавие"
+                    required
+                  />
+                  <datalist id="session-titles-edit">
+                    {getUniqueTitles().map((title, index) => (
+                      <option key={index} value={title} />
+                    ))}
+                  </datalist>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <Input
-                  label="Дата"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Час"
-                  type="time"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  required
-                />
-              </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Описание
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    rows={3}
+                  />
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <Input
-                  label="Продължителност (минути)"
-                  type="number"
-                  value={formData.durationMinutes}
-                  onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
-                  required
-                  min={1}
-                />
-                <Input
-                  label="Капацитет"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                  required
-                  min={1}
-                />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <Input
+                    label="Дата"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                  />
+                  <Input
+                    label="Час"
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    required
+                  />
+                </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Подходящо за
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: 'beginner', label: 'Начинаещи' },
-                    { value: 'experienced', label: 'Деца с опит' },
-                    { value: 'advanced', label: 'Напреднали' },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => toggleTargetGroup(value)}
-                      className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                        formData.targetGroups.includes(value)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <Input
+                    label="Продължителност (минути)"
+                    type="number"
+                    value={formData.durationMinutes}
+                    onChange={(e) => setFormData({ ...formData, durationMinutes: e.target.value })}
+                    required
+                    min={1}
+                  />
+                  <Input
+                    label="Капацитет"
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                    required
+                    min={1}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Подходящо за
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'beginner', label: 'Начинаещи' },
+                      { value: 'experienced', label: 'Деца с опит' },
+                      { value: 'advanced', label: 'Напреднали' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleTargetGroup(value)}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.targetGroups.includes(value)
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Години
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: '4-6', label: '4-6' },
-                    { value: '7-12', label: '7-12' },
-                    { value: '13+', label: '13+' },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => toggleAgeGroup(value)}
-                      className={`px-3 py-1 rounded text-sm font-normal transition-colors ${
-                        formData.ageGroups.includes(value)
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Години
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: '4-6', label: '4-6' },
+                      { value: '7-12', label: '7-12' },
+                      { value: '13+', label: '13+' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleAgeGroup(value)}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${formData.ageGroups.includes(value)
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                          }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Треньори
-                </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
-                  {coaches.length === 0 ? (
-                    <p className="text-sm text-gray-500">Няма налични треньори. Моля, създайте потребители треньори първо.</p>
-                  ) : (
-                    coaches.map((coach) => (
-                      <label key={coach.id} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.coachIds.includes(coach.id)}
-                          onChange={() => toggleCoach(coach.id)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">
-                          {coach.firstName && coach.lastName 
-                            ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
-                            : coach.name || coach.email}
-                          {coach.email && ` (${coach.email})`}
-                        </span>
-                      </label>
-                    ))
-                  )}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Треньори
+                  </label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
+                    {coaches.length === 0 ? (
+                      <p className="text-sm text-gray-500">Няма налични треньори. Моля, създайте потребители треньори първо.</p>
+                    ) : (
+                      coaches.map((coach) => (
+                        <label key={coach.id} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={formData.coachIds.includes(coach.id)}
+                            onChange={() => toggleCoach(coach.id)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm">
+                            {coach.firstName && coach.lastName
+                              ? `${coach.firstName} ${coach.middleName || ''} ${coach.lastName}`.trim()
+                              : coach.name || coach.email}
+                            {coach.email && ` (${coach.email})`}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 justify-end mt-6">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingSession(null);
-                    resetForm();
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  Отказ
-                </Button>
-                <Button type="submit" variant="primary" className="w-full sm:w-auto">
-                  Обнови
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+                <div className="flex flex-col sm:flex-row gap-2 justify-end mt-6">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setEditingSession(null);
+                      resetForm();
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Отказ
+                  </Button>
+                  <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                    Обнови
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
+        )
+      }
 
       {/* Filters Card */}
       <SessionFilters
@@ -1550,15 +1939,27 @@ const Sessions = () => {
 
       {/* Bulk Delete Button */}
       {selectedSessionIds.length > 0 && (
-        <div className="mb-4">
-          <Button
-            onClick={handleBulkDeleteClick}
-            disabled={isDeleting}
-            variant="danger"
-            className="w-full sm:w-auto"
-          >
-            {isDeleting ? 'Изтриване...' : `Изтрий избраните тренировки (${selectedSessionIds.length})`}
-          </Button>
+        <div className="mb-4 flex flex-col sm:flex-row gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm sticky top-4 z-10">
+          <span className="text-sm font-medium text-gray-700">
+            Избрани: {selectedSessionIds.length}
+          </span>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              onClick={handleDuplicateClick}
+              variant="primary"
+              className="flex-1 sm:flex-none"
+            >
+              Дублирай избраните
+            </Button>
+            <Button
+              onClick={handleBulkDeleteClick}
+              disabled={isDeleting}
+              variant="outline"
+              className="flex-1 sm:flex-none text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+            >
+              {isDeleting ? 'Изтриване...' : 'Изтрий'}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1594,11 +1995,13 @@ const Sessions = () => {
         onEdit={handleEdit}
         onDelete={handleDeleteClick}
         showToast={showToast}
+        sortOrder={activeTab === 'past' ? 'desc' : 'asc'}
       />
+
 
       {/* Scroll to Top Button */}
       <ScrollToTop />
-    </div>
+    </div >
   );
 };
 

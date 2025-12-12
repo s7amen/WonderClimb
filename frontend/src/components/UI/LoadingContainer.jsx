@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import Loading from './Loading';
+import ClimbingLoader from './ClimbingLoader';
 import EmptyState from './EmptyState';
 import Button from './Button';
 
@@ -47,7 +47,7 @@ const LoadingContainer = ({
         }
         return (
             <div className={`flex items-center justify-center py-12 ${className} animate-fadeIn`}>
-                <Loading text={loadingText} />
+                <ClimbingLoader text={loadingText} />
             </div>
         );
     }

@@ -7,6 +7,7 @@ import {
   getSessionById,
   updateCoachPayoutStatus,
   createBulkSessions,
+  createBatch,
 } from '../services/sessionService.js';
 import { getSessionRoster } from '../services/coachScheduleService.js';
 import { createBooking } from '../services/bookingService.js';
@@ -26,6 +27,19 @@ router.post('/sessions', async (req, res, next) => {
   try {
     const session = await createSession(req.body);
     res.status(201).json({ session });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/admin/sessions/batch
+ * Create multiple sessions from array (for duplication)
+ */
+router.post('/sessions/batch', async (req, res, next) => {
+  try {
+    const result = await createBatch(req.body.sessions);
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }
@@ -143,7 +157,7 @@ router.get('/climbers', async (req, res, next) => {
       .sort({ lastName: 1, firstName: 1 })
       .lean();
 
-    res.json({ 
+    res.json({
       climbers: climbers.map(climber => ({
         _id: climber._id,
         id: climber._id.toString(),

@@ -1,6 +1,7 @@
 ﻿import { useState, useRef } from 'react';
 import { climberPhotosAPI } from '../services/api';
 import { useToast } from './UI/Toast';
+import ClimbingLoader from './UI/ClimbingLoader';
 
 const PhotoUpload = ({ climberId, onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
@@ -75,8 +76,8 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
     <>
       <div
         className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors ${dragActive
-            ? 'border-[#ea7a24] bg-[#fff5ed]'
-            : 'border-[#d1d5dc] hover:border-[#ea7a24]'
+          ? 'border-[#ea7a24] bg-[#fff5ed]'
+          : 'border-[#d1d5dc] hover:border-[#ea7a24]'
           } ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -93,10 +94,7 @@ const PhotoUpload = ({ climberId, onUploadSuccess }) => {
           className="hidden"
         />
         {uploading ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#ea7a24]"></div>
-            <p className="text-sm text-[#4a5565]">Качване на снимка...</p>
-          </div>
+          <ClimbingLoader text="Качване на снимка..." className="!p-2" />
         ) : (
           <div className="flex flex-col items-center gap-2">
             <svg

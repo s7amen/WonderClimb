@@ -159,7 +159,7 @@ body {
 .rope-path {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
-  animation: ropeClip 2.5s ease-out forwards;
+  animation: ropeClip 4s ease-out forwards;
 }
 
 /* Rock appearance - single play, hold final state */
@@ -259,47 +259,47 @@ body {
 }
 
 /* 
-  Sequence (2.5s total - faster, single play):
+  Sequence (4s total - slower, single play):
   0.0s: Rope starts
-  0.3s: Rock 1
-  0.6s: Rock 2 + Draw 1
-  0.9s: Rock 3 + Draw 2
-  1.2s: Rock 4 + Draw 3
-  1.5s: Anchor
+  0.5s: Rock 1
+  1.0s: Rock 2 + Draw 1
+  1.5s: Rock 3 + Draw 2
+  2.0s: Rock 4 + Draw 3
+  2.5s: Anchor
 */
 
 .rock-1 {
-  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.3s;
+  animation: rockAppearOnce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.5s;
 }
 
 .rock-group-2 .rock {
-  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.6s;
+  animation: rockAppearOnce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.0s;
 }
 
 .rock-group-2 .draw {
-  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.6s;
+  animation: drawAppearSwing 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.0s;
 }
 
 .rock-group-3 .rock {
-  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.9s;
+  animation: rockAppearOnce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.5s;
 }
 
 .rock-group-3 .draw {
-  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.9s;
+  animation: drawAppearSwing 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.5s;
 }
 
 .rock-group-4 .rock {
-  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.2s;
+  animation: rockAppearOnce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 2.0s;
 }
 
 .rock-group-4 .draw {
-  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.2s;
+  animation: drawAppearSwing 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 2.0s;
 }
 
 .anchor-anim {
   transform-box: fill-box;
   transform-origin: center;
-  animation: anchorAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.5s;
+  animation: anchorAppear 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 2.5s;
 }
 
 .bg-slate-texture {

@@ -50,6 +50,10 @@ const ClimberProfile = lazyWithRetry(() => import('./pages/Climbers/Profile'), {
 const FamilyList = lazyWithRetry(() => import('./pages/Families/FamilyList'), { fallback: 'FamilyList' });
 const FamilyProfile = lazyWithRetry(() => import('./pages/Families/Profile'), { fallback: 'FamilyProfile' });
 
+// Team
+const TeamList = lazyWithRetry(() => import('./pages/Team/List'), { fallback: 'TeamList' });
+
+
 
 // Gym
 const GymDashboard = lazyWithRetry(() => import('./pages/Gym/Dashboard'), { fallback: 'GymDashboard' });
@@ -250,6 +254,19 @@ function App() {
                   <Route index element={<FamilyList />} />
                   <Route path=":id" element={<FamilyProfile />} />
                 </Route>
+
+                {/* Team Management - Coach, Admin */}
+                <Route
+                  path="/team"
+                  element={
+                    <RequireMinRole minRole="coach">
+                      <AdminLayout />
+                    </RequireMinRole>
+                  }
+                >
+                  <Route index element={<TeamList />} />
+                </Route>
+
 
                 {/* Gym Management - Instructor+ */}
                 <Route

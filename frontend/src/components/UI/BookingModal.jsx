@@ -7,7 +7,7 @@ import { getUserFullName } from '../../utils/userUtils';
 import { useToast } from './Toast';
 import BaseModal from './BaseModal';
 import Button from './Button';
-import Loading from './Loading';
+import ClimbingLoader from './ClimbingLoader';
 
 const BookingModal = ({
   isOpen,
@@ -326,7 +326,7 @@ const BookingModal = ({
         )}
 
         {loading ? (
-          <Loading text="Зареждане..." />
+          <ClimbingLoader text="Зареждане..." className="!p-4" />
         ) : (
           <>
             {/* Sessions Information */}

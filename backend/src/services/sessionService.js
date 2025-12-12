@@ -467,3 +467,47 @@ export const updateCoachPayoutStatus = async (sessionId, payoutStatus) => {
   }
 };
 
+
+/**
+ * Create batch of sessions (for duplication)
+ * Accepts array of fully formed session objects
+ */
+export const createBatch = async (sessions) => {
+  try {
+    if (!sessions || !Array.isArray(sessions) || sessions.length === 0) {
+      const error = new Error('Sessions array is required and cannot be empty');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validate and format sessions
+    const sessionsToCreate = sessions.map(s => ({
+      title: s.title,
+      description: s.description || '',
+      date: new Date(s.date),
+      durationMinutes: s.durationMinutes,
+      capacity: s.capacity,
+      status: s.status || 'active',
+      coachIds: s.coachIds || [],
+      targetGroups: s.targetGroups || [],
+      ageGroups: s.ageGroups || ['4-6', '7-12', '13+'],
+      coachPayoutAmount: s.coachPayoutAmount,
+      coachPayoutStatus: 'unpaid'
+    }));
+
+    const createdSessions = await Session.insertMany(sessionsToCreate, { ordered: false });
+
+    logger.info({
+      count: createdSessions.length,
+      firstSessionDate: sessionsToCreate[0].date
+    }, 'Batch sessions created');
+
+    return {
+      created: createdSessions.length,
+      sessions: createdSessions,
+    };
+  } catch (error) {
+    logger.error({ error: error.message, count: sessions?.length }, 'Error creating batch sessions');
+    throw error;
+  }
+};
