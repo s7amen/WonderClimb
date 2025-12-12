@@ -22,6 +22,7 @@ const Activate = lazyWithRetry(() => import('./pages/Auth/Activate'), { fallback
 const CheckEmail = lazyWithRetry(() => import('./pages/Auth/CheckEmail'), { fallback: 'CheckEmail' });
 const Callback = lazyWithRetry(() => import('./pages/Auth/Callback'), { fallback: 'Callback' });
 const TermsOfService = lazyWithRetry(() => import('./pages/Public/TermsOfService'), { fallback: 'TermsOfService' });
+const FAQ = lazyWithRetry(() => import('./pages/Public/FAQ'), { fallback: 'FAQ' });
 // Use the restored Home page
 const Landing = lazyWithRetry(() => import('./pages/Home/Home'), { fallback: 'Landing' });
 
@@ -144,6 +145,7 @@ function App() {
                 <Route path="/check-email" element={<CheckEmail />} />
                 <Route path="/auth/callback" element={<Callback />} />
                 <Route path="/terms-of-service" element={<TermsOfService />} />
+                <Route path="/faq" element={<FAQ />} />
                 <Route path="/" element={<Home />} />
 
                 {/* Public Browsing */}

@@ -36,21 +36,34 @@ const Footer = () => {
       <div className="absolute inset-0 bg-black/70"></div>
 
       <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Logo */}
-          <div className="flex items-center gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 items-center">
+          {/* Logo - Left aligned */}
+          <div className="flex items-center justify-start gap-4">
             <Logo showText={true} showSubtitle={true} size="md" logoHeight="auto" />
           </div>
 
-          {/* Links */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-white text-base font-medium">Връзки</h3>
-            <nav className="flex flex-col gap-2">
+          {/* Links - Center aligned, single row with icon */}
+          <div className="flex items-center justify-center gap-3 text-[#99a1af]">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-5 h-5 flex-shrink-0"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+              />
+            </svg>
+            <nav className="flex flex-row gap-6">
               <Link
-                to="/sessions"
-                className="text-[#99a1af] text-base hover:text-white transition-colors font-normal"
+                to="/faq"
+                className="text-[#99a1af] text-base hover:text-white transition-colors font-normal whitespace-nowrap"
               >
-                График
+                Често задавани въпроси
               </Link>
               <Link
                 to="/competitions"
@@ -58,13 +71,34 @@ const Footer = () => {
               >
                 Състезания
               </Link>
+              <a
+                href="https://chudniteskali.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#99a1af] text-base hover:text-white transition-colors font-normal"
+              >
+                Клубен сайт
+              </a>
             </nav>
           </div>
 
-          {/* Contacts */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-white text-base font-medium">Контакти</h3>
-            <div className="flex flex-col gap-2">
+          {/* Contacts - Right aligned on desktop */}
+          <div className="flex flex-col md:items-end gap-4">
+            <div className="flex items-center gap-2 text-[#99a1af]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                />
+              </svg>
               <a
                 href="tel:0878120046"
                 className="text-[#99a1af] text-base hover:text-white transition-colors font-normal"
