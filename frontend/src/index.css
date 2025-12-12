@@ -155,106 +155,82 @@ body {
   }
 }
 
-/* Updated Rope Layout & Animation */
+/* Updated Rope Layout & Animation - SINGLE PLAY */
 .rope-path {
   stroke-dasharray: 1000;
   stroke-dashoffset: 1000;
-  animation: ropeClip 5s linear infinite;
+  animation: ropeClip 2.5s ease-out forwards;
 }
 
-/* Rock appearance animation - Reset at end for loop */
-@keyframes rockAppearLoop {
+/* Rock appearance - single play, hold final state */
+@keyframes rockAppearOnce {
   0% {
     transform: scale(0);
     opacity: 0;
   }
 
-  10% {
+  60% {
     transform: scale(1.1);
     opacity: 1;
   }
 
-  15% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  90% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
   100% {
-    transform: scale(0);
-    opacity: 0;
+    transform: scale(1);
+    opacity: 1;
   }
-
-  /* Reset */
 }
 
-/* Combined Draw Animation (Appear + Swing) */
-@keyframes drawAppearSwingLoop {
+/* Combined Draw Animation (Appear + Swing) - single play */
+@keyframes drawAppearSwing {
   0% {
     transform: scale(0) rotate(0deg);
     opacity: 0;
   }
 
-  10% {
+  30% {
     transform: scale(1) rotate(0deg);
     opacity: 1;
   }
 
-  15% {
+  40% {
     transform: rotate(5deg);
   }
 
-  25% {
+  60% {
     transform: rotate(-3deg);
   }
 
-  35% {
-    transform: rotate(0deg);
-  }
-
-  90% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-
+  80%,
   100% {
-    transform: scale(0) rotate(0deg);
-    opacity: 0;
+    transform: rotate(0deg);
+    opacity: 1;
   }
 }
 
-/* Anchor Pulse Loop */
-@keyframes anchorLoop {
+/* Anchor - single play with pulse at end */
+@keyframes anchorAppear {
   0% {
     transform: scale(0);
     opacity: 0;
     filter: drop-shadow(0 0 0 transparent);
   }
 
-  10% {
+  40% {
     transform: scale(1);
     opacity: 1;
     filter: drop-shadow(0 0 2px #48bb78);
   }
 
-  15%,
-  85% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 2px #48bb78);
+  60% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 8px #48bb78);
   }
 
-  90% {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 10px #48bb78);
-  }
-
+  80%,
   100% {
-    transform: scale(0);
-    opacity: 0;
+    transform: scale(1);
+    opacity: 1;
+    filter: drop-shadow(0 0 4px #48bb78);
   }
 }
 
@@ -263,21 +239,12 @@ body {
     stroke-dashoffset: 1000;
   }
 
-  80% {
-    stroke-dashoffset: 0;
-  }
-
-  90% {
-    opacity: 1;
-  }
-
   100% {
     stroke-dashoffset: 0;
-    opacity: 0;
   }
 }
 
-/* Classes with orchestrated delays (percentages of 5s) */
+/* Base classes */
 .rock,
 .rock-1 {
   transform-box: fill-box;
@@ -292,49 +259,47 @@ body {
 }
 
 /* 
-  Sequence (5s total):
-  0.0s: Start Rock 1
-  0.5s: Rock 2
-  0.6s: Draw 1
-  1.2s: Rock 3
-  1.3s: Draw 2
-  1.9s: Rock 4
-  2.0s: Draw 3
-  2.8s: Anchor
+  Sequence (2.5s total - faster, single play):
+  0.0s: Rope starts
+  0.3s: Rock 1
+  0.6s: Rock 2 + Draw 1
+  0.9s: Rock 3 + Draw 2
+  1.2s: Rock 4 + Draw 3
+  1.5s: Anchor
 */
 
 .rock-1 {
-  animation: rockAppearLoop 5s linear infinite 0s;
+  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.3s;
 }
 
 .rock-group-2 .rock {
-  animation: rockAppearLoop 5s linear infinite 0.5s;
+  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.6s;
 }
 
 .rock-group-2 .draw {
-  animation: drawAppearSwingLoop 5s linear infinite 0.6s;
+  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.6s;
 }
 
 .rock-group-3 .rock {
-  animation: rockAppearLoop 5s linear infinite 1.2s;
+  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.9s;
 }
 
 .rock-group-3 .draw {
-  animation: drawAppearSwingLoop 5s linear infinite 1.3s;
+  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.9s;
 }
 
 .rock-group-4 .rock {
-  animation: rockAppearLoop 5s linear infinite 1.9s;
+  animation: rockAppearOnce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.2s;
 }
 
 .rock-group-4 .draw {
-  animation: drawAppearSwingLoop 5s linear infinite 2.0s;
+  animation: drawAppearSwing 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.2s;
 }
 
 .anchor-anim {
   transform-box: fill-box;
   transform-origin: center;
-  animation: anchorLoop 5s linear infinite 2.8s;
+  animation: anchorAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 1.5s;
 }
 
 .bg-slate-texture {
@@ -360,5 +325,9 @@ body {
 }
 
 .animate-fade-in-content {
-  animation: fadeInContent 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: fadeInContent 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation-delay: 0.3s;
+  /* Small delay to ensure smooth transition */
+  opacity: 0;
+  /* Start hidden */
 }
