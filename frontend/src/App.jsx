@@ -339,6 +339,7 @@ function App() {
                   <Route path="notifications" element={<Settings />} />
                   <Route path="cards" element={<Settings />} />
                   <Route path="training" element={<Settings />} />
+                  <Route path="logs" element={<Settings />} />
                   <Route path="pricing" element={<AdminPricing />} />
                 </Route>
 

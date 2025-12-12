@@ -61,6 +61,16 @@ export const register = async (req, res) => {
 
             setRefreshTokenCookie(res, refreshTokenString);
 
+            // Audit Log
+            await auditService.log(
+                user._id,
+                'USER_REGISTERED',
+                'Auth',
+                user._id,
+                { email: user.email, roles: user.roles },
+                req
+            );
+
             res.status(201).json({
                 message: 'User registered successfully',
                 token: accessToken,
@@ -79,6 +89,16 @@ export const register = async (req, res) => {
                 message: 'User registered successfully. Please check your email to activate your account.',
                 requiresActivation: true,
             });
+
+            // Audit Log (even if inactive)
+            await auditService.log(
+                user._id,
+                'USER_REGISTERED',
+                'Auth',
+                user._id,
+                { email: user.email, roles: user.roles, status: 'inactive' },
+                req
+            );
         }
     } catch (error) {
         logger.error({ error: error.message }, 'Registration error');
@@ -241,6 +261,18 @@ export const updatePWAStatus = async (req, res) => {
             pwaInstalled: installed,
             pwaLastUsed: new Date()
         });
+
+        // Audit Log
+        if (installed) {
+            await auditService.log(
+                req.user.id,
+                'PWA_INSTALLED',
+                'PWA',
+                req.user.id,
+                { installed },
+                req
+            );
+        }
 
         res.json({ message: 'PWA status updated' });
     } catch (error) {

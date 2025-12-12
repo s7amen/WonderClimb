@@ -6,6 +6,7 @@ import { ParentInfo } from '../models/parentInfo.js';
 import { Session } from '../models/session.js';
 import { createLink, removeLink } from './parentClimberLinkService.js';
 import logger from '../middleware/logging.js';
+import * as auditService from './auditService.js';
 
 /**
  * Check for duplicate child profile
@@ -111,6 +112,18 @@ export const createClimberForParent = async (parentId, climberData) => {
       childId: child._id,
     }, 'Child User created and linked to parent');
 
+    // Audit Log
+    await auditService.log(
+      parentId,
+      'CHILD_CREATED',
+      'User',
+      child._id,
+      {
+        childName: `${child.firstName} ${child.lastName}`,
+        childId: child._id
+      }
+    );
+
     return {
       duplicate: false,
       child,
@@ -160,6 +173,17 @@ export const linkExistingChildToParent = async (parentId, childId) => {
     await createLink(parentId, childId);
 
     logger.info({ parentId, childId }, 'Existing child profile linked to parent');
+
+    // Audit Log
+    await auditService.log(
+      parentId,
+      'CHILD_LINKED',
+      'User',
+      childId,
+      {
+        childId: childId
+      }
+    );
     return child;
   } catch (error) {
     logger.error({ error, parentId, childId }, 'Error linking existing child to parent');
@@ -221,6 +245,17 @@ export const updateClimberForParent = async (parentId, climberId, updateData) =>
     }
 
     logger.info({ parentId, climberId }, 'Child updated');
+
+    // Audit Log
+    await auditService.log(
+      parentId,
+      'CHILD_UPDATED',
+      'User',
+      climberId,
+      {
+        updateData
+      }
+    );
     return child;
   } catch (error) {
     logger.error({ error, parentId, climberId }, 'Error updating child');
@@ -254,6 +289,17 @@ export const deactivateClimberForParent = async (parentId, climberId) => {
     }
 
     logger.info({ parentId, climberId }, 'Child deactivated');
+
+    // Audit Log
+    await auditService.log(
+      parentId,
+      'CHILD_DEACTIVATED',
+      'User',
+      climberId,
+      {
+        climberId
+      }
+    );
     return child;
   } catch (error) {
     logger.error({ error, parentId, climberId }, 'Error deactivating child');
@@ -412,6 +458,17 @@ export const deleteClimberForParent = async (parentId, climberId) => {
       climberId,
       deletionResults
     }, 'Child deleted with related data cleanup');
+
+    // Audit Log
+    await auditService.log(
+      parentId,
+      'CHILD_DELETED',
+      'User',
+      climberId,
+      {
+        deletionResults
+      }
+    );
 
     return {
       message: 'Child deleted successfully',
