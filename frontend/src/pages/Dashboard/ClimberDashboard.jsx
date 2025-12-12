@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { format, startOfDay, addDays, isBefore, addMonths, subMonths, eachDayOfInterval } from 'date-fns';
 import { bg } from 'date-fns/locale';
-import Link from 'react-router-dom';
+
 import ClimbingLoader from '../../components/UI/ClimbingLoader';
 import { useToast } from '../../components/UI/Toast';
 import { parentClimbersAPI, bookingsAPI, sessionsAPI } from '../../services/api';
