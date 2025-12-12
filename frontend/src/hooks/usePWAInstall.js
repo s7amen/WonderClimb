@@ -454,37 +454,26 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         window.location.href = '/';
       } else {
         // In browser but PWA is installed - show instructions to open from home screen
-        const message = 'Приложението е инсталирано!\n\n' +
-          'Моля, отворете го от началния екран на вашия телефон.\n\n' +
-          'Ако не можете да го намерите, проверете в менюто с приложения.';
+        const message = '✅ Приложението е инсталирано!\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  Отворете го от началния екран\n     на вашия телефон.\n\n' +
+          '💡  Ако не го намирате, проверете\n     в менюто с приложения.\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
         if (onErrorModalOpen) {
           setError(message);
           setShowErrorModal(true);
-          onErrorModalOpen(message, {
-            protocol: debugInfo.protocol,
-            hostname: debugInfo.hostname,
-            isInstalled: true,
-            isStandalone: false,
-            browserInfo: debugInfo.browserInfo,
-          });
+          onErrorModalOpen(message);
         } else {
           alert(message);
         }
       }
     } else {
       // If not installed, show message
-      const message = 'Приложението не е инсталирано. Моля, инсталирайте го първо.';
+      const message = 'Приложението не е инсталирано.\n\nМоля, натиснете бутона "Инсталирай" за да го инсталирате.';
       if (onErrorModalOpen) {
         setError(message);
         setShowErrorModal(true);
-        onErrorModalOpen(message, {
-          protocol: debugInfo.protocol,
-          hostname: debugInfo.hostname,
-          hasBeforeInstallPrompt: debugInfo.hasBeforeInstallPrompt,
-          deferredPrompt: !!deferredPrompt,
-          userAgent: debugInfo.userAgent,
-          browserInfo: debugInfo.browserInfo,
-        });
+        onErrorModalOpen(message);
       } else {
         alert(message);
       }
@@ -519,63 +508,64 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
       // #endregion
       // For iOS, show instructions
       if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
-        const message = 'За да инсталирате приложението:\n\n' +
-          '1. Натиснете бутона "Share" (Сподели) в долния ред\n' +
-          '2. Изберете "Add to Home Screen" (Добави в началния екран)\n' +
-          '3. Натиснете "Add" (Добави)';
+        const message = 'Инсталирайте от Safari:\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  ИНСТРУКЦИИ ЗА iOS:\n\n' +
+          '1️⃣  Натиснете бутона  ⬆️  (Share)\n     в долната лента на Safari\n\n' +
+          '2️⃣  Превъртете надолу и изберете\n     "Add to Home Screen"\n\n' +
+          '3️⃣  Натиснете "Add" горе вдясно\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
         if (onErrorModalOpen) {
           setError(message);
           setShowErrorModal(true);
-          onErrorModalOpen(message, {
-            protocol: debugInfo.protocol,
-            hostname: debugInfo.hostname,
-            browserInfo: debugInfo.browserInfo,
-          });
+          onErrorModalOpen(message);
         } else {
           alert(message);
         }
         return;
       }
 
-      // No deferred prompt and not iOS - show error in modal
-      let errorReason = 'PWA инсталацията не е налична в момента.';
-      const isSecure = window.location.protocol === 'https:' ||
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
-
-      if (!isSecure) {
-        errorReason += '\n\nPWA изисква HTTPS или localhost.';
+      // No deferred prompt and not iOS - show error in modal with clear instructions
+      let errorReason = 'Инсталирайте ръчно от менюто на браузъра:';
+      
+      // Detect browser type for specific instructions
+      const isChrome = /chrome/i.test(navigator.userAgent) && !/edge/i.test(navigator.userAgent);
+      const isEdge = /edg/i.test(navigator.userAgent);
+      const isFirefox = /firefox/i.test(navigator.userAgent);
+      const isSamsung = /samsungbrowser/i.test(navigator.userAgent);
+      
+      if (isChrome || isSamsung) {
+        errorReason += '\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  ИНСТРУКЦИИ ЗА ИНСТАЛАЦИЯ:\n\n' +
+          '1️⃣  Натиснете менюто  ⋮  (три точки горе вдясно)\n\n' +
+          '2️⃣  Изберете "Add to Home screen"\n     или "Инсталиране на приложение"\n\n' +
+          '3️⃣  Потвърдете инсталацията\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      } else if (isEdge) {
+        errorReason += '\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  ИНСТРУКЦИИ ЗА ИНСТАЛАЦИЯ:\n\n' +
+          '1️⃣  Натиснете менюто  ⋯  (три точки долу)\n\n' +
+          '2️⃣  Изберете "Add to phone"\n\n' +
+          '3️⃣  Потвърдете инсталацията\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      } else if (isFirefox) {
+        errorReason += '\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  ИНСТРУКЦИИ ЗА ИНСТАЛАЦИЯ:\n\n' +
+          '1️⃣  Натиснете менюто  ⋮  (три точки долу вдясно)\n\n' +
+          '2️⃣  Изберете "Install"\n\n' +
+          '3️⃣  Потвърдете инсталацията\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
       } else {
-        // Check if beforeinstallprompt was fired but prompt is already consumed
-        const hasBeforeInstallPrompt = 'BeforeInstallPromptEvent' in window;
-
-        // Add specific reasons if available from diagnostics
-        if (debugInfo.manifestErrors && debugInfo.manifestErrors.length > 0) {
-          errorReason += `\n\nПроблем с манифеста: ${debugInfo.manifestErrors[0]}`;
-        } else if (debugInfo.serviceWorkerErrors && debugInfo.serviceWorkerErrors.length > 0) {
-          errorReason += `\n\nПроблем със Service Worker: ${debugInfo.serviceWorkerErrors[0]}`;
-        } else if (hasBeforeInstallPrompt) {
-          // Browser supports beforeinstallprompt but we don't have it
-          if (promptEverReceived.current) {
-            // Event was fired but prompt was already used this session
-            errorReason += '\n\n⚠️ Prompt за инсталация вече беше показан в тази сесия.\n\n' +
-              '📱 Моля, презаредете страницата и опитайте отново.\n\n' +
-              'Алтернативно:\n' +
-              '• Използвайте менюто на браузъра (⋮) → "Add to Home Screen"\n' +
-              '• Или затворете и отворете приложението отново';
-          } else {
-            // Event never fired - Chrome is rate-limiting or PWA was recently dismissed
-            errorReason += '\n\n⏳ Chrome временно блокира инсталацията.\n\n' +
-              'Това се случва когато:\n' +
-              '• Инсталацията е била отказана наскоро\n' +
-              '• Приложението вече е инсталирано\n\n' +
-              '📱 Опитайте:\n' +
-              '1. Използвайте менюто на браузъра (⋮) → "Add to Home Screen"\n' +
-              '2. Или изчакайте няколко минути и опитайте отново';
-          }
-        } else {
-          errorReason += '\n\nВъзможни причини:\n• Браузърът не е готов (опитайте презареждане)\n• Приложението е било инсталирано наскоро\n• Браузърът не поддържа PWA инсталация';
-        }
+        errorReason += '\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+          '📱  ИНСТРУКЦИИ ЗА ИНСТАЛАЦИЯ:\n\n' +
+          '1️⃣  Отворете менюто на браузъра\n\n' +
+          '2️⃣  Потърсете "Add to Home screen"\n     или "Install app"\n\n' +
+          '3️⃣  Потвърдете инсталацията\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
       }
 
       setError(errorReason);
@@ -590,17 +580,7 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
 
       if (onErrorModalOpen) {
         setShowErrorModal(true);
-        onErrorModalOpen(errorReason, {
-          protocol: window.location.protocol,
-          hostname: window.location.hostname,
-          hasBeforeInstallPrompt: 'BeforeInstallPromptEvent' in window,
-          deferredPrompt: false,
-          promptEverReceived: promptEverReceived.current,
-          userAgent: navigator.userAgent,
-          browserInfo: debugInfo.browserInfo,
-          manifestErrors: debugInfo.manifestErrors,
-          serviceWorkerErrors: debugInfo.serviceWorkerErrors
-        });
+        onErrorModalOpen(errorReason);
       } else {
         alert(errorReason);
       }
@@ -664,27 +644,40 @@ export const usePWAInstall = (onErrorModalOpen = null) => {
         setError(null);
         setShowErrorModal(false);
       } else {
-        const errorMsg = `Потребителят отказа инсталацията.`;
+        const errorMsg = 'Инсталацията беше отказана.\n\nМожете да опитате отново по-късно.';
         setError(errorMsg);
         if (onErrorModalOpen) {
           setShowErrorModal(true);
-          onErrorModalOpen(errorMsg, debugInfo);
+          onErrorModalOpen(errorMsg);
         }
       }
 
       deferredPromptRef.current = null;
       setDeferredPrompt(null);
     } catch (error) {
-      const errorMsg = `Грешка при инсталиране на PWA: ${error.message || error}`;
       console.error('[PWA Install] Error showing install prompt:', error);
+      
+      // Show user-friendly error with manual installation instructions
+      const isChrome = /chrome/i.test(navigator.userAgent) && !/edge/i.test(navigator.userAgent);
+      let errorMsg = 'Възникна проблем. Опитайте ръчна инсталация:\n\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '📱  ИНСТРУКЦИИ:\n\n';
+      
+      if (isChrome) {
+        errorMsg += '1️⃣  Натиснете менюто  ⋮  (три точки)\n\n' +
+          '2️⃣  Изберете "Add to Home screen"\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      } else {
+        errorMsg += '1️⃣  Отворете менюто на браузъра\n\n' +
+          '2️⃣  Потърсете "Add to Home screen"\n\n' +
+          '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      }
+      
       setError(errorMsg);
 
       if (onErrorModalOpen) {
         setShowErrorModal(true);
-        onErrorModalOpen(errorMsg, {
-          ...debugInfo,
-          error: error.message || error,
-        });
+        onErrorModalOpen(errorMsg);
       } else {
         alert(errorMsg);
       }

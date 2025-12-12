@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import ErrorModal from './ErrorModal';
-import PWADebugPanel from './PWADebugPanel';
 
 const PWAInstallButton = ({
   variant = 'button', // 'button' or 'sticky'
@@ -9,12 +8,9 @@ const PWAInstallButton = ({
   hideWhenBulkBooking = false, // Hide when bulk booking button is visible
 }) => {
   const [errorModalData, setErrorModalData] = useState(null);
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
-  const handleErrorModalOpen = (message, debugInfo) => {
-    setErrorModalData({ message, debugInfo });
-    // Show debug panel when error modal opens
-    setShowDebugPanel(true);
+  const handleErrorModalOpen = (message) => {
+    setErrorModalData({ message });
   };
 
   const {
@@ -24,28 +20,8 @@ const PWAInstallButton = ({
     error,
     showErrorModal,
     setShowErrorModal,
-    debugInfo,
-    deferredPrompt,
     isRunningInPWA
   } = usePWAInstall(handleErrorModalOpen);
-
-  // Determine if we should show debug panel - check if we have valid debug info
-  const debugInfoToShow = useMemo(() => {
-    return errorModalData?.debugInfo || debugInfo || {};
-  }, [errorModalData?.debugInfo, debugInfo]);
-  
-  const shouldShowDebug = useMemo(() => {
-    return showDebugPanel && debugInfoToShow && Object.keys(debugInfoToShow).length > 0;
-  }, [showDebugPanel, debugInfoToShow]);
-
-  // Show debug panel when there's an error or error modal data
-  useEffect(() => {
-    if (error || errorModalData) {
-      setShowDebugPanel(true);
-    } else {
-      setShowDebugPanel(false);
-    }
-  }, [error, errorModalData]);
 
   const handleClick = () => {
     if (isInstalled) {
@@ -55,9 +31,9 @@ const PWAInstallButton = ({
     }
   };
 
-  // Check if the error message indicates that the prompt was already used
-  const shouldShowReloadButton = (message) => {
-    return message?.includes('Prompt за инсталация вече е бил използван');
+  const handleCloseModal = () => {
+    setShowErrorModal(false);
+    setErrorModalData(null);
   };
 
   // Sticky icon variant for mobile
@@ -65,48 +41,22 @@ const PWAInstallButton = ({
     // Hide if in standalone mode (PWA) - no button needed
     if (isRunningInPWA) {
       return (
-        <>
-          <ErrorModal
-            isOpen={showErrorModal || !!errorModalData}
-            onClose={() => {
-              setShowErrorModal(false);
-              setErrorModalData(null);
-            }}
-            message={errorModalData?.message || error}
-            debugInfo={errorModalData?.debugInfo || debugInfo}
-            showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
-          />
-          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
-            <PWADebugPanel
-              debugInfo={errorModalData?.debugInfo || debugInfo}
-              onClose={() => setShowDebugPanel(false)}
-            />
-          )}
-        </>
+        <ErrorModal
+          isOpen={showErrorModal || !!errorModalData}
+          onClose={handleCloseModal}
+          message={errorModalData?.message || error}
+        />
       );
     }
 
     // Hide if bulk booking button is visible
     if (hideWhenBulkBooking) {
       return (
-        <>
-          <ErrorModal
-            isOpen={showErrorModal || !!errorModalData}
-            onClose={() => {
-              setShowErrorModal(false);
-              setErrorModalData(null);
-            }}
-            message={errorModalData?.message || error}
-            debugInfo={errorModalData?.debugInfo || debugInfo}
-            showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
-          />
-          {showDebugPanel && (errorModalData?.debugInfo || debugInfo) && (
-            <PWADebugPanel
-              debugInfo={errorModalData?.debugInfo || debugInfo}
-              onClose={() => setShowDebugPanel(false)}
-            />
-          )}
-        </>
+        <ErrorModal
+          isOpen={showErrorModal || !!errorModalData}
+          onClose={handleCloseModal}
+          message={errorModalData?.message || error}
+        />
       );
     }
 
@@ -118,7 +68,7 @@ const PWAInstallButton = ({
       <>
         <button
           onClick={handleClick}
-          className={`fixed bottom-20 lg:bottom-4 right-4 z-[9998] w-14 h-14 ${isInstalled
+          className={`fixed bottom-20 right-4 z-[9998] w-14 h-14 lg:hidden ${isInstalled
             ? 'bg-gray-600 hover:bg-gray-700 active:bg-gray-800'
             : 'bg-[#adb933] hover:bg-[#9aa82e] active:bg-[#889728]'
             } text-white rounded-full shadow-xl flex flex-col items-center justify-center transition-all hover:scale-110 active:scale-95 ${className}`}
@@ -166,13 +116,8 @@ const PWAInstallButton = ({
 
         <ErrorModal
           isOpen={showErrorModal || !!errorModalData}
-          onClose={() => {
-            setShowErrorModal(false);
-            setErrorModalData(null);
-          }}
+          onClose={handleCloseModal}
           message={errorModalData?.message || error}
-          debugInfo={errorModalData?.debugInfo || debugInfo}
-          showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
         />
       </>
     );
@@ -183,24 +128,11 @@ const PWAInstallButton = ({
   // Show button if not in PWA mode (even if installed, show "Open" button)
   if (isRunningInPWA) {
     return (
-      <>
-        <ErrorModal
-          isOpen={showErrorModal || !!errorModalData}
-          onClose={() => {
-            setShowErrorModal(false);
-            setErrorModalData(null);
-          }}
-          message={errorModalData?.message || error}
-          debugInfo={errorModalData?.debugInfo || debugInfo}
-          showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
-        />
-        {shouldShowDebug && (
-          <PWADebugPanel
-            debugInfo={debugInfoToShow}
-            onClose={() => setShowDebugPanel(false)}
-          />
-        )}
-      </>
+      <ErrorModal
+        isOpen={showErrorModal || !!errorModalData}
+        onClose={handleCloseModal}
+        message={errorModalData?.message || error}
+      />
     );
   }
 
@@ -237,23 +169,11 @@ const PWAInstallButton = ({
 
       <ErrorModal
         isOpen={showErrorModal || !!errorModalData}
-        onClose={() => {
-          setShowErrorModal(false);
-          setErrorModalData(null);
-        }}
+        onClose={handleCloseModal}
         message={errorModalData?.message || error}
-        debugInfo={errorModalData?.debugInfo || debugInfo}
-        showReloadButton={shouldShowReloadButton(errorModalData?.message || error)}
       />
-      {shouldShowDebug && (
-        <PWADebugPanel
-          debugInfo={debugInfoToShow}
-          onClose={() => setShowDebugPanel(false)}
-        />
-      )}
     </>
   );
 };
 
 export default PWAInstallButton;
-

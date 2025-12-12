@@ -47,7 +47,7 @@ const Callback = () => {
             } else if (user.roles?.includes('coach')) {
               navigate('/dashboard/coach');
             } else if (user.roles?.includes('climber')) {
-              navigate('/profile');
+              navigate('/sessions');
             } else {
               navigate('/');
             }

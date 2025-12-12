@@ -4,9 +4,8 @@ import Button from './Button';
 const ErrorModal = ({
   isOpen,
   onClose,
-  title = 'Грешка',
+  title = 'Как да инсталирате',
   message = '',
-  debugInfo = null,
   showReloadButton = false,
 }) => {
   const handleReload = () => {
@@ -20,7 +19,7 @@ const ErrorModal = ({
       title={
         <div className="flex items-center gap-3">
           <svg
-            className="w-6 h-6 text-red-600 flex-shrink-0"
+            className="w-7 h-7 text-[#EA7A24] flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -29,80 +28,30 @@ const ErrorModal = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
             />
           </svg>
-          <span>{title}</span>
+          <span className="text-lg font-semibold">{title}</span>
         </div>
       }
       footer={
-        <div className="flex flex-col sm:flex-row justify-end gap-2 w-full">
-          {showReloadButton && (
-            <Button
-              variant="secondary"
-              onClick={handleReload}
-              className="w-full sm:w-auto order-2 sm:order-1"
-            >
-              🔄 Презареди
-            </Button>
-          )}
+        <div className="flex justify-center w-full">
           <Button
-            variant="outline"
+            variant="primary"
             onClick={onClose}
-            className="w-full sm:w-auto order-1 sm:order-2"
+            className="w-full sm:w-auto px-8"
           >
-            Затвори
+            Разбрах
           </Button>
         </div>
       }
     >
-      {/* Message */}
+      {/* Message with better styling for instructions */}
       {message && (
-        <div className="mb-4">
-          <p className="text-sm sm:text-[16px] text-[#4a5565] leading-tight sm:leading-[24px] whitespace-pre-wrap">
+        <div className="py-2">
+          <p className="text-base sm:text-lg text-[#1f2937] leading-relaxed whitespace-pre-wrap font-medium">
             {message}
           </p>
-        </div>
-      )}
-
-      {/* Debug Info */}
-      {debugInfo && (
-        <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-[10px]">
-          <div className="text-xs font-semibold text-gray-700 mb-2">Debug информация:</div>
-          <div className="space-y-1 text-xs text-gray-600 font-mono">
-            {debugInfo.protocol && (
-              <div>Protocol: {debugInfo.protocol}</div>
-            )}
-            {debugInfo.hostname && (
-              <div>Hostname: {debugInfo.hostname}</div>
-            )}
-            {debugInfo.hasBeforeInstallPrompt !== undefined && (
-              <div>Has beforeinstallprompt: {debugInfo.hasBeforeInstallPrompt ? 'true' : 'false'}</div>
-            )}
-            {debugInfo.deferredPrompt !== undefined && (
-              <div>Deferred prompt: {debugInfo.deferredPrompt ? 'true' : 'false'}</div>
-            )}
-            {debugInfo.promptEverReceived !== undefined && (
-              <div>Prompt received this session: {debugInfo.promptEverReceived ? 'true' : 'false'}</div>
-            )}
-            {debugInfo.deferredPromptRef !== undefined && (
-              <div>Deferred prompt (ref): {debugInfo.deferredPromptRef ? 'true' : 'false'}</div>
-            )}
-            {debugInfo.hasEarlyPrompt !== undefined && (
-              <div>Early prompt captured: {debugInfo.hasEarlyPrompt ? 'true' : 'false'}</div>
-            )}
-            {debugInfo.userAgent && (
-              <div className="break-all">User Agent: {debugInfo.userAgent}</div>
-            )}
-            {debugInfo.browserInfo && (
-              <div>
-                Browser: {debugInfo.browserInfo.isIOS ? 'iOS' : debugInfo.browserInfo.isAndroid ? 'Android' : 'Other'}
-              </div>
-            )}
-            {debugInfo.isDesktop !== undefined && (
-              <div>Detected as Desktop: {debugInfo.isDesktop ? 'true' : 'false'}</div>
-            )}
-          </div>
         </div>
       )}
     </BaseModal>

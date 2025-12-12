@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { sessionsAPI, bookingsAPI, competitionsAPI } from '../../services/api';
+import { sessionsAPI, bookingsAPI, competitionsAPI, settingsAPI } from '../../services/api';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfDay } from 'date-fns';
 import { bg } from 'date-fns/locale';
 import Card from '../../components/UI/Card';
@@ -45,9 +45,81 @@ const Calendar = () => {
     return new Set(defaultFilters);
   });
 
+  // Training labels state
+  const [trainingLabels, setTrainingLabels] = useState({
+    targetGroups: [],
+    ageGroups: [],
+    visibility: {
+      targetGroups: true,
+      ageGroups: true,
+    }
+  });
+
   useEffect(() => {
     fetchSessions();
   }, [currentDate, view]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    const CACHE_KEY = 'wonderclimb-training-labels';
+
+    // Helper to validate cached data structure
+    const isValidCache = (data) => {
+      return data && 
+        Array.isArray(data.targetGroups) && 
+        Array.isArray(data.ageGroups) && 
+        typeof data.visibility === 'object';
+    };
+
+    try {
+      // Check cache first - no TTL, cache is invalidated only when settings are saved
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Handle old format { data, timestamp } or new format (direct object)
+        const labels = data.data || data;
+        if (isValidCache(labels)) {
+          setTrainingLabels(labels);
+          return;
+        }
+        // Invalid cache, remove it
+        localStorage.removeItem(CACHE_KEY);
+      }
+
+      // Fetch from API only if cache is missing or invalid
+      const response = await settingsAPI.getTrainingLabels();
+      const loadedTrainingLabels = response.data.trainingLabels || {};
+      const labels = {
+        targetGroups: loadedTrainingLabels.targetGroups || [],
+        ageGroups: loadedTrainingLabels.ageGroups || [],
+        visibility: {
+          targetGroups: loadedTrainingLabels.visibility?.targetGroups ?? true,
+          ageGroups: loadedTrainingLabels.visibility?.ageGroups ?? true,
+        }
+      };
+      setTrainingLabels(labels);
+
+      // Save to cache (no timestamp needed - invalidated only when settings are saved)
+      localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
+    } catch (error) {
+      console.error('Error fetching training labels:', error);
+      // If API call fails and no cache exists, use empty arrays (will show no labels)
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) {
+        setTrainingLabels({
+          targetGroups: [],
+          ageGroups: [],
+          visibility: {
+            targetGroups: true,
+            ageGroups: true,
+          }
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated && user && (user.roles?.includes('climber') || user.roles?.includes('admin'))) {
@@ -533,7 +605,7 @@ const Calendar = () => {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <div className="grid grid-cols-7 gap-0 w-full">
+      <div className="grid grid-cols-7 gap-0 w-screen">
         {['П', 'В', 'С', 'Ч', 'П', 'С', 'Н'].map((day, index) => (
           <div key={`mobile-day-${index}`} className="p-1.5 text-center text-xs font-semibold text-gray-700 border-r border-[rgba(0,0,0,0.05)] last:border-r-0">
             {day}
@@ -895,37 +967,45 @@ const Calendar = () => {
         </div>
       </div>
 
-      <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-        {/* Mobile Layout */}
-        <div className="md:hidden flex flex-col gap-2 mb-4 px-4 pt-4">
-          <h2 className="text-base font-medium text-neutral-950 text-center w-full">
-            {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
-            {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
-            {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
-          </h2>
-          <div className="flex items-center gap-2 w-full justify-center">
-            <button
-              onClick={() => navigateDate('prev')}
-              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-            >
-              ←
-            </button>
-            <Button
-              variant="secondary"
-              onClick={goToToday}
-              className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
-            >
-              Днес
-            </Button>
-            <button
-              onClick={() => navigateDate('next')}
-              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-            >
-              →
-            </button>
+      {/* Mobile Calendar Section - Outside padding container */}
+      {view === 'month' && (
+        <div className="md:hidden mb-6">
+          <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
+            <div className="flex flex-col gap-2 mb-4 px-4 pt-4">
+              <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                {format(currentDate, 'MMMM yyyy', { locale: bg })}
+              </h2>
+              <div className="flex items-center gap-2 w-full justify-center">
+                <button
+                  onClick={() => navigateDate('prev')}
+                  className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                >
+                  ←
+                </button>
+                <Button
+                  variant="secondary"
+                  onClick={goToToday}
+                  className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                >
+                  Днес
+                </Button>
+                <button
+                  onClick={() => navigateDate('next')}
+                  className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          </Card>
+          {/* Calendar full width - breaks out of padding */}
+          <div className="w-screen relative left-1/2 -ml-[50vw] pb-4">
+            {renderMonthViewMobile()}
           </div>
         </div>
+      )}
 
+      <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
         {/* Desktop Layout */}
         <div className="hidden md:flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-6">
           <h2 className="text-base font-medium text-neutral-950 text-center w-full">
@@ -958,10 +1038,6 @@ const Calendar = () => {
 
         {view === 'month' && (
           <>
-            {/* Mobile Calendar - Full Width */}
-            <div className="md:hidden w-screen relative left-1/2 -ml-[50vw] px-2 pb-4">
-              {renderMonthViewMobile()}
-            </div>
             {/* Desktop Calendar */}
             <div className="hidden md:block px-6 pb-6">
               {renderMonthView()}
@@ -1051,42 +1127,107 @@ const Calendar = () => {
         }
       >
         {selectedSession && (
-          <div className="space-y-4 text-sm text-[#4a5565]">
-            <p><strong className="text-neutral-950">Дата:</strong> {format(new Date(selectedSession.date), 'PPpp', { locale: bg })}</p>
+          <div className="space-y-5">
+            {/* Date and Time - styled similar to SessionCard */}
+            <div className="flex items-center gap-2 text-sm text-[#0f172b]">
+              <svg className="w-4 h-4 shrink-0 text-[#4a5565]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="font-normal">{format(new Date(selectedSession.date), 'PPpp', { locale: bg })}</span>
+            </div>
+
             {selectedSession.type === 'competition' ? (
-              <>
-                <p><strong className="text-neutral-950">Място:</strong> {selectedSession.location}</p>
-                <p><strong className="text-neutral-950">Спорт:</strong> {selectedSession.sport}</p>
+              <div className="space-y-3 text-sm text-[#4a5565]">
+                <div><strong className="text-neutral-950">Място:</strong> {selectedSession.location}</div>
+                <div><strong className="text-neutral-950">Спорт:</strong> {selectedSession.sport}</div>
                 {selectedSession.groups && (
-                  <p><strong className="text-neutral-950">Групи:</strong> {selectedSession.groups}</p>
+                  <div><strong className="text-neutral-950">Групи:</strong> {selectedSession.groups}</div>
                 )}
-                <p><strong className="text-neutral-950">Ранг:</strong> {selectedSession.rank}</p>
+                <div><strong className="text-neutral-950">Ранг:</strong> {selectedSession.rank}</div>
                 {selectedSession.sourceUrl && (
-                  <p>
+                  <div>
                     <strong className="text-neutral-950">Източник:</strong>{' '}
                     <a href={selectedSession.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
                       БФКА календар
                     </a>
-                  </p>
+                  </div>
                 )}
-              </>
+              </div>
             ) : (
               <>
-                <p><strong className="text-neutral-950">Продължителност:</strong> {selectedSession.durationMinutes} минути</p>
-                <p><strong className="text-neutral-950">Капацитет:</strong> {selectedSession.capacity}</p>
-                <p><strong className="text-neutral-950">Статус:</strong> {selectedSession.status === 'active' ? 'Активна' : 'Отменена'}</p>
-                {selectedSession.description && (
-                  <p><strong className="text-neutral-950">Описание:</strong> {selectedSession.description}</p>
+                {/* Duration */}
+                <div className="flex items-center gap-2 text-sm text-[#0f172b]">
+                  <svg className="w-4 h-4 shrink-0 text-[#4a5565]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-normal">{selectedSession.durationMinutes} минути</span>
+                </div>
+
+                {/* Target Groups - Подходяща за */}
+                {selectedSession.targetGroups && selectedSession.targetGroups.length > 0 && trainingLabels.targetGroups.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-neutral-950">Подходяща за:</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {selectedSession.targetGroups.map((groupSlug) => {
+                        const groupConfig = trainingLabels.targetGroups.find(g => g.slug === groupSlug);
+                        const label = groupConfig ? groupConfig.label : groupSlug;
+                        return (
+                          <span
+                            key={groupSlug}
+                            className="px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap border"
+                            style={{
+                              backgroundColor: groupConfig?.color ? `${groupConfig.color}20` : '#f3f4f6',
+                              color: groupConfig?.color || '#374151',
+                              borderColor: groupConfig?.color ? `${groupConfig.color}40` : '#e5e7eb'
+                            }}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
+
+                {/* Age Groups - години */}
+                {selectedSession.ageGroups && selectedSession.ageGroups.length > 0 && trainingLabels.ageGroups.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-neutral-950">Години:</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {selectedSession.ageGroups.map((ageGroup) => {
+                        return (
+                          <span
+                            key={ageGroup}
+                            className="px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap border bg-gray-100 text-gray-700 border-gray-200"
+                          >
+                            {ageGroup}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedSession.description && (
+                  <div className="text-sm text-[#4a5565] pt-2 border-t border-gray-100">
+                    <p className="font-medium text-neutral-950 mb-1">Описание:</p>
+                    <p className="text-[#4a5565] leading-relaxed">{selectedSession.description}</p>
+                  </div>
+                )}
+
+                {/* Coaches */}
                 {selectedSession.coachIds && selectedSession.coachIds.length > 0 && (
-                  <p>
-                    <strong className="text-neutral-950">Треньори:</strong>{' '}
-                    {selectedSession.coachIds.map(c =>
-                      c.firstName && c.lastName
-                        ? `${c.firstName} ${c.middleName || ''} ${c.lastName}`.trim()
-                        : c.name || c.email || 'Неизвестен'
-                    ).join(', ')}
-                  </p>
+                  <div className="text-sm text-[#4a5565] pt-2 border-t border-gray-100">
+                    <p className="font-medium text-neutral-950 mb-1">Треньори:</p>
+                    <p className="text-[#4a5565]">
+                      {selectedSession.coachIds.map(c =>
+                        c.firstName && c.lastName
+                          ? `${c.firstName} ${c.middleName || ''} ${c.lastName}`.trim()
+                          : c.name || c.email || 'Неизвестен'
+                      ).join(', ')}
+                    </p>
+                  </div>
                 )}
               </>
             )}

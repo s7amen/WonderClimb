@@ -54,8 +54,7 @@ const Login = () => {
       } else if (user?.roles?.includes('coach')) {
         navigate('/coach/dashboard');
       } else if (user?.roles?.includes('climber')) {
-        // Climbers can access parent dashboard to manage their profile and linked children
-        navigate('/parent/profile');
+        navigate('/sessions');
       } else {
         navigate('/');
       }

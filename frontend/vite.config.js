@@ -37,13 +37,14 @@ export default defineConfig({
         related_applications: [
           {
             platform: 'webapp',
-            url: 'https://wonderclimb.fly.dev/manifest.json',
+            url: 'https://chudniteskali.net/manifest.json',
           },
           {
             platform: 'webapp',
-            url: 'http://localhost:5173/manifest.json',
+            url: 'https://www.chudniteskali.net/manifest.json',
           }
-        ]
+        ],
+        prefer_related_applications: false
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],

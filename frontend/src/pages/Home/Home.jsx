@@ -17,6 +17,8 @@ const Home = () => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(70); // Default header height
+  const headerRef = useRef(null);
 
   // Images for the thumbnail gallery under the fold
   const thumbnailImages = [
@@ -25,6 +27,32 @@ const Home = () => {
     '/images/homepage/training/IMG_20240530_175803.jpg',
     '/images/homepage/training/IMG_20240320_185402.jpg',
   ];
+
+  // Measure header height for hero section calculation
+  useEffect(() => {
+    const measureHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.offsetHeight;
+        setHeaderHeight(height);
+      }
+    };
+
+    // Measure initially
+    measureHeaderHeight();
+
+    // Measure on resize
+    window.addEventListener('resize', measureHeaderHeight);
+    
+    // Also measure after a short delay to account for dynamic content (e.g., second menu appearing)
+    const timeoutId = setTimeout(measureHeaderHeight, 100);
+    const timeoutId2 = setTimeout(measureHeaderHeight, 300);
+
+    return () => {
+      window.removeEventListener('resize', measureHeaderHeight);
+      clearTimeout(timeoutId);
+      clearTimeout(timeoutId2);
+    };
+  }, [isAuthenticated]); // Re-measure when auth state changes (affects second menu visibility)
 
   // Scroll effect for hero section
   useEffect(() => {
@@ -63,11 +91,14 @@ const Home = () => {
   return (
     <div className="min-h-screen flex flex-col scroll-smooth overflow-x-hidden">
       {/* Header - Outside hero section for sticky behavior */}
-      <Header />
+      <div ref={headerRef}>
+        <Header />
+      </div>
 
       {/* Full-screen background section with book button */}
       <section
-        className="relative w-full h-screen flex flex-col items-center justify-center"
+        className="relative w-full flex flex-col items-center justify-center"
+        style={{ height: `calc(100vh - ${headerHeight}px)` }}
       >
         {/* Background */}
         <div

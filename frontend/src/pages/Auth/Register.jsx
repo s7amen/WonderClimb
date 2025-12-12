@@ -162,7 +162,7 @@ const Register = () => {
         } else if (user?.roles?.includes('coach')) {
           navigate('/coach/dashboard');
         } else if (user?.roles?.includes('climber')) {
-          navigate('/parent/profile');
+          navigate('/sessions');
         } else {
           navigate('/');
         }

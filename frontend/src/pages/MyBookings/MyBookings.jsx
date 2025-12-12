@@ -432,6 +432,53 @@ const MySessions = () => {
         <h1 className="text-3xl font-bold text-neutral-950">Моят график</h1>
       </div>
       <div className="bg-gray-50 min-h-screen">
+        {/* Mobile Calendar Section - Outside padding container */}
+        {upcomingSessions.length > 0 && (
+          <div className="md:hidden mb-6">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+              <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
+                <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
+                  {/* Month title on top row */}
+                  <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                  </h2>
+                  {/* Buttons next to each other */}
+                  <div className="flex items-center gap-2 w-full justify-center">
+                    <button
+                      onClick={() => navigateDate('prev')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      ←
+                    </button>
+                    <Button
+                      variant="secondary"
+                      onClick={goToToday}
+                      className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                    >
+                      Днес
+                    </Button>
+                    <button
+                      onClick={() => navigateDate('next')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+            {/* Calendar full width - breaks out of padding */}
+            <div className="w-screen relative left-1/2 -ml-[50vw] pb-4">
+              <SessionCalendar
+                sessions={upcomingSessions}
+                currentDate={currentDate}
+                onSessionClick={handleSessionClick}
+                getSessionColor={getSessionColor}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
 
           {/* Desktop Calendar Section */}
@@ -467,50 +514,6 @@ const MySessions = () => {
                   </div>
                 </div>
                 <div className="px-6 pb-6">
-                  <SessionCalendar
-                    sessions={upcomingSessions}
-                    currentDate={currentDate}
-                    onSessionClick={handleSessionClick}
-                    getSessionColor={getSessionColor}
-                  />
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {/* Mobile Calendar Section */}
-          {upcomingSessions.length > 0 && (
-            <div className="md:hidden mb-6">
-              <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-                <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
-                  {/* Month title on top row */}
-                  <h2 className="text-base font-medium text-neutral-950 text-center w-full">
-                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                  </h2>
-                  {/* Buttons next to each other */}
-                  <div className="flex items-center gap-2 w-full justify-center">
-                    <button
-                      onClick={() => navigateDate('prev')}
-                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    >
-                      ←
-                    </button>
-                    <Button
-                      variant="secondary"
-                      onClick={goToToday}
-                      className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
-                    >
-                      Днес
-                    </Button>
-                    <button
-                      onClick={() => navigateDate('next')}
-                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-                <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
                   <SessionCalendar
                     sessions={upcomingSessions}
                     currentDate={currentDate}

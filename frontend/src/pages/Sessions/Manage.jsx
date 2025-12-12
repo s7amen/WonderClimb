@@ -355,7 +355,6 @@ const Sessions = () => {
       capacity: session.capacity,
       coachIds: session.coachIds?.map(c => c._id || c) || [],
       targetGroups: session.targetGroups || [],
-      targetGroups: session.targetGroups || [],
       ageGroups: session.ageGroups || (trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+']),
     });
     setEditingSession(session);
@@ -932,7 +931,6 @@ const Sessions = () => {
       capacity: 10,
       coachIds: [],
       targetGroups: [],
-      targetGroups: [],
       ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
     });
     setEditingSession(null);
@@ -952,7 +950,6 @@ const Sessions = () => {
       durationMinutes: 60,
       capacity: 10,
       coachIds: [],
-      targetGroups: [],
       targetGroups: [],
       ageGroups: trainingLabels.ageGroups.length > 0 ? trainingLabels.ageGroups.map(g => g.label) : ['4-6', '7-12', '13+'],
     });
