@@ -141,6 +141,7 @@ const Dashboard = () => {
     const now = startOfDay(new Date());
     const sevenDaysFromNow = addDays(now, 7);
     return bookings.filter(booking => {
+      if (booking.status !== 'booked') return false;
       if (!booking.session?.date) return false;
       const sessionDate = startOfDay(new Date(booking.session.date));
       return sessionDate >= now && sessionDate <= sevenDaysFromNow;
@@ -276,7 +277,9 @@ const Dashboard = () => {
   const getReservationsForSessionInList = (sessionId, sessionBookings) => {
     // Deduplicate by climberId - keep only the most recent booking per climber
     const climberMap = new Map();
-    sessionBookings.forEach(booking => {
+    const activeBookings = (sessionBookings || []).filter(booking => booking?.status === 'booked');
+
+    activeBookings.forEach(booking => {
       const climber = booking.climber || booking.climberId;
       const climberId = typeof climber === 'object' && climber._id ? String(climber._id) : String(climber);
 
@@ -1237,15 +1240,12 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* All Reserved Hours Button */}
+          {/* All Reserved Hours Link */}
           <div className="flex justify-center">
             <Link
-              to="/parent/saved-sessions"
-              className="inline-flex items-center gap-2 bg-[#ea7a24] text-white text-sm font-normal py-2 px-4 rounded-[10px] hover:bg-[#d96a1a] transition-colors"
+              to="/my-sessions"
+              className="text-[#ea7a24] text-sm font-normal hover:text-[#d96a1a] transition-colors"
             >
-              <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 2H5V4H3V2ZM7 2H9V4H7V2ZM11 2H13V4H11V2ZM3 6H5V8H3V6ZM7 6H9V8H7V6ZM11 6H13V8H11V6ZM3 10H5V12H3V10ZM7 10H9V12H7V10ZM11 10H13V12H11V10Z" fill="currentColor" />
-              </svg>
               Всички запазени часове
             </Link>
           </div>

@@ -1002,39 +1002,6 @@ const Sessions = () => {
         />
       )}
 
-      {/* Unified Booking Modal */}
-      <BookingModal
-        isOpen={showBookingModal}
-        onClose={() => {
-          setShowBookingModal(false);
-          setBookingSessionIds([]);
-          setBookingSessions([]);
-        }}
-        sessions={bookingSessions}
-        preSelectedClimberIds={bookingDefaultClimberIds}
-        onAddChild={handleAddChildFromBooking}
-        refreshTrigger={bookingModalRefreshTrigger}
-        onSuccess={async () => {
-          setShowBookingModal(false);
-          setBookingSessionIds([]);
-          setBookingSessions([]);
-
-          // Refresh sessions data
-          await fetchSessions();
-
-          // Refresh user bookings to show reservation info
-          if (isAuthenticated) {
-            await fetchUserBookings();
-          }
-
-          // Clear selected sessions for bulk booking
-          setSelectedSessionIds([]);
-          setBulkBookingClimberIds([]);
-        }}
-      />
-
-      {/* OLD MODALS REMOVED - Now using unified BookingModal */}
-
       {/* Add Child Modal - Higher z-index when BookingModal is open */}
       <AddChildModal
         isOpen={showAddChildModal}
@@ -1042,7 +1009,6 @@ const Sessions = () => {
         onSuccess={handleAddChildSuccess}
         zIndex={showBookingModal ? 10000 : 9999}
       />
-
 
       {/* Booking Modal - Unified for Single and Bulk Bookings */}
       <BookingModal
@@ -1059,13 +1025,60 @@ const Sessions = () => {
         showToast={showToast}
         onAddChild={handleAddChildFromBooking}
         refreshTrigger={bookingModalRefreshTrigger}
-        onBookingSuccess={async (results) => {
-          // Refresh sessions to update booked counts
-          await fetchSessions();
-          // Refresh user bookings
-          if (isAuthenticated) {
-            await fetchUserBookings();
+        onBookingSuccess={(results) => {
+          // Optimistic update - update session booked counts without refetching
+          if (results.successful && results.successful.length > 0) {
+            // Group successful bookings by sessionId to count per session
+            const bookingsBySession = {};
+            results.successful.forEach(booking => {
+              const sessionId = booking.sessionId;
+              if (!bookingsBySession[sessionId]) {
+                bookingsBySession[sessionId] = 0;
+              }
+              bookingsBySession[sessionId]++;
+            });
+
+            // Update sessions with new booked counts
+            setSessions(prev => prev.map(session => {
+              const sessionIdStr = typeof session._id === 'object' && session._id?.toString 
+                ? session._id.toString() 
+                : String(session._id);
+              
+              // Check if this session had successful bookings
+              const addedBookings = Object.entries(bookingsBySession).reduce((count, [id, num]) => {
+                const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+                return idStr === sessionIdStr ? num : count;
+              }, 0);
+
+              if (addedBookings > 0) {
+                return {
+                  ...session,
+                  bookedCount: (session.bookedCount || 0) + addedBookings
+                };
+              }
+              return session;
+            }));
+
+            // Optimistic update - add new bookings to userBookings
+            const newBookings = results.successful.map(item => ({
+              _id: item.bookingId || `temp-${Date.now()}-${Math.random()}`,
+              sessionId: item.sessionId,
+              climberId: item.climberId,
+              climber: {
+                _id: item.climberId,
+                firstName: item.climberName?.split(' ')[0] || '',
+                lastName: item.climberName?.split(' ').slice(1).join(' ') || ''
+              },
+              status: 'booked',
+              createdAt: new Date().toISOString()
+            }));
+
+            setUserBookings(prev => [...prev, ...newBookings]);
           }
+
+          // Clear selected sessions for bulk booking
+          setSelectedSessionIds([]);
+          setBulkBookingClimberIds([]);
         }}
       />
 

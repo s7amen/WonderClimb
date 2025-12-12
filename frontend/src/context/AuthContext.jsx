@@ -118,6 +118,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setUserFromToken = (userData) => {
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+    }
+  };
+
   const hasRole = (role) => {
     if (!user || !user.roles) return false;
     return user.roles.includes(role);
@@ -134,6 +141,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUser,
+    setUserFromToken,
     hasRole,
     isAdmin,
     isCoach,

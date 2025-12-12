@@ -6,7 +6,7 @@ import Loading from '../../components/UI/Loading';
 const Callback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { updateUser } = useAuth();
+  const { setUserFromToken } = useAuth();
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -23,24 +23,31 @@ const Callback = () => {
       localStorage.setItem('token', token);
       
       // Fetch user info
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'}/auth/me`, {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+      fetch(`${apiBaseUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch user info');
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
-            updateUser(data.user);
+            // Update auth context with user data
+            setUserFromToken(data.user);
             
             // Redirect based on role
-            if (data.user.roles?.includes('admin')) {
-              navigate('/admin/dashboard');
-            } else if (data.user.roles?.includes('coach')) {
-              navigate('/coach/dashboard');
-            } else if (data.user.roles?.includes('climber')) {
-              navigate('/parent/profile');
+            const user = data.user;
+            if (user.roles?.includes('admin')) {
+              navigate('/dashboard/admin');
+            } else if (user.roles?.includes('coach')) {
+              navigate('/dashboard/coach');
+            } else if (user.roles?.includes('climber')) {
+              navigate('/profile');
             } else {
               navigate('/');
             }
@@ -55,7 +62,7 @@ const Callback = () => {
     } else {
       navigate('/login?error=No token received');
     }
-  }, [navigate, searchParams, updateUser]);
+  }, [navigate, searchParams, setUserFromToken]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f3f3f5]">

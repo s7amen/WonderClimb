@@ -456,11 +456,58 @@ const Calendar = () => {
     return { backgroundColor: groupColors[primaryGroup], color: textColors[primaryGroup] };
   };
 
-  const handleBookingSuccess = async () => {
-    // Refresh sessions to update booked counts
-    await fetchSessions();
-    // Refresh user bookings to show the new booking
-    await fetchUserBookings();
+  const handleBookingSuccess = (results) => {
+    // Optimistic update - update session booked counts without refetching
+    if (results?.successful && results.successful.length > 0) {
+      // Group successful bookings by sessionId to count per session
+      const bookingsBySession = {};
+      results.successful.forEach(booking => {
+        const sessionId = booking.sessionId;
+        if (!bookingsBySession[sessionId]) {
+          bookingsBySession[sessionId] = 0;
+        }
+        bookingsBySession[sessionId]++;
+      });
+
+      // Update sessions with new booked counts
+      setSessions(prev => prev.map(session => {
+        const sessionIdStr = typeof session._id === 'object' && session._id?.toString 
+          ? session._id.toString() 
+          : String(session._id);
+        
+        // Check if this session had successful bookings
+        const addedBookings = Object.entries(bookingsBySession).reduce((count, [id, num]) => {
+          const idStr = typeof id === 'object' && id?.toString ? id.toString() : String(id);
+          return idStr === sessionIdStr ? num : count;
+        }, 0);
+
+        if (addedBookings > 0) {
+          return {
+            ...session,
+            bookedCount: (session.bookedCount || 0) + addedBookings
+          };
+        }
+        return session;
+      }));
+
+      // Optimistic update - add new bookings to userBookings
+      const newBookings = results.successful.map(item => ({
+        _id: item.bookingId || `temp-${Date.now()}-${Math.random()}`,
+        sessionId: item.sessionId,
+        session: { _id: item.sessionId },
+        climberId: item.climberId,
+        climber: {
+          _id: item.climberId,
+          firstName: item.climberName?.split(' ')[0] || '',
+          lastName: item.climberName?.split(' ').slice(1).join(' ') || ''
+        },
+        status: 'booked',
+        createdAt: new Date().toISOString()
+      }));
+
+      setUserBookings(prev => [...prev, ...newBookings]);
+    }
+
     setBookingSession(null);
   };
 
@@ -783,55 +830,82 @@ const Calendar = () => {
           <h1 className="text-3xl font-bold text-neutral-950">Календар</h1>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            variant={view === 'month' ? 'primary' : 'secondary'}
-            onClick={() => setView('month')}
-            className={`flex-1 sm:flex-none ${view === 'month' ? 'bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]' : 'bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]'}`}
-          >
-            Месец
-          </Button>
-          <Button
-            variant={view === 'week' ? 'primary' : 'secondary'}
-            onClick={() => setView('week')}
-            className={`flex-1 sm:flex-none ${view === 'week' ? 'bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]' : 'bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]'}`}
-          >
-            Седмица
-          </Button>
-          <Button
-            variant={view === 'day' ? 'primary' : 'secondary'}
-            onClick={() => setView('day')}
-            className={`flex-1 sm:flex-none ${view === 'day' ? 'bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]' : 'bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]'}`}
-          >
-            Ден
-          </Button>
+          {view === 'month' ? (
+            <Button
+              variant="primary"
+              onClick={() => setView('month')}
+              className="flex-1 sm:flex-none bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]"
+            >
+              Месец
+            </Button>
+          ) : (
+            <button
+              onClick={() => setView('month')}
+              className="flex-1 sm:flex-none bg-white hover:bg-gray-50 !text-black border-[0.5px] border-gray-600 rounded-[10px] text-sm font-normal px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              Месец
+            </button>
+          )}
+          {view === 'week' ? (
+            <Button
+              variant="primary"
+              onClick={() => setView('week')}
+              className="flex-1 sm:flex-none bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]"
+            >
+              Седмица
+            </Button>
+          ) : (
+            <button
+              onClick={() => setView('week')}
+              className="flex-1 sm:flex-none bg-white hover:bg-gray-50 !text-black border-[0.5px] border-gray-600 rounded-[10px] text-sm font-normal px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              Седмица
+            </button>
+          )}
+          {view === 'day' ? (
+            <Button
+              variant="primary"
+              onClick={() => setView('day')}
+              className="flex-1 sm:flex-none bg-[#35383d] hover:bg-[#2d3035] text-white rounded-[10px]"
+            >
+              Ден
+            </Button>
+          ) : (
+            <button
+              onClick={() => setView('day')}
+              className="flex-1 sm:flex-none bg-white hover:bg-gray-50 !text-black border-[0.5px] border-gray-600 rounded-[10px] text-sm font-normal px-4 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              Ден
+            </button>
+          )}
         </div>
       </div>
 
       <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
         {/* Mobile Layout */}
-        <div className="md:hidden flex flex-col gap-3 mb-4 px-4 pt-4">
-          <h2 className="text-base font-medium text-neutral-950 text-center">
+        <div className="md:hidden flex flex-col gap-2 mb-4 px-4 pt-4">
+          <h2 className="text-base font-medium text-neutral-950 text-center w-full">
             {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
             {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
             {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
           </h2>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center gap-2 w-full justify-center">
             <button
               onClick={() => navigateDate('prev')}
-              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-2 py-1.5 transition-colors"
+              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
             >
               ←
             </button>
             <Button
               variant="secondary"
               onClick={goToToday}
-              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-3 py-1.5"
+              className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
             >
               Днес
             </Button>
             <button
               onClick={() => navigateDate('next')}
-              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-xs px-2 py-1.5 transition-colors"
+              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
             >
               →
             </button>
@@ -839,35 +913,33 @@ const Calendar = () => {
         </div>
 
         {/* Desktop Layout */}
-        <div className="hidden md:flex flex-row justify-between items-center gap-4 mb-4 px-6 pt-6">
-          <Button
-            variant="secondary"
-            onClick={() => navigateDate('prev')}
-            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
-          >
-            ← Предишен
-          </Button>
-          <div className="flex flex-row items-center gap-2">
-            <h2 className="text-base font-medium text-neutral-950 text-center">
-              {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
-              {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
-              {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
-            </h2>
+        <div className="hidden md:flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-6">
+          <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+            {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: bg })}
+            {view === 'week' && `Седмица от ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d', { locale: bg })}`}
+            {view === 'day' && format(currentDate, 'MMMM d, yyyy', { locale: bg })}
+          </h2>
+          <div className="flex flex-row items-center gap-2 justify-center w-full">
+            <button
+              onClick={() => navigateDate('prev')}
+              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              ← Предишен
+            </button>
             <Button
               variant="secondary"
               onClick={goToToday}
-              className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px] text-sm px-3 py-1"
+              className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
             >
               Днес
             </Button>
+            <button
+              onClick={() => navigateDate('next')}
+              className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-sm font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+            >
+              Следващ →
+            </button>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() => navigateDate('next')}
-            className="bg-[#f3f3f5] hover:bg-[#e8e8ea] text-[#35383d] rounded-[10px]"
-          >
-            Следващ →
-          </Button>
         </div>
 
         {view === 'month' && (

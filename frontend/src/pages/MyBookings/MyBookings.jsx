@@ -16,7 +16,20 @@ const MySessions = () => {
   const [loading, setLoading] = useState(true);
   const [daysToShow] = useState(30);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('upcoming');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const { showToast } = useToast();
+
+  // Training labels configuration
+  const trainingLabels = {
+    targetGroups: [
+      { slug: 'beginner', label: 'Начинаещи', color: '#15803D' },
+      { slug: 'experienced', label: 'Деца с опит', color: '#C2410C' },
+      { slug: 'advanced', label: 'Напреднали', color: '#B91C1C' },
+    ],
+    ageGroups: [],
+  };
 
   // Cancel booking modal state
   const [showCancelBookingModal, setShowCancelBookingModal] = useState(false);
@@ -65,6 +78,11 @@ const MySessions = () => {
     fetchBookings();
   }, []);
 
+  // Reset to first page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   const fetchBookings = async () => {
     try {
       setLoading(true);
@@ -79,15 +97,38 @@ const MySessions = () => {
   };
 
   // Transform bookings to sessions format
-  const getSessionsFromBookings = () => {
-    const bookedSessions = myBookings.filter(b => b.status === 'booked' && b.session);
-    const upcomingBookings = bookedSessions.filter(b =>
-      b.session?.date && new Date(b.session.date) >= startOfDay(new Date())
-    );
+  const getSessionsFromBookings = (statusFilter = null, dateFilter = null) => {
+    let filteredBookings = myBookings;
+
+    // Filter by status
+    if (statusFilter === 'booked') {
+      filteredBookings = filteredBookings.filter(b => b.status === 'booked' && b.session);
+    } else if (statusFilter === 'cancelled') {
+      filteredBookings = filteredBookings.filter(b => b.status === 'cancelled' && b.session);
+    } else if (statusFilter === 'attended' || statusFilter === 'history') {
+      // For history, we want past sessions that were booked (attended)
+      filteredBookings = filteredBookings.filter(b => 
+        (b.status === 'booked' || b.status === 'attended') && b.session
+      );
+    } else {
+      // Default: all booked sessions
+      filteredBookings = filteredBookings.filter(b => b.status === 'booked' && b.session);
+    }
+
+    // Filter by date
+    if (dateFilter === 'upcoming') {
+      filteredBookings = filteredBookings.filter(b =>
+        b.session?.date && new Date(b.session.date) >= startOfDay(new Date())
+      );
+    } else if (dateFilter === 'past') {
+      filteredBookings = filteredBookings.filter(b =>
+        b.session?.date && new Date(b.session.date) < startOfDay(new Date())
+      );
+    }
 
     // Group bookings by session to get unique sessions
     const sessionsMap = new Map();
-    upcomingBookings.forEach(booking => {
+    filteredBookings.forEach(booking => {
       const sessionId = booking.session?._id || booking.sessionId;
       if (!sessionId) return;
 
@@ -102,22 +143,82 @@ const MySessions = () => {
     return Array.from(sessionsMap.values());
   };
 
-  const sessions = getSessionsFromBookings();
+  // Get sessions for each tab
+  const upcomingSessions = getSessionsFromBookings('booked', 'upcoming');
+  const historySessions = getSessionsFromBookings('booked', 'past');
+  const cancelledSessions = getSessionsFromBookings('cancelled', null);
+
+  // Get sessions for active tab
+  const getSessionsForActiveTab = () => {
+    if (activeTab === 'history') {
+      return historySessions;
+    }
+    if (activeTab === 'cancelled') {
+      return cancelledSessions;
+    }
+    return upcomingSessions;
+  };
+
+  const sessions = getSessionsForActiveTab();
 
   const getFilteredSessions = () => {
-    const today = startOfDay(new Date());
-    const viewEndDate = addDays(today, daysToShow);
+    const tabSessions = getSessionsForActiveTab();
 
-    return sessions.filter(session => {
-      const sessionDate = new Date(session.date);
+    let filtered = tabSessions;
 
-      // Only show sessions within the date range
-      if (isBefore(sessionDate, today) || isBefore(viewEndDate, sessionDate)) {
-        return false;
-      }
+    if (activeTab === 'upcoming') {
+      const today = startOfDay(new Date());
+      const viewEndDate = addDays(today, daysToShow);
 
-      return true;
-    });
+      filtered = tabSessions.filter(session => {
+        const sessionDate = new Date(session.date);
+
+        // Only show sessions within the date range
+        if (isBefore(sessionDate, today) || isBefore(viewEndDate, sessionDate)) {
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    // For history and cancelled, show all sessions
+    return filtered;
+  };
+
+  // Pagination logic
+  const allFilteredSessions = getFilteredSessions();
+  const totalPages = Math.ceil(allFilteredSessions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedSessions = allFilteredSessions.slice(startIndex, endIndex);
+
+  // Handle tab change without scrolling
+  const handleTabChange = (tabId, e) => {
+    e?.preventDefault();
+    setActiveTab(tabId);
+    // Page will be reset by useEffect
+  };
+
+  const tabs = [
+    { id: 'upcoming', label: 'Запазени', count: upcomingSessions.length },
+    { id: 'history', label: 'Отминали', count: historySessions.length },
+    { id: 'cancelled', label: 'Отменени', count: cancelledSessions.length },
+  ];
+
+  const emptyTabMessages = {
+    upcoming: {
+      title: 'Няма предстоящи резервации',
+      subtitle: 'Вашите резервации ще се появят тук',
+    },
+    history: {
+      title: 'Няма минали резервации',
+      subtitle: 'Миналите часове ще се покажат тук',
+    },
+    cancelled: {
+      title: 'Няма отменени резервации',
+      subtitle: 'Отменените резервации ще се покажат тук',
+    },
   };
 
   const hasActiveFilters = () => {
@@ -143,7 +244,7 @@ const MySessions = () => {
   };
 
   const getBookedCount = (sessionId) => {
-    const session = sessions.find(s => s._id === sessionId);
+    const session = getSessionsForActiveTab().find(s => s._id === sessionId);
     if (session?.bookedCount !== undefined) {
       return session.bookedCount;
     }
@@ -153,6 +254,14 @@ const MySessions = () => {
       return bSessionId === sessionId && b.status === 'booked';
     });
     return sessionBookings.length;
+  };
+
+  const getSessionById = (sessionId) => {
+    if (!sessionId) return null;
+    return getSessionsForActiveTab().find(s => s._id === sessionId) || 
+           upcomingSessions.find(s => s._id === sessionId) ||
+           historySessions.find(s => s._id === sessionId) ||
+           cancelledSessions.find(s => s._id === sessionId);
   };
 
 
@@ -277,55 +386,12 @@ const MySessions = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-neutral-950">Моят график</h1>
-      </div><div className="bg-gray-50 min-h-screen">
-        {/* Mobile Calendar Section - Full Width (100vw) */}
-        {sessions.length > 0 && (
-          <div className="md:hidden mb-6">
-            <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
-              <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
-                {/* Month title on top row */}
-                <h2 className="text-base font-medium text-neutral-950 text-center w-full">
-                  {format(currentDate, 'MMMM yyyy', { locale: bg })}
-                </h2>
-                {/* Buttons next to each other */}
-                <div className="flex items-center gap-2 w-full justify-center">
-                  <button
-                    onClick={() => navigateDate('prev')}
-                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  >
-                    ←
-                  </button>
-                  <Button
-                    variant="secondary"
-                    onClick={goToToday}
-                    className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
-                  >
-                    Днес
-                  </Button>
-                  <button
-                    onClick={() => navigateDate('next')}
-                    className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-              <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
-                <SessionCalendar
-                  sessions={sessions}
-                  currentDate={currentDate}
-                  onSessionClick={handleSessionClick}
-                  getSessionColor={getSessionColor}
-                />
-              </div>
-            </Card>
-          </div>
-        )}
-
+      </div>
+      <div className="bg-gray-50 min-h-screen">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-8">
 
           {/* Desktop Calendar Section */}
-          {sessions.length > 0 && (
+          {upcomingSessions.length > 0 && (
             <div className="hidden md:block mb-6">
               <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px]">
                 <div className="flex flex-col justify-between items-center gap-2 mb-4 px-6 pt-2">
@@ -358,7 +424,7 @@ const MySessions = () => {
                 </div>
                 <div className="px-6 pb-6">
                   <SessionCalendar
-                    sessions={sessions}
+                    sessions={upcomingSessions}
                     currentDate={currentDate}
                     onSessionClick={handleSessionClick}
                     getSessionColor={getSessionColor}
@@ -368,10 +434,77 @@ const MySessions = () => {
             </div>
           )}
 
+          {/* Mobile Calendar Section */}
+          {upcomingSessions.length > 0 && (
+            <div className="md:hidden mb-6">
+              <Card className="border border-[rgba(0,0,0,0.1)] rounded-[10px] overflow-hidden">
+                <div className="flex flex-col justify-between items-center gap-2 mb-4 px-4 pt-2">
+                  {/* Month title on top row */}
+                  <h2 className="text-base font-medium text-neutral-950 text-center w-full">
+                    {format(currentDate, 'MMMM yyyy', { locale: bg })}
+                  </h2>
+                  {/* Buttons next to each other */}
+                  <div className="flex items-center gap-2 w-full justify-center">
+                    <button
+                      onClick={() => navigateDate('prev')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      ←
+                    </button>
+                    <Button
+                      variant="secondary"
+                      onClick={goToToday}
+                      className="rounded-[10px] text-sm px-3 py-1 h-[32px]"
+                    >
+                      Днес
+                    </Button>
+                    <button
+                      onClick={() => navigateDate('next')}
+                      className="bg-white hover:bg-gray-50 !text-black border-[0.5px] border-black rounded-[10px] text-base font-normal px-3 py-1 h-[32px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+                <div className="w-screen relative left-1/2 -ml-[50vw] px-4 pb-4">
+                  <SessionCalendar
+                    sessions={upcomingSessions}
+                    currentDate={currentDate}
+                    onSessionClick={handleSessionClick}
+                    getSessionColor={getSessionColor}
+                  />
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-3 border-b border-gray-200 pb-4">
+              {tabs.map(tab => {
+                const isActive = tab.id === activeTab;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={(e) => handleTabChange(tab.id, e)}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+                      isActive
+                        ? 'bg-[#ea7038] text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Sessions List */}
           <SessionList
-            sessions={sessions}
-            getFilteredSessions={getFilteredSessions}
+            sessions={allFilteredSessions}
+            getFilteredSessions={() => paginatedSessions}
             hasActiveFilters={hasActiveFilters}
             clearAllFilters={clearAllFilters}
             getBookedCount={getBookedCount}
@@ -381,19 +514,97 @@ const MySessions = () => {
             mode="public"
             userBookings={myBookings}
             showReservationsInfo={true}
+            trainingLabels={trainingLabels}
             onCancelBooking={(sessionId, reservations) => {
               // Показва popup за потвърждение
               setCancelBookingSessionId(sessionId);
               setCancelBookingBookings(reservations);
               setShowCancelBookingModal(true);
             }}
+            sortOrder={(activeTab === 'history' || activeTab === 'cancelled') ? 'desc' : 'asc'}
           />
 
-          {getFilteredSessions().length === 0 && !loading && sessions.length === 0 && (
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.max(1, prev - 1));
+                }}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Предишна
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(page);
+                        }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                          currentPage === page
+                            ? 'bg-[#ea7038] text-white'
+                            : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (
+                    page === currentPage - 2 ||
+                    page === currentPage + 2
+                  ) {
+                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                }}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  currentPage === totalPages
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Следваща
+              </button>
+            </div>
+          )}
+
+          {allFilteredSessions.length === 0 && !loading && (
             <Card>
               <div className="text-center py-12">
-                <p className="text-gray-600 text-lg mb-2">Няма предстоящи резервации</p>
-                <p className="text-gray-500 text-sm">Вашите резервации ще се появят тук</p>
+                <p className="text-gray-600 text-lg mb-2">
+                  {emptyTabMessages[activeTab]?.title}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  {emptyTabMessages[activeTab]?.subtitle}
+                </p>
               </div>
             </Card>
           )}
@@ -408,7 +619,7 @@ const MySessions = () => {
               setCancelBookingBookings([]);
               resetError();
             }}
-            session={sessions.find(s => s._id === cancelBookingSessionId)}
+            session={getSessionById(cancelBookingSessionId)}
             bookings={cancelBookingBookings}
             onConfirm={async (selectedIds) => {
               await cancelBookings(selectedIds, cancelBookingBookings);

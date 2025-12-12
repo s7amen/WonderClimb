@@ -78,6 +78,16 @@ const Sessions = () => {
   const [selectedTargetGroups, setSelectedTargetGroups] = useState([]);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
 
+  // Training labels configuration
+  const trainingLabels = {
+    targetGroups: [
+      { slug: 'beginner', label: 'Начинаещи', color: '#15803D' },
+      { slug: 'experienced', label: 'Деца с опит', color: '#C2410C' },
+      { slug: 'advanced', label: 'Напреднали', color: '#B91C1C' },
+    ],
+    ageGroups: [],
+  };
+
   useEffect(() => {
     fetchSessions();
   }, []);
@@ -1193,6 +1203,7 @@ const Sessions = () => {
               children={children}
               selectedClimberForSession={selectedClimberForSession}
               userBookings={userBookings}
+              trainingLabels={trainingLabels}
               onCancelBooking={(sessionId, reservations) => {
                 // Показва popup за потвърждение
                 setCancelBookingSessionId(sessionId);
