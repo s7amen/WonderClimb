@@ -66,3 +66,5 @@ frontend/public/
 ---
 
 **Ready for black logo!** Please provide the black logo file and I'll convert it to all required formats.
+
+

@@ -25,6 +25,7 @@ import saleRoutes from './saleRoutes.js';
 import pricingRoutes from './pricing.js';
 import cardRoutes from './cardRoutes.js';
 import cronRoutes from './cronRoutes.js';
+import adminLogsRoutes from './adminLogs.js';
 
 const router = express.Router();
 
@@ -58,6 +59,7 @@ router.use('/admin', adminFinanceRoutes);
 router.use('/admin', adminUsersRoutes);
 router.use('/admin', adminSettingsRoutes);
 router.use('/admin', climberPhotosRoutes);
+router.use('/admin', adminLogsRoutes);
 router.use('/admin/competitions', competitionsRoutes);
 router.use('/gym', gymRoutes); // Gym routes (check-in, passes)
 router.use('/training', trainingRoutes); // Training routes (sessions, attendance, passes)

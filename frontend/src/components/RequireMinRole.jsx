@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ClimbingLoader from './UI/ClimbingLoader';
 
 // Role hierarchy: climber(1) < instructor(2) < coach(3) < admin(4)
 const ROLE_LEVELS = {
@@ -30,10 +31,7 @@ const RequireMinRole = ({ minRole, children, redirectTo = '/' }) => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Зареждане...</p>
-                </div>
+                <ClimbingLoader text="Зареждане..." />
             </div>
         );
     }

@@ -6,8 +6,9 @@ const debugLog = (location, message, data, hypothesisId) => {
   try {
     const logEntry = {location,message,data,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId};
     console.log('[PWA DEBUG]', JSON.stringify(logEntry));
-    // Only try to send to debug server if available (won't work in production)
-    if (typeof fetch !== 'undefined') {
+    // Only try to send to debug server if in development mode and on localhost
+    if (typeof fetch !== 'undefined' && 
+        (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       fetch('http://127.0.0.1:7242/ingest/50136003-5873-48e4-8fca-1c635ebbeda2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(logEntry)}).catch(()=>{});
     }
   } catch (e) {

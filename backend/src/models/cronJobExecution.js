@@ -50,3 +50,5 @@ cronJobExecutionSchema.index({ jobName: 1, startedAt: -1 });
 export const CronJobExecution = mongoose.model('CronJobExecution', cronJobExecutionSchema);
 
 
+
+

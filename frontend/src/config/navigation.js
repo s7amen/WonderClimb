@@ -56,6 +56,7 @@ export const NAVIGATION_CONFIG = {
                 { label: 'Тренировки', path: '/settings/training', icon: 'Dumbbell' },
                 { label: 'Cron Jobs', path: '/admin/cron-jobs', icon: 'Clock' },
                 { label: 'Notifications', path: '/settings/notifications', icon: 'Bell' },
+                { label: 'Логове', path: '/settings/logs', icon: 'Book' },
             ]
         }
     ],

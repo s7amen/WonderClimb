@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Loading from './UI/Loading';
+import ClimbingLoader from './UI/ClimbingLoader';
 
 const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const { isAuthenticated, loading, hasRole } = useAuth();
@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loading text="Loading..." />
+        <ClimbingLoader text="Loading..." />
       </div>
     );
   }

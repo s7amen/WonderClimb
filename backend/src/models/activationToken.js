@@ -47,3 +47,5 @@ activationTokenSchema.virtual('isValid').get(function() {
 
 export const ActivationToken = mongoose.model('ActivationToken', activationTokenSchema);
 
+
+

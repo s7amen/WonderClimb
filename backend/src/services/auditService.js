@@ -37,3 +37,29 @@ export const log = async (user, action, resource, resourceId = null, details = {
         logger.error({ err: error, action, resource }, 'Failed to create Audit Log');
     }
 };
+const getLogs = async ({ page = 1, limit = 50, action, resource, userId }) => {
+    const query = {};
+    if (action) query.action = action;
+    if (resource) query.resource = resource;
+    if (userId) query.user = userId;
+
+    const skip = (page - 1) * limit;
+
+    const logs = await AuditLog.find(query)
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('user', 'firstName lastName email') // Populate user details
+        .lean();
+
+    const total = await AuditLog.countDocuments(query);
+
+    return {
+        logs,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit)
+    };
+};
+
+export { log, getLogs };

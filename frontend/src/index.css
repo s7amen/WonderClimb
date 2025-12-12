@@ -28,6 +28,7 @@ body {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -38,6 +39,7 @@ body {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -58,6 +60,7 @@ body {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -75,3 +78,154 @@ body {
   transition: opacity 0.8s ease-out, transform 0.8s ease-out;
 }
 
+/* ========================================= */
+/* CLIMBING LOADER ANIMATIONS                */
+/* ========================================= */
+
+/* Rope drawing animation */
+@keyframes ropeClip {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Rock appearance animation */
+@keyframes rockAppear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Quickdraw swing animation */
+@keyframes swingDraw {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(5deg);
+  }
+
+  75% {
+    transform: rotate(-5deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* Anchor pulse animation */
+@keyframes anchorPulse {
+  0% {
+    filter: drop-shadow(0 0 2px #48bb78);
+    transform: scale(1);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px #48bb78);
+    transform: scale(1.05);
+  }
+
+  100% {
+    filter: drop-shadow(0 0 2px #48bb78);
+    transform: scale(1);
+  }
+}
+
+/* Loading bar animation */
+@keyframes loadingBar {
+  to {
+    width: 100%;
+  }
+}
+
+.rope-path {
+  stroke-dasharray: 600;
+  stroke-dashoffset: 600;
+  animation: ropeClip 2s ease-in-out forwards 0.5s;
+}
+
+/* Animation classes */
+.rock {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.rock-1 {
+  animation: rockAppear 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards 0s;
+}
+
+.rock-2 {
+  animation: rockAppear 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.6s;
+}
+
+.rock-3 {
+  animation: rockAppear 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.2s;
+}
+
+.rock-4 {
+  animation: rockAppear 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.8s;
+}
+
+.draw {
+  transform-box: fill-box;
+  transform-origin: top center;
+  opacity: 0;
+}
+
+.draw-1 {
+  animation: rockAppear 0.3s forwards 0.7s, swingDraw 1s ease-in-out 0.7s;
+}
+
+.draw-2 {
+  animation: rockAppear 0.3s forwards 1.3s, swingDraw 1s ease-in-out 1.3s;
+}
+
+.anchor {
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.anchor-anim {
+  animation: rockAppear 0.5s forwards 2.2s, anchorPulse 2s infinite 2.7s;
+}
+
+.bg-slate-texture {
+  background-color: #1a202c;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+
+/* Content fade-in animation for smooth transitions */
+@keyframes fadeInContent {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-content {
+  animation: fadeInContent 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

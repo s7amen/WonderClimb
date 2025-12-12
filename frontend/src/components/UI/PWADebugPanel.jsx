@@ -74,3 +74,5 @@ const PWADebugPanel = ({ debugInfo, onClose }) => {
 };
 
 export default PWADebugPanel;
+
+

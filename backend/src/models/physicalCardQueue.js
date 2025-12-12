@@ -59,3 +59,5 @@ physicalCardQueueSchema.index({ physicalCardCode: 1, status: 1 });
 export const PhysicalCardQueue = mongoose.model('PhysicalCardQueue', physicalCardQueueSchema);
 
 
+
+

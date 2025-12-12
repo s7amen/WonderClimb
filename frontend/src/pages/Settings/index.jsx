@@ -3,6 +3,7 @@ import MessageSettings from './Messages.jsx';
 import Cards from './Cards.jsx';
 import TrainingSettings from './Training.jsx';
 import NotificationSettings from './Notification.jsx';
+import Logs from './Logs.jsx';
 
 const Settings = () => {
   const location = useLocation();
@@ -20,6 +21,9 @@ const Settings = () => {
     }
     if (location.pathname.startsWith('/settings/training')) {
       return { component: <TrainingSettings />, title: 'Тренировки' };
+    }
+    if (location.pathname.startsWith('/settings/logs')) {
+      return { component: <Logs />, title: 'Логове' };
     }
     // Default fallback
     return { component: <MessageSettings />, title: 'Настройки на съобщения' };

@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/UI/Toast';
 import RequireMinRole from './components/RequireMinRole';
 import ProtectedRoute from './components/ProtectedRoute';
-import Loading from './components/UI/Loading';
+import ClimbingLoader from './components/UI/ClimbingLoader';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import lazyWithRetry from './utils/lazyWithRetry';
@@ -99,7 +99,7 @@ const Home = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f3f3f5]">
-        <Loading text="Зареждане..." />
+        <ClimbingLoader text="Зареждане..." />
       </div>
     );
   }
@@ -118,7 +118,7 @@ const Home = () => {
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#f3f3f5]">
-    <Loading text="Зареждане..." />
+    <ClimbingLoader text="Зареждане..." />
   </div>
 );
 

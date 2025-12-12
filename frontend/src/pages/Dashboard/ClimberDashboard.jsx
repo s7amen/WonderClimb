@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { format, startOfDay, addDays, isBefore, addMonths, subMonths, eachDayOfInterval } from 'date-fns';
 import { bg } from 'date-fns/locale';
-import Loading from '../../components/UI/Loading';
+import Link from 'react-router-dom';
+import ClimbingLoader from '../../components/UI/ClimbingLoader';
 import { useToast } from '../../components/UI/Toast';
 import { parentClimbersAPI, bookingsAPI, sessionsAPI } from '../../services/api';
 import Card from '../../components/UI/Card';
@@ -450,11 +451,15 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <Loading text="Зареждане..." />;
+    return (
+      <div className="h-full flex items-center justify-center">
+        <ClimbingLoader text="Зареждане..." />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-full">
+    <div className="flex flex-col lg:flex-row h-full animate-fade-in-content">
 
       {/* Cancel Booking Modal - Using Shared Component */}
       <CancellationModal

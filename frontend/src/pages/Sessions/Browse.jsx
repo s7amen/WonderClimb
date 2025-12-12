@@ -4,7 +4,7 @@ import { format, addDays, startOfDay, eachDayOfInterval, isBefore } from 'date-f
 import { formatDate } from '../../utils/dateUtils';
 import Card from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
-import Loading from '../../components/UI/Loading';
+import ClimbingLoader from '../../components/UI/ClimbingLoader';
 import { useToast } from '../../components/UI/Toast';
 
 import { useAuth } from '../../context/AuthContext';
@@ -756,16 +756,14 @@ const Sessions = () => {
 
   if (loading) {
     return (
-      <div className="bg-gray-50 min-h-screen">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Loading text="Зареждане на сесии..." />
-        </div>
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <ClimbingLoader text="Зареждане..." />
       </div>
     );
   }
 
   return (
-    <>
+    <div className="animate-fade-in-content">
       {/* Header Section */}
       <div className="mb-2 lg:mb-4">
         <h1 className="text-2xl font-normal text-[#0f172b] mb-2 lg:mb-4 leading-9">График</h1>
@@ -1031,7 +1029,8 @@ const Sessions = () => {
         variant="sticky"
         hideWhenBulkBooking={selectedSessionIds.length > 0}
       />
-    </>
+
+    </div>
   );
 };
 
