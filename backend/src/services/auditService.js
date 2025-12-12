@@ -37,7 +37,7 @@ export const log = async (user, action, resource, resourceId = null, details = {
         logger.error({ err: error, action, resource }, 'Failed to create Audit Log');
     }
 };
-const getLogs = async ({ page = 1, limit = 50, action, resource, userId }) => {
+export const getLogs = async ({ page = 1, limit = 50, action, resource, userId }) => {
     const query = {};
     if (action) query.action = action;
     if (resource) query.resource = resource;
@@ -62,4 +62,4 @@ const getLogs = async ({ page = 1, limit = 50, action, resource, userId }) => {
     };
 };
 
-export { log, getLogs };
+

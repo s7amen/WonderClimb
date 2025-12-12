@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import Loading from './Loading';
 import EmptyState from './EmptyState';
@@ -23,10 +24,29 @@ const LoadingContainer = ({
     children,
     className = '',
 }) => {
+    const [showLoading, setShowLoading] = useState(false);
+
+    useEffect(() => {
+        let timeout;
+        if (loading) {
+            // Delay showing the loader by 200ms
+            timeout = setTimeout(() => {
+                setShowLoading(true);
+            }, 200);
+        } else {
+            setShowLoading(false);
+        }
+        return () => clearTimeout(timeout);
+    }, [loading]);
+
     // Loading state
     if (loading) {
+        // If we are loading but delay hasn't passed, show nothing (or previous content if we could, but here we just return null to avoid flicker)
+        if (!showLoading) {
+            return <div className={`py-12 ${className} opacity-0`}></div>; // Placeholder to prevent layout shift if needed, or just null
+        }
         return (
-            <div className={`flex items-center justify-center py-12 ${className}`}>
+            <div className={`flex items-center justify-center py-12 ${className} animate-fadeIn`}>
                 <Loading text={loadingText} />
             </div>
         );

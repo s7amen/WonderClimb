@@ -2,7 +2,7 @@ import React from 'react';
 
 const ClimbingLoader = ({ text = "Loading", className = "" }) => {
     return (
-        <div id="climbing-loader" className={`flex flex - col items - center justify - center p - 8 ${className} `}>
+        <div id="climbing-loader" className={`flex flex-col items-center pt-[40px] p-8 ${className}`}>
 
             <div className="relative w-64 h-96">
                 <svg viewBox="0 0 200 350" className="w-full h-full drop-shadow-xl">
@@ -15,7 +15,7 @@ const ClimbingLoader = ({ text = "Loading", className = "" }) => {
                     </defs>
 
                     {/* ROPE (Bottom layer, but draws last) */}
-                    <path d="M40,320 L50,220 L140,160 L70,50"
+                    <path d="M30,320 L50,230 L130,170 L60,100 L100,50"
                         fill="none"
                         stroke="#ed8936"
                         strokeWidth="3"
@@ -26,32 +26,50 @@ const ClimbingLoader = ({ text = "Loading", className = "" }) => {
                     {/* 1. START (Hold) */}
                     <path d="M20,310 Q40,300 60,320 Q50,340 30,335 Z" fill="#4299e1" className="rock rock-1" />
 
-                    {/* 2. FIRST QUICKDRAW */}
-                    {/* Hold */}
-                    <path d="M40,190 Q65,185 70,210 Q45,220 40,190 Z" fill="#f56565" className="rock rock-2" />
-                    {/* Quickdraw hanging from hold */}
-                    <use href="#quickdraw-symbol" x="55" y="200" className="draw draw-1" />
-
-                    {/* 3. SECOND QUICKDRAW */}
-                    {/* Hold */}
-                    <path d="M130,130 Q160,135 150,160 Q120,155 130,130 Z" fill="#ecc94b" className="rock rock-3" />
-                    {/* Quickdraw */}
-                    <use href="#quickdraw-symbol" x="140" y="140" className="draw draw-2" />
-
-                    {/* 4. TOP (ANCHOR) */}
-                    <g className="anchor anchor-anim">
+                    {/* 2. FIRST QUICKDRAW (Low Left) */}
+                    <g className="rock-group-2">
                         {/* Hold */}
-                        <path d="M50,30 Q90,20 100,50 Q60,70 50,30 Z" fill="#48bb78" />
+                        <path d="M40,220 Q65,215 70,240 Q45,250 40,220 Z" fill="#f56565" className="rock" />
+                        {/* Quickdraw */}
+                        <use href="#quickdraw-symbol" x="55" y="230" className="draw" />
+                    </g>
+
+                    {/* 3. NEW EXTRA HOLD (Mid Right) */}
+                    <g className="rock-group-3">
+                        {/* Hold */}
+                        <path d="M120,160 Q150,155 145,185 Q115,190 120,160 Z" fill="#805ad5" className="rock" />
+                        {/* Quickdraw */}
+                        <use href="#quickdraw-symbol" x="135" y="170" className="draw" />
+                    </g>
+
+                    {/* 4. THIRD QUICKDRAW (High Left - was second) */}
+                    <g className="rock-group-4">
+                        {/* Hold */}
+                        <path d="M50,90 Q80,85 75,115 Q45,120 50,90 Z" fill="#ecc94b" className="rock" />
+                        {/* Quickdraw */}
+                        <use href="#quickdraw-symbol" x="65" y="100" className="draw" />
+                    </g>
+
+                    {/* 5. TOP (ANCHOR) */}
+                    <g className="anchor anchor-anim">
+                        {/* Hold - shifted right to 100 */}
+                        <path d="M80,30 Q120,20 130,50 Q90,70 80,30 Z" fill="#48bb78" />
                         {/* Chain/Ring */}
-                        <circle cx="70" cy="50" r="6" stroke="white" strokeWidth="2" fill="none" />
+                        <circle cx="100" cy="50" r="6" stroke="white" strokeWidth="2" fill="none" />
                     </g>
                 </svg>
             </div>
 
-            <div className="z-10 text-center mt-6">
-                <h2 className="text-xl font-bold tracking-widest uppercase text-gray-700">{text}</h2>
-                <div className="h-1 w-24 bg-gray-200 mx-auto mt-2 rounded overflow-hidden">
-                    <div className="h-full bg-orange-500 animate-[width_2s_ease-out_forwards]" style={{ width: '0%', animationName: 'loadingBar', animationDuration: '2s', animationFillMode: 'forwards' }}></div>
+            <div className="z-10 text-center mt-[40px]">
+                <div className="inline-flex flex-col items-center">
+                    <button className="px-6 py-2 bg-white border border-gray-200 rounded-full shadow-sm text-sm font-medium text-gray-700 uppercase tracking-widest flex items-center gap-2">
+                        {text === "Loading" ? "Зареждане..." : text}
+                        <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                        </span>
+                    </button>
+                    {/* Old loading bar removed as requested to be a "button" style, or can keep it inside? User said "Pod nachaloto... da e buton". I'll stick to the button look. */}
                 </div>
             </div>
         </div>
