@@ -5,6 +5,15 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/assets/:path*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
       "source": "/manifest.json",
       "headers": [
         {
@@ -29,7 +38,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!manifest\\.json|manifest\\.webmanifest|sw\\.js|workbox-.*\\.js|favicon\\.svg|logo-icon\\.svg|registerSW\\.js|.*\\.(js|css|png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|eot)).*)",
+      "source": "/((?!assets|manifest\\.json|manifest\\.webmanifest|sw\\.js|workbox-.*\\.js|favicon\\.svg|logo-icon\\.svg|registerSW\\.js|icons|images|.*\\.(js|css|png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|eot)).*)",
       "destination": "/index.html"
     }
   ]

@@ -28,13 +28,19 @@ const lazyWithRetry = (importFn, options = {}) => {
       const module = await importFn();
       return module;
     } catch (error) {
-      // Check if it's a network/chunk loading error
+      // Check if it's a network/chunk loading error or MIME type error
       const isChunkError = 
         error.message?.includes('Failed to fetch dynamically imported module') ||
         error.message?.includes('Loading chunk') ||
         error.message?.includes('ChunkLoadError') ||
+        error.message?.includes('MIME type') ||
+        error.message?.includes('Expected a JavaScript') ||
         error.name === 'ChunkLoadError' ||
-        (error.name === 'TypeError' && error.message?.includes('fetch'));
+        (error.name === 'TypeError' && (
+          error.message?.includes('fetch') ||
+          error.message?.includes('MIME type') ||
+          error.message?.includes('module script')
+        ));
 
       if (isChunkError && attempt < retries) {
         // Calculate exponential backoff delay

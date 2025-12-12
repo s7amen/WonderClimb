@@ -7,6 +7,7 @@ import Input from './Input';
 import Logo from './Logo';
 import BaseModal from './BaseModal';
 import FormField from './FormField';
+import GoogleButton from './GoogleButton';
 
 const LoginModal = ({ isOpen, onClose, onLoginSuccess, showRegisterLink = true }) => {
   const navigate = useNavigate();
@@ -122,6 +123,19 @@ const LoginModal = ({ isOpen, onClose, onLoginSuccess, showRegisterLink = true }
           {loading ? 'Влизане...' : 'Влез'}
         </Button>
       </form>
+
+      {/* Divider */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-white text-gray-500">или</span>
+        </div>
+      </div>
+
+      {/* Google OAuth Button */}
+      <GoogleButton disabled={loading} className="w-full" />
 
       {showRegisterLink && (
         <div className="mt-6 text-center">
