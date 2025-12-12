@@ -234,6 +234,10 @@ const TrainingSettings = () => {
 
       await settingsAPI.updateSettings(settings);
       setInitialSettings(JSON.stringify(settings)); // Update initial state after save
+      
+      // Invalidate training labels cache so other pages fetch fresh data
+      localStorage.removeItem('wonderclimb-training-labels');
+      
       showToast('Настройките са запазени успешно', 'success');
     } catch (error) {
       showToast('Грешка при запазване на настройки', 'error');

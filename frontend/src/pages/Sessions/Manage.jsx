@@ -123,7 +123,39 @@ const Sessions = () => {
   }, []);
 
   const fetchSettings = async () => {
+    const CACHE_KEY = 'wonderclimb-training-labels';
+
+    // Helper to validate cached data structure
+    const isValidCache = (data) => {
+      return data &&
+        Array.isArray(data.targetGroups) &&
+        Array.isArray(data.ageGroups) &&
+        typeof data.visibility === 'object';
+    };
+
     try {
+      // Check cache first - no TTL, cache is invalidated only when settings are saved
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Handle old format { data, timestamp } or new format (direct object)
+        const labels = data.data || data;
+        if (isValidCache(labels)) {
+          setTrainingLabels(labels);
+
+          // Set default age groups for forms if available
+          const defaultAgeGroups = labels.ageGroups.map(g => g.label);
+          if (defaultAgeGroups.length > 0) {
+            setFormData(prev => ({ ...prev, ageGroups: defaultAgeGroups }));
+            setBulkFormData(prev => ({ ...prev, ageGroups: defaultAgeGroups }));
+          }
+          return;
+        }
+        // Invalid cache, remove it
+        localStorage.removeItem(CACHE_KEY);
+      }
+
+      // Fetch from API only if cache is missing or invalid
       const response = await settingsAPI.getSettings();
       const loadedSettings = response.data.settings || {};
       const labels = {
@@ -139,6 +171,9 @@ const Sessions = () => {
         }
       };
       setTrainingLabels(labels);
+
+      // Save to cache (no timestamp needed - invalidated only when settings are saved)
+      localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
 
       // Set default age groups for forms if available
       const defaultAgeGroups = labels.ageGroups.map(g => g.label);
@@ -530,15 +565,288 @@ const Sessions = () => {
     }
   };
 
-  const handleBulkDeleteClick = () => {
+  // Bulk Delete Analysis
+  const [bulkDeleteAnalysis, setBulkDeleteAnalysis] = useState(null);
+
+  // Bulk Edit State
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState({});
+  const [initialBulkValues, setInitialBulkValues] = useState({}); // To detect mixed values
+
+  const getCommonValue = (sessions, field, compareFn = (a, b) => a === b) => {
+    if (sessions.length === 0) return null;
+    const firstVal = sessions[0][field];
+
+    // For arrays (coaches, groups), we need deep comparison if not provided
+    if (Array.isArray(firstVal)) {
+      const areArraysEqual = (arr1, arr2) => {
+        if (arr1.length !== arr2.length) return false;
+        // Simple sort and compare for IDs/Slugs
+        const sorted1 = [...arr1].sort();
+        const sorted2 = [...arr2].sort();
+        return sorted1.every((val, index) => val === sorted2[index]);
+      };
+
+      const allSame = sessions.every(s => areArraysEqual(s[field] || [], firstVal || []));
+      return allSame ? firstVal : 'MIXED';
+    }
+
+    // For primitives
+    const allSame = sessions.every(s => s[field] === firstVal);
+    return allSame ? firstVal : 'MIXED';
+  };
+
+  const handleBulkEditClick = () => {
+    const selectedSessionsList = sessions.filter(s => selectedSessionIds.includes(s._id));
+    if (selectedSessionsList.length === 0) return;
+
+    // Normalize coaches to IDs for comparison
+    const normalizedSessions = selectedSessionsList.map(s => ({
+      ...s,
+      coachIds: s.coachIds?.map(c => c._id || c) || [],
+    }));
+
+    const commonValues = {
+      title: getCommonValue(normalizedSessions, 'title'),
+      description: getCommonValue(normalizedSessions, 'description'),
+      durationMinutes: getCommonValue(normalizedSessions, 'durationMinutes'),
+      capacity: getCommonValue(normalizedSessions, 'capacity'),
+      coachIds: getCommonValue(normalizedSessions, 'coachIds'),
+      targetGroups: getCommonValue(normalizedSessions, 'targetGroups'),
+      ageGroups: getCommonValue(normalizedSessions, 'ageGroups'),
+    };
+
+    setInitialBulkValues(commonValues);
+
+    // Initialize form data - if MIXED, leave empty or set to specific placeholder logic handled in UI
+    // We will use 'undefined' or special value for mixed in the form to denote "no change unless touched"
+    setBulkEditData({
+      title: commonValues.title === 'MIXED' ? '' : commonValues.title,
+      description: commonValues.description === 'MIXED' ? '' : commonValues.description,
+      durationMinutes: commonValues.durationMinutes === 'MIXED' ? '' : commonValues.durationMinutes,
+      capacity: commonValues.capacity === 'MIXED' ? '' : commonValues.capacity,
+      coachIds: commonValues.coachIds === 'MIXED' ? [] : commonValues.coachIds,
+      targetGroups: commonValues.targetGroups === 'MIXED' ? [] : commonValues.targetGroups,
+      ageGroups: commonValues.ageGroups === 'MIXED' ? [] : commonValues.ageGroups,
+    });
+
+    setShowBulkEditModal(true);
+  };
+
+  const confirmBulkEdit = async (e) => {
+    e.preventDefault();
+    if (selectedSessionIds.length === 0) return;
+
+    setLoading(true);
+    try {
+      // Determine changed fields
+      const updates = {};
+
+      // Helper to check if field changed from initial "Common/Mixed" state
+      // Logic: If user touched a Mixed field, we update. 
+      // If user changed a Common field, we update.
+      // We can track this by comparing current bulkEditData with initialBulkValues
+      // BUT: If initial was 'MIXED', any value in bulkEditData (even empty) might be a desired change?
+      // No, usually UX is: Mixed fields are shown as "Mixed". If user sets a value, it applies to all.
+      // If user leaves it as "Mixed" (or empty), we don't update that field.
+
+      // Simpler approach: We only include fields in the update payload that have valid values
+      // AND we need a way to know if the user explicitly cleared a field.
+      // Let's assume for this version:
+      // Valid value entered -> Update all.
+      // Checks for modifications:
+
+      const isModified = (field, value, initial) => {
+        if (initial === 'MIXED') {
+          // If it was mixed, we only update if the user provided a specific non-empty/valid value
+          // Or if they explicitly cleared it? 
+          // For simplicity: If arrays are empty, we assume "No Change" if it was mixed.
+          // If primitives are empty/null, we assume "No Change" if it was mixed.
+          if (Array.isArray(value)) return value.length > 0;
+          return value !== '' && value !== null && value !== undefined;
+        }
+        // If it wasn't mixed, we update if value is different
+        return value !== initial;
+      };
+
+      if (isModified('title', bulkEditData.title, initialBulkValues.title)) updates.title = bulkEditData.title;
+      if (isModified('description', bulkEditData.description, initialBulkValues.description)) updates.description = bulkEditData.description;
+      if (isModified('durationMinutes', bulkEditData.durationMinutes, initialBulkValues.durationMinutes)) updates.durationMinutes = parseInt(bulkEditData.durationMinutes);
+      if (isModified('capacity', bulkEditData.capacity, initialBulkValues.capacity)) updates.capacity = parseInt(bulkEditData.capacity);
+
+      // For arrays, simple length check might not be enough if user WANTS to clear tags.
+      // But standard "Mixed" UI usually requires an explicit "Clear" action or "Set" action.
+      // Here: If user selects items in the list, we overwrite. 
+      // If list is empty AND initial was unique (not mixed), we assume they cleared it.
+      // If list is empty AND initial was MIXED, we assume they didn't touch it.
+
+      if (initialBulkValues.coachIds !== 'MIXED' || bulkEditData.coachIds.length > 0) {
+        if (JSON.stringify(bulkEditData.coachIds.sort()) !== JSON.stringify((initialBulkValues.coachIds === 'MIXED' ? [] : initialBulkValues.coachIds).sort())) {
+          updates.coachIds = bulkEditData.coachIds;
+        }
+      }
+
+      if (initialBulkValues.targetGroups !== 'MIXED' || bulkEditData.targetGroups.length > 0) {
+        if (JSON.stringify(bulkEditData.targetGroups.sort()) !== JSON.stringify((initialBulkValues.targetGroups === 'MIXED' ? [] : initialBulkValues.targetGroups).sort())) {
+          updates.targetGroups = bulkEditData.targetGroups;
+        }
+      }
+
+      if (initialBulkValues.ageGroups !== 'MIXED' || bulkEditData.ageGroups.length > 0) {
+        if (JSON.stringify(bulkEditData.ageGroups.sort()) !== JSON.stringify((initialBulkValues.ageGroups === 'MIXED' ? [] : initialBulkValues.ageGroups).sort())) {
+          updates.ageGroups = bulkEditData.ageGroups;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        setShowBulkEditModal(false);
+        showToast('Няма промени за запазване', 'info');
+        setLoading(false);
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const sessionId of selectedSessionIds) {
+        try {
+          // We need to merge with existing session data to be safe, 
+          // but update endpoint usually accepts partial. 
+          // Let's assume `sessionsAPI.update` handles partials or we might need to fetch-merge-save.
+          // Based on `handleSubmit` (single edit), it sends full object.
+          // Let's check `sessionsAPI.update`. Assuming it's PATCH-like or PUT-like.
+          // Safety: We will merge updates into the specific session's current data if needed, 
+          // or rely on backend. Most standard Mongoose/backend designs allow partials or we pass full obj.
+          // Looking at `handleSubmit`: it re-constructs the whole object.
+          // To be safe, let's merge with the session's existing data from state.
+
+          const session = sessions.find(s => s._id === sessionId);
+          if (!session) continue;
+
+          const sessionDate = new Date(session.date);
+
+          // Re-construct full object ensuring we don't lose data
+          // We only override the fields present in `updates`
+          const mergedData = {
+            title: updates.title !== undefined ? updates.title : session.title,
+            description: updates.description !== undefined ? updates.description : (session.description || ''),
+            date: session.date, // Preserve original date
+            durationMinutes: updates.durationMinutes !== undefined ? updates.durationMinutes : session.durationMinutes,
+            capacity: updates.capacity !== undefined ? updates.capacity : session.capacity,
+            coachIds: updates.coachIds !== undefined ? updates.coachIds : (session.coachIds?.map(c => c._id || c) || []),
+            targetGroups: updates.targetGroups !== undefined ? updates.targetGroups : (session.targetGroups || []),
+            ageGroups: updates.ageGroups !== undefined ? updates.ageGroups : (session.ageGroups || []),
+          };
+
+          await sessionsAPI.update(sessionId, mergedData);
+          successCount++;
+
+          // Optimistic Update in State
+          setSessions(prev => prev.map(s => {
+            if (s._id === sessionId) {
+              return {
+                ...s,
+                ...updates, // This applies the simplified updates
+                // For arrays, we just set them. 
+                // Note: we need to handle populated fields like 'coachIds' if UI expects objects?
+                // SessionList usually handles IDs or Objects robustly? 
+                // Let's check: SessionList usually displays data. 
+                // If we update coachIds to [id1,], but session had [{_id: id1...}], 
+                // we might break UI temporarily until refresh. 
+                // Fix: We should update with "rich" objects if possible or rely on re-fetch.
+                // A simple re-fetch of all sessions might be safer but slower.
+                // Let's try to map IDs back to Coach Objects from `coaches` state for the UI update.
+              };
+            }
+            return s;
+          }));
+
+        } catch (error) {
+          console.error(`Error updating session ${sessionId}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Refresh data to ensure consistency (especially for populated fields like coaches)
+      fetchSessions();
+
+      if (errorCount > 0) {
+        showToast(`Обновени ${successCount} тренировки, ${errorCount} грешки`, 'warning');
+      } else {
+        showToast(`Успешно обновени ${successCount} тренировки`, 'success');
+      }
+
+      setShowBulkEditModal(false);
+      setSelectedSessionIds([]);
+    } catch (error) {
+      showToast('Грешка при масово обновяване', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDeleteClick = async () => {
     if (selectedSessionIds.length === 0) {
       showToast('Моля, изберете поне една тренировка за изтриване', 'error');
       return;
     }
-    setShowBulkDeleteModal(true);
+
+    try {
+      setLoading(true); // Small loading indicator while checking
+
+      // Analyze all selected sessions
+      const analysis = {
+        total: selectedSessionIds.length,
+        withAttendance: 0,
+        withBookings: 0,
+        sessionsWithAttendance: [],
+        sessionsWithBookings: [],
+        safeToDelete: 0
+      };
+
+      // We need to check each session
+      // Using Promise.all for parallel execution
+      const checkPromises = selectedSessionIds.map(async (sessionId) => {
+        try {
+          const response = await sessionsAPI.checkRelatedData(sessionId);
+          return { id: sessionId, data: response.data };
+        } catch (error) {
+          console.error(`Error checking session ${sessionId}:`, error);
+          return { id: sessionId, error: true };
+        }
+      });
+
+      const results = await Promise.all(checkPromises);
+
+      results.forEach(result => {
+        if (result.error) return; // Skip errored checks
+
+        const { attendanceRecords, bookings } = result.data;
+        const totalBookings = bookings?.total || 0;
+
+        if (attendanceRecords > 0) {
+          analysis.withAttendance++;
+          const session = sessions.find(s => s._id === result.id);
+          if (session) analysis.sessionsWithAttendance.push(session.title);
+        } else if (totalBookings > 0) {
+          analysis.withBookings++;
+          const session = sessions.find(s => s._id === result.id);
+          if (session) analysis.sessionsWithBookings.push(session.title);
+        } else {
+          analysis.safeToDelete++;
+        }
+      });
+
+      setBulkDeleteAnalysis(analysis);
+      setShowBulkDeleteModal(true);
+    } catch (error) {
+      showToast('Грешка при проверка на избраните тренировки', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const confirmBulkDelete = async () => {
+  const confirmBulkDelete = async (actionType = 'cancel') => {
     if (selectedSessionIds.length === 0) return;
 
     setIsDeleting(true);
@@ -547,30 +855,52 @@ const Sessions = () => {
       let errorCount = 0;
       const successfulIds = [];
 
+      // Loop through selected IDs
       for (const sessionId of selectedSessionIds) {
         try {
-          await sessionsAPI.update(sessionId, { status: 'cancelled' });
+          if (actionType === 'delete') {
+            // Hard Delete
+            // Skip if this specific session has attendance (double check protection)
+            // Ideally UI prevents this, but safety first
+            // We rely on the user understanding the bulk action applies to all
+            await sessionsAPI.deleteSession(sessionId);
+          } else {
+            // Soft Delete (Cancel)
+            await sessionsAPI.update(sessionId, { status: 'cancelled' });
+          }
+
           successfulIds.push(sessionId);
           successCount++;
         } catch (error) {
-          console.error('Error deleting session:', error);
+          console.error(`Error processing session ${sessionId}:`, error);
           errorCount++;
         }
       }
 
-      // Премахваме успешно изтритите сесии от масива
+      // Remove successful sessions from state
       if (successfulIds.length > 0) {
         setSessions(prev => prev.filter(s => !successfulIds.includes(s._id)));
       }
 
       if (errorCount > 0) {
-        showToast(`Изтрити ${successCount} тренировки, ${errorCount} грешки`, 'warning');
+        showToast(
+          `Обработени ${successCount} тренировки, ${errorCount} грешки`,
+          'warning'
+        );
+      } else {
+        showToast(
+          actionType === 'delete'
+            ? 'Тренировките бяха изтрити успешно'
+            : 'Тренировките бяха отказани успешно',
+          'success'
+        );
       }
 
       setSelectedSessionIds([]);
       setShowBulkDeleteModal(false);
+      setBulkDeleteAnalysis(null);
     } catch (error) {
-      showToast('Грешка при масово изтриване', 'error');
+      showToast('Грешка при масова операция', 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -1837,40 +2167,107 @@ const Sessions = () => {
       </ConfirmDialog>
 
       {/* Bulk Delete Confirmation Modal */}
-      <ConfirmDialog
-        isOpen={showBulkDeleteModal}
-        onClose={() => setShowBulkDeleteModal(false)}
-        onConfirm={confirmBulkDelete}
-        title="Масово изтриване на тренировки"
-        message={`Сигурни ли сте, че искате да изтриете ${selectedSessionIds.length} тренировки?`}
-        confirmText={isDeleting ? 'Изтриване...' : `Потвърди изтриване (${selectedSessionIds.length})`}
-        cancelText="Отказ"
-        variant="danger"
-        disabled={isDeleting}
-      >
-        <div className="mb-4">
-          <h3 className="text-sm sm:text-[16px] font-medium text-neutral-950 mb-3">Избрани тренировки за изтриване:</h3>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {selectedSessionIds.map(sessionId => {
-              const session = sessions.find(s => s._id === sessionId);
-              if (!session) return null;
-              const formatTime = (date) => format(new Date(date), 'HH:mm');
-              const getEndTime = (startDate, durationMinutes) => {
-                const end = new Date(new Date(startDate).getTime() + durationMinutes * 60000);
-                return format(end, 'HH:mm');
-              };
-              return (
-                <div key={sessionId} className="p-3 bg-[#f3f3f5] rounded-[10px] border border-[rgba(0,0,0,0.1)]">
-                  <div className="text-sm sm:text-[16px] font-medium text-neutral-950">{session.title}</div>
-                  <div className="text-sm text-[#4a5565] mt-1">
-                    {format(new Date(session.date), 'PPpp')} - {formatTime(session.date)} - {getEndTime(session.date, session.durationMinutes)}
-                  </div>
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-xl w-full">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">
+              Изтриване на {selectedSessionIds.length} тренировки
+            </h2>
+
+            <div className="mb-6 space-y-4">
+              {/* Analysis Summary */}
+              {bulkDeleteAnalysis && (
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm">
+                  <p className="font-medium mb-2">Анализ на избраните тренировки:</p>
+
+                  {bulkDeleteAnalysis.withAttendance > 0 && (
+                    <div className="flex items-start gap-2 text-red-600 mb-2">
+                      <span className="text-lg">⚠️</span>
+                      <div>
+                        <strong>{bulkDeleteAnalysis.withAttendance}</strong> тренировки имат записани посещения.
+                        <p className="text-xs text-red-500 mt-1">
+                          Тези тренировки НЕ могат да бъдат изтрити напълно, за да се запази историята.
+                          Можете само да ги "Откажете".
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkDeleteAnalysis.withBookings > 0 && (
+                    <div className="flex items-start gap-2 text-orange-600 mb-2">
+                      <span className="text-lg">⚠️</span>
+                      <div>
+                        <strong>{bulkDeleteAnalysis.withBookings}</strong> тренировки имат резервации (без посещения).
+                        <p className="text-xs text-orange-500 mt-1">
+                          Ако ги изтриете напълно, резервациите също ще бъдат изтрити!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkDeleteAnalysis.safeToDelete > 0 && (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <span className="text-lg">✓</span>
+                      <span>
+                        <strong>{bulkDeleteAnalysis.safeToDelete}</strong> тренировки са чисти и могат да бъдат изтрити безопасно.
+                      </span>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              )}
+
+              <p className="text-gray-600">
+                Моля изберете действие:
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {/* Option 1: Cancel (Soft Delete) - Always Available */}
+              <button
+                onClick={() => confirmBulkDelete('cancel')}
+                disabled={isDeleting}
+                className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                <div className="flex flex-col items-start">
+                  <span className="font-medium text-gray-900">Откажи тренировките</span>
+                  <span className="text-sm text-gray-500">Скрива ги от графика, но запазва историята.</span>
+                </div>
+                {isDeleting ? <span className="text-sm text-gray-500">Processing...</span> : <span className="text-blue-600">Препоръчително</span>}
+              </button>
+
+              {/* Option 2: Delete (Hard Delete) - Conditionally Available */}
+              <button
+                onClick={() => confirmBulkDelete('delete')}
+                disabled={isDeleting || (bulkDeleteAnalysis && bulkDeleteAnalysis.withAttendance > 0)}
+                className={`w-full flex items-center justify-between p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors ${(bulkDeleteAnalysis && bulkDeleteAnalysis.withAttendance > 0)
+                  ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+                  : 'border-red-200 hover:bg-red-50'
+                  }`}
+              >
+                <div className="flex flex-col items-start">
+                  <span className={`font-medium ${bulkDeleteAnalysis?.withAttendance > 0 ? 'text-gray-400' : 'text-red-700'}`}>
+                    Изтрий завинаги
+                  </span>
+                  <span className="text-sm text-gray-400">
+                    {bulkDeleteAnalysis?.withAttendance > 0
+                      ? 'Недостъпно (има посещения)'
+                      : 'Премахва всичко от базата данни. Няма връщане назад!'}
+                  </span>
+                </div>
+              </button>
+
+              <div className="mt-2 text-center">
+                <button
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-sm font-medium px-4 py-2"
+                >
+                  Затвори прозореца
+                </button>
+              </div>
+            </div>
+          </Card>
         </div>
-      </ConfirmDialog>
+      )}
 
       {/* Edit Session Modal */}
       {
@@ -2049,6 +2446,188 @@ const Sessions = () => {
         )
       }
 
+      {/* Bulk Edit Modal */}
+      {showBulkEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-2">Редактиране на {selectedSessionIds.length} тренировки</h2>
+            <p className="text-sm text-gray-500 mb-6 border-b pb-4">
+              Промените ще бъдат приложени за всички избрани тренировки.
+              Полетата с "Различни стойности" няма да бъдат променени, освен ако не въведете нова стойност.
+            </p>
+
+            <form onSubmit={confirmBulkEdit}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Заглавие
+                </label>
+                <input
+                  type="text"
+                  list="session-titles-bulk-edit"
+                  value={bulkEditData.title}
+                  onChange={(e) => setBulkEditData({ ...bulkEditData, title: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 
+                      ${initialBulkValues.title === 'MIXED' && !bulkEditData.title ? 'border-orange-300 bg-orange-50 placeholder-orange-400' : 'border-gray-300'}
+                    `}
+                  placeholder={initialBulkValues.title === 'MIXED' ? "Различни стойности (оставете празно за без промяна)" : "Заглавие"}
+                />
+                <datalist id="session-titles-bulk-edit">
+                  {getUniqueTitles().map((title, index) => (
+                    <option key={index} value={title} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Описание
+                </label>
+                <textarea
+                  value={bulkEditData.description}
+                  onChange={(e) => setBulkEditData({ ...bulkEditData, description: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-md
+                      ${initialBulkValues.description === 'MIXED' && !bulkEditData.description ? 'border-orange-300 bg-orange-50 placeholder-orange-400' : 'border-gray-300'}
+                    `}
+                  placeholder={initialBulkValues.description === 'MIXED' ? "Различни стойности (оставете празно за без промяна)" : "Описание"}
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <Input
+                  label="Продължителност (минути)"
+                  type="number"
+                  value={bulkEditData.durationMinutes}
+                  onChange={(e) => setBulkEditData({ ...bulkEditData, durationMinutes: e.target.value })}
+                  min={1}
+                  placeholder={initialBulkValues.durationMinutes === 'MIXED' ? "Различни" : ""}
+                  className={initialBulkValues.durationMinutes === 'MIXED' && !bulkEditData.durationMinutes ? 'border-orange-300 bg-orange-50 placeholder-orange-400' : ''}
+                />
+                <Input
+                  label="Капацитет"
+                  type="number"
+                  value={bulkEditData.capacity}
+                  onChange={(e) => setBulkEditData({ ...bulkEditData, capacity: e.target.value })}
+                  min={1}
+                  placeholder={initialBulkValues.capacity === 'MIXED' ? "Различни" : ""}
+                  className={initialBulkValues.capacity === 'MIXED' && !bulkEditData.capacity ? 'border-orange-300 bg-orange-50 placeholder-orange-400' : ''}
+                />
+              </div>
+
+              {trainingLabels.targetGroups.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Подходящо за {initialBulkValues.targetGroups === 'MIXED' && <span className="text-orange-500 text-xs font-normal">(Различни стойности)</span>}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {trainingLabels.targetGroups.map((group) => (
+                      <button
+                        key={group.slug}
+                        type="button"
+                        onClick={() => {
+                          setBulkEditData(prev => ({
+                            ...prev,
+                            targetGroups: prev.targetGroups.includes(group.slug)
+                              ? prev.targetGroups.filter(g => g !== group.slug)
+                              : [...prev.targetGroups, group.slug]
+                          }));
+                        }}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors border ${bulkEditData.targetGroups.includes(group.slug)
+                          ? 'text-white border-transparent'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        style={{
+                          backgroundColor: bulkEditData.targetGroups.includes(group.slug) ? (group.color || '#3b82f6') : undefined,
+                          borderColor: !bulkEditData.targetGroups.includes(group.slug) ? undefined : 'transparent'
+                        }}
+                      >
+                        {group.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {trainingLabels.ageGroups.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Години {initialBulkValues.ageGroups === 'MIXED' && <span className="text-orange-500 text-xs font-normal">(Различни стойности)</span>}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {trainingLabels.ageGroups.map((group) => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => {
+                          setBulkEditData(prev => ({
+                            ...prev,
+                            ageGroups: prev.ageGroups.includes(group.label)
+                              ? prev.ageGroups.filter(a => a !== group.label)
+                              : [...prev.ageGroups, group.label]
+                          }));
+                        }}
+                        className={`px-3 py-1 rounded text-sm font-normal transition-colors ${bulkEditData.ageGroups.includes(group.label)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          }`}
+                      >
+                        {group.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Треньори {initialBulkValues.coachIds === 'MIXED' && <span className="text-orange-500 text-xs font-normal">(Различни стойности)</span>}
+                </label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded p-2">
+                  {coaches.length === 0 ? (
+                    <p className="text-sm text-gray-500">Няма налични треньори.</p>
+                  ) : (
+                    coaches.map((coach) => (
+                      <label key={coach.id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={bulkEditData.coachIds.includes(coach.id)}
+                          onChange={() => {
+                            setBulkEditData(prev => ({
+                              ...prev,
+                              coachIds: prev.coachIds.includes(coach.id)
+                                ? prev.coachIds.filter(id => id !== coach.id)
+                                : [...prev.coachIds, coach.id]
+                            }));
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">
+                          {coach.firstName ? `${coach.firstName} ${coach.lastName}` : coach.name || coach.email}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 justify-end mt-6">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowBulkEditModal(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Отказ
+                </Button>
+                <Button type="submit" variant="primary" className="w-full sm:w-auto">
+                  Запази промените
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
       {/* Filters Card */}
       <SessionFilters
         selectedDays={selectedDays}
@@ -2092,19 +2671,26 @@ const Sessions = () => {
         </div>
       </div>
 
-      {/* Bulk Delete Button */}
+      {/* Bulk Action Bar */}
       {selectedSessionIds.length > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row gap-3 items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm sticky top-4 z-10">
           <span className="text-sm font-medium text-gray-700">
             Избрани: {selectedSessionIds.length}
           </span>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             <Button
               onClick={handleDuplicateClick}
+              variant="outline"
+              className="flex-1 sm:flex-none border-blue-200 text-blue-700 hover:bg-blue-50"
+            >
+              Дублирай
+            </Button>
+            <Button
+              onClick={handleBulkEditClick}
               variant="primary"
               className="flex-1 sm:flex-none"
             >
-              Дублирай избраните
+              Редактирай
             </Button>
             <Button
               onClick={handleBulkDeleteClick}
@@ -2112,7 +2698,7 @@ const Sessions = () => {
               variant="outline"
               className="flex-1 sm:flex-none text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
             >
-              {isDeleting ? 'Изтриване...' : 'Изтрий'}
+              Details
             </Button>
           </div>
         </div>

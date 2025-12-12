@@ -204,7 +204,32 @@ const Sessions = () => {
   };
 
   const fetchSettings = async () => {
+    const CACHE_KEY = 'wonderclimb-training-labels';
+
+    // Helper to validate cached data structure
+    const isValidCache = (data) => {
+      return data && 
+        Array.isArray(data.targetGroups) && 
+        Array.isArray(data.ageGroups) && 
+        typeof data.visibility === 'object';
+    };
+
     try {
+      // Check cache first - no TTL, cache is invalidated only when settings are saved
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        // Handle old format { data, timestamp } or new format (direct object)
+        const labels = data.data || data;
+        if (isValidCache(labels)) {
+          setTrainingLabels(labels);
+          return;
+        }
+        // Invalid cache, remove it
+        localStorage.removeItem(CACHE_KEY);
+      }
+
+      // Fetch from API only if cache is missing or invalid
       const response = await settingsAPI.getSettings();
       const loadedSettings = response.data.settings || {};
       const labels = {
@@ -220,6 +245,9 @@ const Sessions = () => {
         }
       };
       setTrainingLabels(labels);
+
+      // Save to cache (no timestamp needed - invalidated only when settings are saved)
+      localStorage.setItem(CACHE_KEY, JSON.stringify(labels));
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
