@@ -882,50 +882,6 @@ const Sessions = () => {
 
       {/* Main Content - Schedule */}
       <div className="flex-1 min-w-0">
-        {/* Bulk Actions */}
-        {isAuthenticated && selectedSessionIds.length > 0 && (
-          <>
-            {/* Mobile sticky button - always visible at bottom */}
-            <div className="lg:hidden fixed [bottom:calc(4rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 bg-white shadow-md px-4 py-3">
-              <Button
-                onClick={handleBulkBook}
-                disabled={isBulkBooking}
-                variant="primary"
-                className="w-full text-sm py-3 flex items-center justify-center gap-2"
-              >
-                {isBulkBooking ? (
-                  'Запазване...'
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    {`Запази всички маркирани (${selectedSessionIds.length})`}
-                  </>
-                )}
-              </Button>
-            </div>
-            {/* Desktop fixed button - centered */}
-            <Button
-              onClick={handleBulkBook}
-              disabled={isBulkBooking}
-              variant="primary"
-              className="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg text-lg py-3 px-6 items-center gap-2"
-            >
-              {isBulkBooking ? (
-                'Запазване...'
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  {`Запази всички маркирани (${selectedSessionIds.length})`}
-                </>
-              )}
-            </Button>
-          </>
-        )}
-
         {/* Маркирай всички бутон - точно над графика в дясно */}
         <div className="flex justify-end items-center gap-2 mb-1">
           {isAuthenticated && (hasActiveFilters() || selectedSessionIds.length > 0) && (
@@ -1125,6 +1081,52 @@ const Sessions = () => {
         variant="sticky"
         hideWhenBulkBooking={selectedSessionIds.length > 0}
       />
+
+      {/* Sticky Bulk Booking Button - Outside animated div for proper fixed positioning */}
+      {isAuthenticated && selectedSessionIds.length > 0 && (
+        <>
+          {/* Mobile sticky button - positioned above mobile menu */}
+          <div className="lg:hidden fixed bottom-16 left-0 right-0 z-[60] bg-white shadow-lg border-t border-gray-200 px-4 py-3" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+            <Button
+              onClick={handleBulkBook}
+              disabled={isBulkBooking}
+              variant="primary"
+              className="w-full text-sm py-3 flex items-center justify-center gap-2"
+            >
+              {isBulkBooking ? (
+                'Запазване...'
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  {`Запази всички маркирани (${selectedSessionIds.length})`}
+                </>
+              )}
+            </Button>
+          </div>
+          {/* Desktop sticky button - centered at bottom */}
+          <div className="hidden lg:block fixed bottom-4 left-1/2 -translate-x-1/2 z-[60]">
+            <Button
+              onClick={handleBulkBook}
+              disabled={isBulkBooking}
+              variant="primary"
+              className="shadow-lg text-lg py-3 px-6 flex items-center gap-2"
+            >
+              {isBulkBooking ? (
+                'Запазване...'
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  {`Запази всички маркирани (${selectedSessionIds.length})`}
+                </>
+              )}
+            </Button>
+          </div>
+        </>
+      )}
     </>
   );
 };

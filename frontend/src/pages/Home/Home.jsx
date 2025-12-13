@@ -280,17 +280,12 @@ const Home = () => {
             >
               <div className="absolute top-0 -left-4 w-24 h-24 bg-[#ea7a24]/10 rounded-full blur-2xl"></div>
               <div className="relative bg-white p-6 sm:p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 hover:-translate-y-2 transition-transform duration-300">
-                <h3 className="text-xl sm:text-2xl font-bold text-neutral-900 mb-3 sm:mb-4">Индивидуален подход</h3>
+                <h3 className="text-xl sm:text-2xl font-bold text-neutral-900 mb-3 sm:mb-4">Умения и увереност</h3>
                 <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-neutral-600 leading-relaxed">
                   <p>
-                    Обръщаме внимание както на техниката и движението, така и на безопасността
-                    и правилното поведение в залата.
+                  Работим за изграждане на добра техника и двигателна култура, както и за навици за безопасност и отговорност в залата. Тренировките са подходящи за деца от различни възрасти и с различен опит. Разпределяме децата в подходящи групи спрямо нивото им, за да се чувстват спокойни, уверени и мотивирани.
                   </p>
-                  <p>
-                    Тренировките са подходящи за деца от различни възрасти, както за напълно начинаещи,
-                    така и за деца с предишен опит в катеренето. Групите се формират според възрастта и нивото,
-                    така че всяко дете да се чувства комфортно и уверено.
-                  </p>
+              
                 </div>
               </div>
             </Reveal>
@@ -398,7 +393,7 @@ const Home = () => {
 
             <div className="grid grid-cols-2 gap-3 sm:gap-6 md:gap-8 mb-12 sm:mb-16 px-2 sm:px-4">
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 hover:bg-white/10 transition-colors">
-                <h3 className="text-sm sm:text-base md:text-xl font-medium text-white/80 mb-2 sm:mb-4">Единична тренировка</h3>
+                <h3 className="text-sm sm:text-base md:text-xl font-medium text-white/80 mb-2 sm:mb-4">Една тренировка в група</h3>
                 <div className="flex justify-center items-baseline gap-1 mb-1 sm:mb-2">
                   <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">24</span>
                   <span className="text-sm sm:text-lg md:text-xl text-white/60">лв</span>
@@ -407,7 +402,7 @@ const Home = () => {
               </div>
 
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 hover:bg-white/10 transition-colors">
-                <h3 className="text-sm sm:text-base md:text-xl font-medium text-white/80 mb-2 sm:mb-4">Карта - 8 тренировки</h3>
+                <h3 className="text-sm sm:text-base md:text-xl font-medium text-white/80 mb-2 sm:mb-4">Карта - 8 тренировки в група</h3>
                 <div className="flex justify-center items-baseline gap-1 mb-1 sm:mb-2">
                   <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">144</span>
                   <span className="text-sm sm:text-lg md:text-xl text-white/60">лв</span>

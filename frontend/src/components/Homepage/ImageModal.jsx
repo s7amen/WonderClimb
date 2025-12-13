@@ -110,3 +110,4 @@ const ImageModal = ({ images, selectedIndex, onClose }) => {
 
 export default ImageModal;
 
+
